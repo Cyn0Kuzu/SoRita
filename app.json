@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "SoRita",
+    "slug": "sorita",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/So_Rita.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/So_Rita.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0ea5e9"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.memode.sorita",
+      "statusBar": {
+        "barStyle": "light-content",
+        "backgroundColor": "#0369a1"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/So_Rita.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.memode.sorita",
+      "statusBar": {
+        "barStyle": "light-content",
+        "backgroundColor": "#0369a1"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBxgDpK3-dWsuXewlIWB68ubkuH4Q4eEB8"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/So_Rita.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Bu uygulama konum bilgilerinizi harita özelliklerini kullanabilmek için gerektirir."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Bu uygulama profil fotoğrafı seçmek için galeri erişimi gerektirir.",
+          "cameraPermission": "Bu uygulama profil fotoğrafı çekmek için kamera erişimi gerektirir."
+        }
+      ],
+      "expo-dev-client"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "60b2745f-2ad0-45cb-b898-90526d5c1040"
+      }
+    },
+    "owner": "cayan"
+  }
+}
