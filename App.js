@@ -1,68 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar, AppState } from 'react-native';
+import { StatusBar, View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Provider as PaperProvider } from 'react-native-paper';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 
-// Global error handlers
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  // Filter out known warnings/errors that are safe to ignore
-  const message = args[0]?.toString() || '';
-  if (message.includes('VirtualizedList') || 
-      message.includes('componentWillReceiveProps') ||
-      message.includes('componentWillMount')) {
-    return; // Suppress these warnings
-  }
-  originalConsoleError.apply(console, args);
-};
+// Services
+import ComprehensiveDataService from './src/services/comprehensiveDataService';
+import AuthService from './src/services/authService';
+import GlobalStateService from './src/services/globalStateService';
 
-// Handle unhandled promise rejections (React Native compatible)
-const handleUnhandledRejection = (reason) => {
-  console.log('🚨 [App] Unhandled promise rejection:', reason);
-};
-
-// Handle uncaught exceptions (if available)
-if (typeof process !== 'undefined' && process.on) {
-  process.on('uncaughtException', (error) => {
-    console.log('🚨 [App] Uncaught exception:', error.message);
-  });
-
-  process.on('unhandledRejection', (reason, promise) => {
-    console.log('🚨 [App] Unhandled rejection at:', promise, 'reason:', reason);
-    handleUnhandledRejection(reason);
-  });
-}
-
-// Minimal screens
+// Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-import NotificationsScreen from './src/screens/NotificationsScreen';
+import EmailVerificationScreen from './src/screens/EmailVerificationScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import LoadingScreen from './src/components/LoadingScreen';
-import GlobalStateService from './src/services/globalStateService';
 
-import { theme, colors } from './src/theme/theme';
-import { auth } from './src/config/firebase';
-import { configureGlobalStatusBar, AppStatusBar } from './src/components/AppStatusBar';
-import { getRegistrationInProgress, AuthService } from './src/services/authService';
-import { 
-  registerForPushNotifications, 
-  handleNotificationReceived, 
-  handleNotificationResponse 
-} from './src/services/pushNotificationService';
-
-// Import comprehensive data services
-import ComprehensiveDataService from './src/services/comprehensiveDataService';
-import { OnboardingService } from './src/services/onboardingService';
-import ActivityService from './src/services/activityService';
-import UserDataService from './src/services/userDataService';
-import ImageMaintenanceService from './src/services/imageMaintenanceService';
+// Utils
+import { configureGlobalStatusBar } from './src/utils/statusBarConfig';
 
 const Stack = createStackNavigator();
 

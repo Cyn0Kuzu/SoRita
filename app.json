@@ -4,9 +4,9 @@
     "slug": "sorita",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/So_Rita.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "jsEngine": "jsc",
+    "jsEngine": "hermes",
     "developmentClient": {
       "silentLaunch": false
     },
@@ -20,22 +20,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sorita",
-      "statusBar": {
-        "barStyle": "light-content",
-        "backgroundColor": "#0369a1"
-      }
+      "bundleIdentifier": "com.sorita"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/So_Rita.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.sorita",
-      "statusBar": {
-        "barStyle": "light-content",
-        "backgroundColor": "#0369a1"
-      },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -55,7 +47,9 @@
     },
     "plugins": [
       "expo-location",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-font",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
