@@ -6,6 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/So_Rita.png",
     "userInterfaceStyle": "light",
+    "jsEngine": "jsc",
+    "developmentClient": {
+      "silentLaunch": false
+    },
     "splash": {
       "image": "./assets/So_Rita.png",
       "resizeMode": "contain",
@@ -16,7 +20,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.memode.sorita",
+      "bundleIdentifier": "com.sorita",
       "statusBar": {
         "barStyle": "light-content",
         "backgroundColor": "#0369a1"
@@ -27,7 +31,7 @@
         "foregroundImage": "./assets/So_Rita.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.memode.sorita",
+      "package": "com.sorita",
       "statusBar": {
         "barStyle": "light-content",
         "backgroundColor": "#0369a1"
@@ -50,20 +54,8 @@
       "favicon": "./assets/So_Rita.png"
     },
     "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Bu uygulama konum bilgilerinizi harita özelliklerini kullanabilmek için gerektirir."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Bu uygulama profil fotoğrafı seçmek için galeri erişimi gerektirir.",
-          "cameraPermission": "Bu uygulama profil fotoğrafı çekmek için kamera erişimi gerektirir."
-        }
-      ],
-      "expo-dev-client"
+      "expo-location",
+      "expo-image-picker"
     ],
     "extra": {
       "eas": {
