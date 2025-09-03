@@ -56,8 +56,14 @@ export default function WelcomeScreen({ navigation }) {
               )}
             </View>
             <Text style={styles.termsText}>
-              <Text style={styles.termsLink}>Gizlilik Politikası</Text> ve{' '}
-              <Text style={styles.termsLink}>Kullanım Koşulları</Text>'nı kabul ediyorum
+              <Text style={styles.termsLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                Gizlilik Politikası
+              </Text>
+              <Text> ve </Text>
+              <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsOfService')}>
+                Kullanım Koşulları
+              </Text>
+              <Text>'nı kabul ediyorum</Text>
             </Text>
           </TouchableOpacity>
         </View>

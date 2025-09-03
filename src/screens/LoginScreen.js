@@ -14,10 +14,51 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { colors } from '../theme/theme';
 import { AuthService } from '../services/authService';
 import AppHeader from '../components/AppHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
+
+// Development helpers for login
+if (__DEV__) {
+  // Add quick access to dev helpers
+  global.quickLogin = async (email = 'cayankuzu.0@gmail.com', passwordIndex = 0) => {
+    console.log('🚀 [QuickLogin] Attempting login with:', email);
+    
+    const testPasswords = ['12345678', '123456789', 'password123', 'cayan123', 'test1234'];
+    const password = testPasswords[passwordIndex];
+    
+    try {
+      const result = await AuthService.loginUser(email, password);
+      console.log('✅ [QuickLogin] Success!');
+      return result;
+    } catch (error) {
+      console.error('❌ [QuickLogin] Failed:', error.message);
+      console.log('💡 [QuickLogin] Try different password index (0-4) or use password reset');
+      throw error;
+    }
+  };
+  
+  // Test SecureStore
+  global.testSecureStore = async () => {
+    try {
+      console.log('🔧 Testing SecureStore...');
+      await SecureStore.setItemAsync('test', 'value');
+      const value = await SecureStore.getItemAsync('test');
+      await SecureStore.deleteItemAsync('test');
+      console.log('✅ SecureStore working:', value === 'value');
+      return true;
+    } catch (error) {
+      console.error('❌ SecureStore failed:', error.message);
+      return false;
+    }
+  };
+  
+  console.log('🔧 [LoginScreen] Development helpers loaded');
+  console.log('💡 [LoginScreen] Try: quickLogin() for quick test login');
+  console.log('🔧 [LoginScreen] Try: testSecureStore() to test storage');
+}
 
 const LoginScreen = ({ navigation, route }) => {
   const [formData, setFormData] = useState({

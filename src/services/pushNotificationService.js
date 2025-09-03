@@ -109,7 +109,12 @@ export const sendPushNotification = async (userId, title, message, data = {}) =>
     const pushToken = userData.pushToken;
     
     if (!pushToken) {
-      console.warn('⚠️ [PushNotificationService] No push token found for user:', userId);
+      // Only warn in production - this is expected in development
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('⚠️ [PushNotificationService] No push token found for user:', userId);
+      } else {
+        console.log('📝 [PushNotificationService] No push token for user (expected in development):', userId);
+      }
       return { success: false, error: 'No push token' };
     }
     

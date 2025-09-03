@@ -27,6 +27,24 @@ export class AuthService {
   static usernameCheckTimeout = null;
   static emailCheckTimeout = null;
 
+  // Development helper function to reset test accounts
+  static async resetTestAccountPassword(email) {
+    if (!__DEV__) {
+      throw new Error('This function is only available in development mode');
+    }
+    
+    try {
+      console.log('🔧 [AuthService] Resetting password for test account:', email);
+      await sendPasswordResetEmail(auth, email);
+      console.log('✅ [AuthService] Password reset email sent successfully');
+      console.log('📧 [AuthService] Check your email and click the reset link');
+      return { success: true, message: 'Password reset email sent' };
+    } catch (error) {
+      console.error('❌ [AuthService] Password reset failed:', error);
+      throw error;
+    }
+  }
+
   // Generate username suggestions
   static generateUsernameSuggestions(username) {
     const suggestions = [];
@@ -351,6 +369,7 @@ export class AuthService {
         console.log('📧 [AuthService] Test account 1: finduk513@gmail.com');
         console.log('📧 [AuthService] Test account 2: cayankuzu.0@gmail.com');
         console.log('💡 [AuthService] If you forgot password, use "Şifremi Unuttum" button');
+        console.log('🔍 [AuthService] Current attempt - Email:', email, 'Password length:', password?.length);
       }
       
       // Step 1: Validate inputs
@@ -479,17 +498,34 @@ export class AuthService {
           if (passwordResetPending === 'true' && 
               passwordResetEmail && 
               passwordResetEmail.toLowerCase() === email.trim().toLowerCase()) {
-            console.log('� [AuthService] Password reset completed - updating saved credentials with new password');
+            console.log('🔄 [AuthService] Password reset completed - updating saved credentials with new password');
             
             // Clear the password reset tracking
             await AsyncStorage.removeItem('passwordResetPending');
             await AsyncStorage.removeItem('passwordResetEmail');
           }
           
-          await SecureStore.setItemAsync('userEmail', email.trim().toLowerCase());
-          await SecureStore.setItemAsync('userPassword', password);
-          await AsyncStorage.setItem('autoLoginEnabled', 'true');
-          console.log('✅ [AuthService] Credentials saved successfully');
+          // Save credentials with error handling
+          try {
+            await SecureStore.setItemAsync('userEmail', email.trim().toLowerCase());
+            await SecureStore.setItemAsync('userPassword', password);
+            await AsyncStorage.setItem('autoLoginEnabled', 'true');
+            console.log('✅ [AuthService] Credentials saved successfully');
+          } catch (secureStoreError) {
+            console.warn('⚠️ [AuthService] SecureStore failed, clearing and disabling auto-login:', secureStoreError.message);
+            
+            // Clear potentially corrupted data and disable auto-login
+            try {
+              await SecureStore.deleteItemAsync('userEmail');
+              await SecureStore.deleteItemAsync('userPassword');
+              await AsyncStorage.setItem('autoLoginEnabled', 'false');
+            } catch (clearError) {
+              console.warn('⚠️ [AuthService] Could not clear SecureStore:', clearError.message);
+            }
+            
+            // Don't throw error - just continue without saving credentials
+            console.log('📝 [AuthService] Login continues without credential saving');
+          }
         } catch (storageError) {
           console.log('⚠️ [AuthService] Could not save credentials:', storageError.message);
           // Don't fail login just because we can't save credentials
@@ -533,7 +569,7 @@ export class AuthService {
       } else if (error.code === 'auth/invalid-login-credentials') {
         if (__DEV__) {
           // In development, provide more helpful error message
-          errorMessage = 'E-posta veya şifre hatalı.\n\nTest hesapları:\n• finduk513@gmail.com\n• cayankuzu.0@gmail.com\n\nE-posta adresini doğru yazdığınızdan emin olun.';
+          errorMessage = `E-posta veya şifre hatalı.\n\nTest hesapları:\n• finduk513@gmail.com\n• cayankuzu.0@gmail.com\n\nGirdiğiniz bilgiler:\n• E-posta: ${email}\n• Şifre uzunluğu: ${password?.length}\n\nE-posta adresini doğru yazdığınızdan ve şifrenin doğru olduğundan emin olun.`;
         } else {
           errorMessage = 'E-posta veya şifre hatalı';
         }
@@ -686,8 +722,25 @@ export class AuthService {
         return { hasCredentials: false };
       }
 
-      const email = await SecureStore.getItemAsync('userEmail');
-      const password = await SecureStore.getItemAsync('userPassword');
+      let email, password;
+      
+      try {
+        email = await SecureStore.getItemAsync('userEmail');
+        password = await SecureStore.getItemAsync('userPassword');
+      } catch (secureStoreError) {
+        console.warn('⚠️ [AuthService] SecureStore error, clearing corrupted data:', secureStoreError.message);
+        
+        // Clear potentially corrupted SecureStore data
+        try {
+          await SecureStore.deleteItemAsync('userEmail');
+          await SecureStore.deleteItemAsync('userPassword');
+          await AsyncStorage.setItem('autoLoginEnabled', 'false');
+        } catch (clearError) {
+          console.warn('⚠️ [AuthService] Could not clear corrupted data:', clearError.message);
+        }
+        
+        return { hasCredentials: false };
+      }
 
       if (email && password) {
         console.log('✅ [AuthService] Saved credentials found');
@@ -746,8 +799,21 @@ export class AuthService {
   static async clearSavedCredentials() {
     try {
       console.log('🗑️ [AuthService] Clearing saved credentials...');
-      await SecureStore.deleteItemAsync('userEmail');
-      await SecureStore.deleteItemAsync('userPassword');
+      
+      // Clear SecureStore items with individual error handling
+      try {
+        await SecureStore.deleteItemAsync('userEmail');
+      } catch (error) {
+        console.warn('⚠️ [AuthService] Could not delete userEmail from SecureStore:', error.message);
+      }
+      
+      try {
+        await SecureStore.deleteItemAsync('userPassword');
+      } catch (error) {
+        console.warn('⚠️ [AuthService] Could not delete userPassword from SecureStore:', error.message);
+      }
+      
+      // Clear AsyncStorage items
       await AsyncStorage.removeItem('autoLoginEnabled');
       
       // Also clear password reset tracking

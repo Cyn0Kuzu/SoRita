@@ -1,6 +1,6 @@
-import { registerRootComponent } from 'expo';
+import {AppRegistry} from 'react-native';
 import App from './App';
+import {name as appName} from './package.json';
 
-// Ensure the main component is registered so RN runtime can start
-registerRootComponent(App);
+AppRegistry.registerComponent(appName, () => App);
 

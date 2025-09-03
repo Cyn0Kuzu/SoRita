@@ -40,3 +40,100 @@ export const colors = {
   success: '#10b981',
   lightBackground: '#f8fafc',
 };
+
+// Common Spacing
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+// Common Typography
+export const typography = {
+  h1: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+  },
+  h2: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+  },
+  h3: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  body: {
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  bodySmall: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  caption: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+};
+
+// Common Styles
+export const commonStyles = {
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginVertical: spacing.sm,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spaceBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  shadow: {
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  button: {
+    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  input: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+  },
+};
+
+export default theme;

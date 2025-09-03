@@ -7,6 +7,24 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# React Native rules
+-keep class com.facebook.react.** { *; }
+-keep class com.facebook.soloader.** { *; }
+-keepclassmembers class * {
+    @com.facebook.react.uimanager.annotations.ReactProp <methods>;
+}
+-keepclassmembers class * {
+    @com.facebook.react.uimanager.annotations.ReactPropGroup <methods>;
+}
+
+# Firebase rules
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+
+# Hermes rules
+-keep class com.facebook.hermes.unicode.** { *; }
+-keep class com.facebook.jni.** { *; }
+
 # react-native-reanimated
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
