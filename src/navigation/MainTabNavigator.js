@@ -41,13 +41,17 @@ function ProfileStackNavigator() {
 }
 
 export default function MainTabNavigator() {
-  // console.log('🧭 [Navigation] MainTabNavigator rendering...');
+  console.log('🧭 [Navigation] MainTabNavigator rendering...');
   
   // StatusBar'ı MainTabNavigator için ayarla
   useEffect(() => {
+    console.log('🧭 [Navigation] MainTabNavigator useEffect - setting up StatusBar');
     StatusBar.setBarStyle('light-content', true);
     StatusBar.setBackgroundColor(colors.primary, true);
   }, []);
+  
+  // Early return with debug info
+  console.log('🧭 [Navigation] About to render Tab.Navigator with Home, Map, Profile tabs');
   
   return (
     <Tab.Navigator

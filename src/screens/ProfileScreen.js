@@ -15,7 +15,7 @@ import {
   Share
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Text, Menu, Provider as PaperProvider, Button } from 'react-native-paper';
+import { Text, Menu, Button } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1243,11 +1243,10 @@ export default function ProfileScreen({ navigation }) {
   }
 
   return (
-    <PaperProvider>
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <AppStatusBar />
-        {/* Header */}
-        <View style={styles.headerContainer}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <AppStatusBar />
+      {/* Header */}
+      <View style={styles.headerContainer}>
           <SoRitaHeader 
             rightIcon="settings"
             onRightPress={() => setMenuVisible(true)}
@@ -1783,7 +1782,6 @@ export default function ProfileScreen({ navigation }) {
           title="Profil Fotoğrafı"
         />
       </SafeAreaView>
-    </PaperProvider>
   );
 }
 

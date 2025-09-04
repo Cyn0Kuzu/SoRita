@@ -7,7 +7,7 @@ import {
   Alert,
   StatusBar
 } from 'react-native';
-import { Text, Menu, Provider as PaperProvider } from 'react-native-paper';
+import { Text, Menu } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme/theme';
@@ -160,13 +160,12 @@ export default function ProfileScreen({ navigation }) {
   }
 
   return (
-    <PaperProvider>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-        
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profil</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profil</Text>
           
           <Menu
             visible={menuVisible}
@@ -221,7 +220,6 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
       </SafeAreaView>
-    </PaperProvider>
   );
 }
 

@@ -305,7 +305,7 @@ const PlaceCard = ({
     const currentUser = auth.currentUser;
     if (currentUser && place.userId === currentUser.uid) {
       // Kendi profilini açıyor, ProfileScreen'e git
-      navigation.navigate('Profile');
+      navigation.getParent()?.navigate('Profile');
     } else {
       // Başka birinin profilini açıyor, ViewProfileScreen'e git
       navigation.navigate('ViewProfile', { 

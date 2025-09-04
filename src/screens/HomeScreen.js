@@ -846,14 +846,14 @@ export default function HomeScreen({ navigation }) {
           <>
             <TouchableOpacity 
               style={styles.primaryActionButton}
-              onPress={() => navigation.navigate('Map')}
+              onPress={() => navigation.navigate('MapScreen')}
             >
               <MaterialIcons name="add-location" size={20} color="#fff" />
               <Text style={styles.primaryActionText}>İlk Listeni Oluştur</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.secondaryActionButton}
-              onPress={() => navigation.navigate('Map')}
+              onPress={() => navigation.navigate('MapScreen')}
             >
               <MaterialIcons name="explore" size={20} color={colors.primary} />
               <Text style={styles.secondaryActionText}>Haritayı Keşfet</Text>
@@ -870,7 +870,7 @@ export default function HomeScreen({ navigation }) {
         ) : (
           <TouchableOpacity 
             style={styles.primaryActionButton}
-            onPress={() => navigation.navigate('Map')}
+            onPress={() => navigation.navigate('MapScreen')}
           >
             <MaterialIcons name="explore" size={20} color="#fff" />
             <Text style={styles.primaryActionText}>Haritayı Keşfet</Text>
@@ -1002,7 +1002,7 @@ export default function HomeScreen({ navigation }) {
       {sortType === 'lists' && (
         <TouchableOpacity 
           style={styles.fab}
-          onPress={() => navigation.navigate('Map')}
+          onPress={() => navigation.navigate('MapScreen')}
         >
           <MaterialIcons name="add" size={24} color="#fff" />
         </TouchableOpacity>

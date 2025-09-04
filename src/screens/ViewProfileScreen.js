@@ -92,7 +92,8 @@ export default function ViewProfileScreen({ route, navigation }) {
   // Don't let users view their own profile - redirect to ProfileScreen
   useEffect(() => {
     if (currentUser && userId === currentUser.uid) {
-      navigation.navigate('Profile');
+      // Navigate to Profile tab instead of stack screen
+      navigation.getParent()?.navigate('Profile');
       return;
     }
     
@@ -769,7 +770,7 @@ export default function ViewProfileScreen({ route, navigation }) {
               if (item.id !== auth.currentUser?.uid) {
                 navigation.navigate('ViewProfile', { userId: item.id });
               } else {
-                navigation.navigate('Profile');
+                navigation.getParent()?.navigate('Profile');
               }
             }}
           >
