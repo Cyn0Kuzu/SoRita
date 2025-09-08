@@ -19,6 +19,7 @@ import { colors } from '../theme/theme';
 import { AuthService } from '../services/authService';
 import AppHeader from '../components/AppHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
+import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 
 // Development helpers for login
 if (__DEV__) {
@@ -439,7 +440,7 @@ const LoginScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+    <EdgeToEdgeScreen style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <AppStatusBar />
       {/* Header */}
       <AppHeader />
@@ -535,7 +536,7 @@ const LoginScreen = ({ navigation, route }) => {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </EdgeToEdgeScreen>
   );
 };
 

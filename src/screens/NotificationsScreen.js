@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme/theme';
 import { auth, db } from '../config/firebase';
+import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 import { 
   collection, 
   query, 
@@ -595,7 +596,7 @@ export default function NotificationsScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <EdgeToEdgeScreen style={styles.container}>
       <AppStatusBar />
       <SoRitaHeader 
         showBackButton={true}
@@ -623,7 +624,7 @@ export default function NotificationsScreen({ navigation }) {
         ]}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </EdgeToEdgeScreen>
   );
 }
 

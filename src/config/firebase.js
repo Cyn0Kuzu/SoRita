@@ -1,33 +1,67 @@
-// Firebase configuration
+// Firebase configuration with crash protection
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator, enableNetwork, disableNetwork, initializeFirestore } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 // Your web app's Firebase configuration
-// Replace with your actual Firebase config from Firebase Console
 const firebaseConfig = {
-  apiKey: "AIzaSyCqV8fgC6485ZKTb2pg5-gVXbL9-E45g34", // Web API key
+  apiKey: "AIzaSyCqV8fgC6485ZKTb2pg5-gVXbL9-E45g34",
   authDomain: "sorita-6d27e.firebaseapp.com",
   projectId: "sorita-6d27e",
   storageBucket: "sorita-6d27e.firebasestorage.app",
   messagingSenderId: "1062599764816",
-  appId: "1:1062599764816:web:6c413021894e9a4a719a55", // Web App ID
+  appId: "1:1062599764816:web:6c413021894e9a4a719a55",
   measurementId: "G-3KQNJLF17H"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app, db, auth, storage;
 
-// Initialize Firestore with optimized settings for better connection stability
-export const db = initializeFirestore(app, {
-  cacheSizeBytes: 40 * 1024 * 1024, // 40 MB cache
-  experimentalForceLongPolling: false, // Use WebSocket when available
-});
+try {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
 
-// Initialize other Firebase services
-export const auth = getAuth(app);
-export const storage = getStorage(app);
+  // Initialize Firestore with safe settings
+  try {
+    db = initializeFirestore(app, {
+      cacheSizeBytes: 20 * 1024 * 1024, // 20 MB cache (reduced for stability)
+      experimentalForceLongPolling: false,
+    });
+  } catch (e) {
+    console.log('Firestore init fallback');
+    db = getFirestore(app);
+  }
+
+  // Initialize other Firebase services
+  auth = getAuth(app);
+  storage = getStorage(app);
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+  // Create dummy objects to prevent crashes
+  auth = {
+    currentUser: null,
+    signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase not initialized')),
+    createUserWithEmailAndPassword: () => Promise.reject(new Error('Firebase not initialized')),
+    signOut: () => Promise.reject(new Error('Firebase not initialized')),
+  };
+  db = null;
+  storage = null;
+}
+
+// Null check fonksiyonları ekle
+export const isFirebaseReady = () => {
+  return app && db && auth && storage;
+};
+
+export const getFirebaseError = () => {
+  if (!app) return 'Firebase app not initialized';
+  if (!db) return 'Firestore not initialized';
+  if (!auth) return 'Auth not initialized';
+  if (!storage) return 'Storage not initialized';
+  return null;
+};
+
+export { db, auth, storage };
 
 // Firebase emulators devre dışı - gerçek Firebase kullanıyoruz
 /*

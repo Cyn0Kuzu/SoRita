@@ -1,8 +1,9 @@
 import React, { useEffect, memo } from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -43,6 +44,9 @@ function ProfileStackNavigator() {
 export default function MainTabNavigator() {
   console.log('🧭 [Navigation] MainTabNavigator rendering...');
   
+  // Get safe area insets for proper bottom padding
+  const insets = useSafeAreaInsets();
+  
   // StatusBar'ı MainTabNavigator için ayarla
   useEffect(() => {
     console.log('🧭 [Navigation] MainTabNavigator useEffect - setting up StatusBar');
@@ -63,23 +67,23 @@ export default function MainTabNavigator() {
             if (route.name === 'Home') {
               return <MaterialCommunityIcons 
                 name={focused ? 'home' : 'home-outline'} 
-                size={size} 
+                size={24} 
                 color={color} 
               />;
             } else if (route.name === 'Map') {
               return <MaterialCommunityIcons 
                 name={focused ? 'map' : 'map-outline'} 
-                size={size} 
+                size={24} 
                 color={color} 
               />;
             } else if (route.name === 'Profile') {
               return <MaterialCommunityIcons 
                 name={focused ? 'account' : 'account-outline'} 
-                size={size} 
+                size={24} 
                 color={color} 
               />;
             }
-            return <MaterialCommunityIcons name="help-circle" size={size} color={color} />;
+            return <MaterialCommunityIcons name="help-circle" size={24} color={color} />;
           },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
@@ -93,13 +97,24 @@ export default function MainTabNavigator() {
             },
             shadowOpacity: 0.1,
             shadowRadius: 3,
-            height: 60,
+            height: 65,
             paddingBottom: 8,
             paddingTop: 8,
+            paddingLeft: Math.max(insets.left, 0),
+            paddingRight: Math.max(insets.right, 0),
+            // Sistem navigasyon barının üstünde konumlandır
+            marginBottom: Platform.OS === 'android' ? insets.bottom : 0,
+            // iOS için safe area padding
+            ...(Platform.OS === 'ios' && {
+              height: 65 + insets.bottom,
+              paddingBottom: insets.bottom + 8,
+            }),
           },
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
+            marginTop: 2,
+            marginBottom: 2,
           },
           headerShown: false,
         };

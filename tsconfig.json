@@ -34,7 +34,14 @@
   "exclude": [
     "node_modules",
     "android",
-    "ios"
+    "ios",
+    "*_backup.js",
+    "*_fixed.js",
+    "*_test.js",
+    "*_old.js",
+    "*-backup.js",
+    "*-test.js",
+    "App_*.js"
   ],
   "extends": "expo/tsconfig.base"
 }

@@ -24,6 +24,7 @@ import ViewListModal from '../components/ViewListModal';
 import { AppStatusBar } from '../components/AppStatusBar';
 import { AuthService } from '../services/authService';
 import CollaborativeListService from '../services/collaborativeListService';
+import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 
 // Import data services
 import { ActivityService } from '../services/activityService';

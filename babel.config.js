@@ -4,15 +4,5 @@ module.exports = function(api) {
     presets: [
       'babel-preset-expo'
     ],
-    plugins: [
-      // Essential plugins for React Native
-    ],
-    env: {
-      production: {
-        plugins: [
-          // Production optimizations
-        ]
-      }
-    }
   };
 };

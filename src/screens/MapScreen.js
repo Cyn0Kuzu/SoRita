@@ -25,6 +25,7 @@ import { colors } from '../theme/theme';
 import { placesService } from '../services/placesService';
 import SoRitaHeader from '../components/SoRitaHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
+import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 import { pickImageFromLibraryAndUpload } from '../utils/imagePicker';
 import { auth, db } from '../config/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -1749,7 +1750,7 @@ const MapScreen = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <EdgeToEdgeScreen style={styles.container} edges={['top', 'left', 'right']}>
       <AppStatusBar />
       
       {/* If we came from ViewList, don't show header and map */}
@@ -2728,7 +2729,7 @@ const MapScreen = ({ navigation, route }) => {
           </ScrollView>
         </View>
       )}
-    </SafeAreaView>
+    </EdgeToEdgeScreen>
   );
 };
 

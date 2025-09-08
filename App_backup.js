@@ -1,110 +1,284 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import React, { useState, useEffect } from 'react';
+import { StatusBar, View, Text, ActivityIndicator, Platform, Alert, LogBox } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PaperProvider } from 'react-native-paper';
+import { EdgeToEdge } from 'react-native-edge-to-edge';
 
-export default function App() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="auto" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>SoRita Test App</Text>
-          <Text style={styles.subtitle}>Basit Test Sürümü</Text>
-        </View>
-        
-        <View style={styles.content}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Uygulama Durumu</Text>
-            <Text style={styles.cardText}>✅ Uygulama başarıyla çalışıyor!</Text>
-            <Text style={styles.cardText}>🚀 Metro bundler aktif</Text>
-            <Text style={styles.cardText}>📱 Expo Go ile test edilebilir</Text>
-          </View>
-          
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Test Özellikleri</Text>
-            <Text style={styles.cardText}>• React Native temel bileşenler</Text>
-            <Text style={styles.cardText}>• Expo StatusBar</Text>
-            <Text style={styles.cardText}>• SafeAreaView desteği</Text>
-            <Text style={styles.cardText}>• ScrollView desteği</Text>
-          </View>
-          
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sonraki Adımlar</Text>
-            <Text style={styles.cardText}>1. Basit test başarılı</Text>
-            <Text style={styles.cardText}>2. Ana uygulamaya geçiş</Text>
-            <Text style={styles.cardText}>3. Özellik ekleme</Text>
-          </View>
-        </View>
-        
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>SoRita © 2025</Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+// Ignore known warnings
+LogBox.ignoreLogs([
+  'Warning: ...',
+  'Require cycle:',
+  'Remote debugger',
+  'Setting a timer',
+  'VirtualizedLists should never be nested',
+  'Animated: `useNativeDriver`'
+]);
+
+// Enhanced global error handler
+const originalHandler = ErrorUtils.getGlobalHandler();
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  console.error('Global Error:', error);
+  console.error('Stack trace:', error.stack);
+  
+  if (__DEV__) {
+    Alert.alert(
+      'Uygulama Hatası',
+      `Bir hata oluştu: ${error.message}`,
+      [{ text: 'Tamam' }]
+    );
+  }
+  
+  // Don't call original handler for non-fatal errors in production
+  if (isFatal || __DEV__) {
+    originalHandler(error, isFatal);
+  }
+});
+
+// Components
+import AppStatusBar from './src/components/AppStatusBar';
+
+// Theme
+import { theme, brandColors as colors } from './src/theme/theme';
+
+// Firebase - Safe imports
+let auth, onAuthStateChanged;
+try {
+  const firebaseAuth = require('firebase/auth');
+  const firebaseConfig = require('./src/config/firebase');
+  auth = firebaseConfig.auth;
+  onAuthStateChanged = firebaseAuth.onAuthStateChanged;
+} catch (error) {
+  console.error('Firebase import error:', error);
+  auth = null;
+  onAuthStateChanged = null;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-    paddingVertical: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 12,
-  },
-  cardText: {
-    fontSize: 14,
-    color: '#475569',
-    marginBottom: 6,
-    lineHeight: 20,
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 30,
-    paddingVertical: 20,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#94a3b8',
-  },
-});
+// Services - Safe imports
+let ComprehensiveDataService, AuthService, GlobalStateService;
+try {
+  ComprehensiveDataService = require('./src/services/comprehensiveDataService').default;
+  AuthService = require('./src/services/authService').AuthService;
+  GlobalStateService = require('./src/services/globalStateService').default;
+} catch (error) {
+  console.error('Services import error:', error);
+}
+
+// Screens
+import WelcomeScreen from './src/screens/WelcomeScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+import EmailVerificationScreen from './src/screens/EmailVerificationScreen';
+import MainTabNavigator from './src/navigation/MainTabNavigator';
+import LoadingScreen from './src/components/LoadingScreen';
+
+// Utils
+import { configureGlobalStatusBar } from './src/utils/statusBarConfig';
+import { setupGlobalErrorHandler, logError } from './src/utils/errorHandler';
+import PerformanceMonitor from './src/utils/performanceMonitor';
+import { FEATURE_FLAGS } from './src/config/environment';
+
+const Stack = createStackNavigator();
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
+  
+  console.log('🚀 [App] Application starting...');
+  
+  // Setup global error handling
+  setupGlobalErrorHandler();
+  
+  // Start performance monitoring
+  PerformanceMonitor.startTimer('appInit');
+  
+  // Enable edge-to-edge display for Android 15+ compatibility
+  useEffect(() => {
+    try {
+      if (Platform.OS === 'android') {
+        EdgeToEdge.enable();
+        
+        // Configure StatusBar for edge-to-edge
+        StatusBar.setTranslucent(true);
+        StatusBar.setBackgroundColor('transparent');
+        
+        if (FEATURE_FLAGS.ENABLE_LOGGING) {
+          console.log('✅ [App] Android edge-to-edge enabled with safe areas');
+        }
+      }
+    } catch (error) {
+      logError(error, 'Edge-to-edge setup');
+    }
+  }, []);
+  
+  // Configure global StatusBar
+  configureGlobalStatusBar();
+
+  // Initialize user data after authentication
+  const initializeUserData = async (firebaseUser) => {
+    try {
+      if (!firebaseUser) {
+        console.log('🔓 [App] No user authenticated');
+        setUser(null);
+        return;
+      }
+
+      console.log('🔐 [App] User authenticated, initializing data...');
+      
+      // Safe service calls
+      if (ComprehensiveDataService && typeof ComprehensiveDataService.initializeUserData === 'function') {
+        await ComprehensiveDataService.initializeUserData(firebaseUser.uid);
+      }
+      
+      if (GlobalStateService && typeof GlobalStateService.setCurrentUser === 'function') {
+        GlobalStateService.setCurrentUser(firebaseUser);
+      }
+      
+      setUser(firebaseUser);
+      
+      if (FEATURE_FLAGS?.ENABLE_LOGGING) {
+        console.log('✅ [App] User data initialized successfully');
+      }
+    } catch (error) {
+      console.error('❌ [App] Error initializing user data:', error);
+      // Don't crash the app, just log the error
+      setUser(firebaseUser); // Set user anyway to allow app usage
+    }
+  };
+
+  useEffect(() => {
+    if (!auth || !onAuthStateChanged) {
+      console.warn('Firebase auth not available, setting as not authenticated');
+      setInitializing(false);
+      return;
+    }
+
+    console.log('🔍 [App] Setting up auth listener...');
+    
+    try {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        console.log('🔐 [App] Auth state changed:', firebaseUser?.email || 'No user');
+        
+        if (firebaseUser) {
+          console.log('✅ [App] User authenticated:', firebaseUser.email);
+          initializeUserData(firebaseUser);
+        } else {
+          console.log('🔓 [App] User not authenticated');
+          setUser(null);
+        }
+        
+        if (initializing) {
+          setInitializing(false);
+          if (FEATURE_FLAGS?.ENABLE_LOGGING) {
+            console.log('🏁 [App] App initialization complete');
+          }
+          PerformanceMonitor.endTimer('appInit');
+        }
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ [App] Auth listener setup failed:', error);
+      setInitializing(false);
+      return () => {};
+    }
+  }, []);
+
+  // Show loading screen while initializing
+  if (initializing) {
+    return (
+      <SafeAreaProvider>
+        <PaperProvider theme={theme}>
+          <View style={{ 
+            flex: 1, 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            backgroundColor: colors.background,
+            paddingHorizontal: 20 
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: 40 }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ 
+                color: colors.text, 
+                marginTop: 20, 
+                fontSize: 16,
+                fontWeight: '600' 
+              }}>
+                SoRita başlatılıyor...
+              </Text>
+              <Text style={{ 
+                color: colors.textSecondary, 
+                marginTop: 8, 
+                fontSize: 14,
+                textAlign: 'center' 
+              }}>
+                Lütfen bekleyin, uygulama hazırlanıyor
+              </Text>
+            </View>
+          </View>
+        </PaperProvider>
+      </SafeAreaProvider>
+    );
+  }
+
+  console.log('🎯 [App] Rendering main app - user:', !!user);
+  
+  return (
+    <SafeAreaProvider>
+      <PaperProvider theme={theme}>
+        <NavigationContainer>
+          <AppStatusBar />
+          <StatusBar 
+            barStyle="light-content" 
+            backgroundColor="transparent"
+            translucent={true}
+          />
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              cardStyleInterpolator: ({ current, layouts }) => {
+                return {
+                  cardStyle: {
+                    transform: [
+                      {
+                        translateX: current.progress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [layouts.screen.width, 0],
+                        }),
+                      },
+                    ],
+                  },
+                };
+              },
+              transitionSpec: {
+                open: {
+                  animation: 'timing',
+                  config: {
+                    duration: 300,
+                  },
+                },
+                close: {
+                  animation: 'timing',
+                  config: {
+                    duration: 300,
+                  },
+                },
+              },
+            }}
+          >
+            {user ? (
+              <Stack.Screen name="MainTab" component={MainTabNavigator} />
+            ) : (
+              <>
+                <Stack.Screen name="Welcome" component={WelcomeScreen} />
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+              </>
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </PaperProvider>
+    </SafeAreaProvider>
+  );
+}

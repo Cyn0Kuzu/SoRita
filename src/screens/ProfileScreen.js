@@ -25,6 +25,7 @@ import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs, o
 import { AuthService } from '../services/authService';
 import SoRitaHeader from '../components/SoRitaHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
+import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 import { DEFAULT_AVATARS } from '../constants/avatars';
 import { ListCard } from '../components/CommonComponents';
 import PlaceCard from '../components/PlaceCard';
@@ -1243,7 +1244,7 @@ export default function ProfileScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <EdgeToEdgeScreen style={styles.container} edges={['top', 'left', 'right']}>
       <AppStatusBar />
       {/* Header */}
       <View style={styles.headerContainer}>
@@ -1781,7 +1782,7 @@ export default function ProfileScreen({ navigation }) {
           onClose={() => setShowImageModal(false)}
           title="Profil Fotoğrafı"
         />
-      </SafeAreaView>
+      </EdgeToEdgeScreen>
   );
 }
 
