@@ -2,7 +2,7 @@
   "expo": {
     "name": "SoRita",
     "slug": "sorita",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "default",
     "icon": "./assets/So_Rita.png",
     "userInterfaceStyle": "automatic",
@@ -20,7 +20,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sorita",
+      "bundleIdentifier": "com.sorita.app",
       "requireFullScreen": false,
       "supportedInterfaceOrientations": [
         "UIInterfaceOrientationPortrait",
@@ -45,11 +45,11 @@
         "foregroundImage": "./assets/So_Rita.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.sorita",
-      "compileSdkVersion": 34,
-      "targetSdkVersion": 34,
+      "package": "com.sorita.app",
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
       "minSdkVersion": 23,
-      "buildToolsVersion": "34.0.0",
+      "buildToolsVersion": "35.0.0",
       "gradleVersion": "8.4",
       "androidGradlePluginVersion": "8.2.0",
       "proguardFiles": [

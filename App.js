@@ -9,7 +9,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
-, LogBox } from 'react-native';
+  LogBox } from 'react-native';
 
 // Error Boundary Component
 class ErrorBoundary extends Component {

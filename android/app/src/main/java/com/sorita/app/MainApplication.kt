@@ -1,4 +1,4 @@
-package com.sorita
+package com.sorita.app
 
 import android.app.Application
 import android.content.res.Configuration

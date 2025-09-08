@@ -561,4 +561,73 @@ patchExpoCLI();
 patchExpoMetroConfig();
 ensureMetroCacheModule();
 
+// Patch expo-constants to force SDK versions and fix kotlin version
+try {
+  const expoConstantsPath = path.join(nodeModulesPath, 'expo-constants', 'android', 'build.gradle');
+  if (fs.existsSync(expoConstantsPath)) {
+    let content = fs.readFileSync(expoConstantsPath, 'utf-8');
+    console.log('🔍 Original expo-constants content around line 30:', content.split('\n').slice(25, 35).join('\n'));
+    
+    // Fix the getKotlinVersion function completely
+    content = content.replace(
+      /ext\.getKotlinVersion\s*=\s*\{[\s\S]*?\}\s*\}/g,
+      'ext.getKotlinVersion = { "1.9.23" }'
+    );
+    
+    // Also handle direct references to kotlinVersion()
+    content = content.replace(
+      /kotlinVersion\(\)/g,
+      'getKotlinVersion()'
+    );
+    
+    // Force SDK versions in expo-constants
+    content = content.replace(
+      /compileSdkVersion safeExtGet\("compileSdkVersion", 34\)/g,
+      'compileSdkVersion 34'
+    ).replace(
+      /minSdkVersion safeExtGet\("minSdkVersion", 23\)/g,
+      'minSdkVersion 23'
+    ).replace(
+      /targetSdkVersion safeExtGet\("targetSdkVersion", 34\)/g,
+      'targetSdkVersion 34'
+    );
+    
+    fs.writeFileSync(expoConstantsPath, content);
+    console.log('✅ Patched expo-constants with hardcoded SDK versions and Kotlin version');
+    console.log('🔍 Modified expo-constants content around line 30:', content.split('\n').slice(25, 35).join('\n'));
+  } else {
+    console.log('⚠️ expo-constants build.gradle not found at:', expoConstantsPath);
+  }
+} catch (e) {
+  console.log('⚠️ Failed to patch expo-constants:', e?.message || e);
+}
+
+// Patch expo-modules-core to fix SoftwareComponent publishing issue
+try {
+  const expoModulesCorePluginPath = path.join(nodeModulesPath, 'expo-modules-core', 'android', 'ExpoModulesCorePlugin.gradle');
+  if (fs.existsSync(expoModulesCorePluginPath)) {
+    let content = fs.readFileSync(expoModulesCorePluginPath, 'utf-8');
+    console.log('🔍 Original expo-modules-core content around line 85:', content.split('\n').slice(80, 90).join('\n'));
+    
+    // Fix the SoftwareComponent "release" issue by checking if android plugin is applied
+    if (content.includes('components.release')) {
+      content = content.replace(
+        /components\.release/g,
+        'components.findByName("release") ?: components.findByName("default")'
+      );
+      
+      fs.writeFileSync(expoModulesCorePluginPath, content);
+      console.log('✅ Patched expo-modules-core SoftwareComponent issue');
+      console.log('🔍 Modified expo-modules-core content around line 85:', content.split('\n').slice(80, 90).join('\n'));
+    } else {
+      console.log('⚠️ "components.release" not found in expo-modules-core. Content around line 85:');
+      console.log(content.split('\n').slice(80, 90).join('\n'));
+    }
+  } else {
+    console.log('⚠️ expo-modules-core ExpoModulesCorePlugin.gradle not found at:', expoModulesCorePluginPath);
+  }
+} catch (e) {
+  console.log('⚠️ Failed to patch expo-modules-core:', e?.message || e);
+}
+
 console.log('✅ Comprehensive Metro fix completed successfully!');

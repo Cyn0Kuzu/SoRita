@@ -1,4 +1,4 @@
-package com.sorita
+package com.sorita.app
 
 import android.os.Build
 import android.os.Bundle
@@ -15,8 +15,8 @@ class MainActivity : ReactActivity() {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
-  setTheme(R.style.AppTheme);
-  super.onCreate(savedInstanceState)
+    setTheme(R.style.AppTheme);
+    super.onCreate(null)
   }
 
   /**
