@@ -7,10 +7,11 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import { Text, Card, Avatar, Button } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+
 import { colors } from '../theme/theme';
 import { auth } from '../config/firebase';
 
@@ -20,7 +21,7 @@ export default function SocialFeed() {
   const [feedData, setFeedData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const currentUser = auth.currentUser;
+  const { currentUser } = auth;
 
   const formatTimestamp = (timestamp) => {
     const now = new Date();
@@ -40,13 +41,13 @@ export default function SocialFeed() {
   };
 
   const handleLike = (itemId) => {
-    setFeedData(prevData =>
-      prevData.map(item => {
+    setFeedData((prevData) =>
+      prevData.map((item) => {
         if (item.id === itemId) {
           return {
             ...item,
             isLiked: !item.isLiked,
-            likes: item.isLiked ? item.likes - 1 : item.likes + 1
+            likes: item.isLiked ? item.likes - 1 : item.likes + 1,
           };
         }
         return item;
@@ -117,16 +118,13 @@ export default function SocialFeed() {
 
         {/* Actions */}
         <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleLike(item.id)}
-          >
-            <MaterialIcons 
-              name={item.isLiked ? "favorite" : "favorite-border"} 
-              size={24} 
-              color={item.isLiked ? "#FF6B6B" : colors.textSecondary} 
+          <TouchableOpacity style={styles.actionButton} onPress={() => handleLike(item.id)}>
+            <MaterialIcons
+              name={item.isLiked ? 'favorite' : 'favorite-border'}
+              size={24}
+              color={item.isLiked ? '#FF6B6B' : colors.textSecondary}
             />
-            <Text style={[styles.actionText, item.isLiked && { color: "#FF6B6B" }]}>
+            <Text style={[styles.actionText, item.isLiked && { color: '#FF6B6B' }]}>
               {item.likes}
             </Text>
           </TouchableOpacity>
@@ -155,7 +153,7 @@ export default function SocialFeed() {
       attraction: 'Gezi',
       hotel: 'Otel',
       shopping: 'Alışveriş',
-      entertainment: 'Eğlence'
+      entertainment: 'Eğlence',
     };
     return categories[category] || category;
   };
@@ -176,9 +174,7 @@ export default function SocialFeed() {
       keyExtractor={(item) => item.id}
       style={styles.container}
       showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       contentContainerStyle={styles.listContainer}
     />
   );
@@ -191,161 +187,161 @@ const getCategoryName = (category) => {
     attraction: 'Gezi',
     hotel: 'Otel',
     shopping: 'Alışveriş',
-    entertainment: 'Eğlence'
+    entertainment: 'Eğlence',
   };
   return categories[category] || category;
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  listContainer: {
-    padding: 16,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
+  actionButton: {
     alignItems: 'center',
-    backgroundColor: colors.background,
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+  actionText: {
     color: colors.textSecondary,
+    fontSize: 14,
+    marginLeft: 6,
   },
-  feedCard: {
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  userHeader: {
+  actions: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: 8,
   },
   avatar: {
     fontSize: 40,
     marginRight: 12,
   },
-  userDetails: {
-    flex: 1,
-  },
-  displayName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  timestamp: {
-    fontSize: 14,
+  category: {
     color: colors.textSecondary,
-    marginTop: 2,
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  centered: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  container: {
+    backgroundColor: colors.background,
+    flex: 1,
   },
   content: {
-    fontSize: 16,
     color: colors.text,
-    marginBottom: 12,
+    fontSize: 16,
     lineHeight: 22,
-  },
-  placePreview: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    padding: 12,
     marginBottom: 12,
   },
-  placeImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  placeInfo: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  placeName: {
+  displayName: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
   },
-  placeDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+  feedCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    elevation: 2,
+    marginBottom: 16,
+    padding: 16,
   },
-  placeLocation: {
-    fontSize: 14,
+  listContainer: {
+    padding: 16,
+  },
+  listCount: {
     color: colors.textSecondary,
-    marginLeft: 4,
-  },
-  placeRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rating: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 4,
-  },
-  category: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 4,
-  },
-  listPreview: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
   },
   listImage: {
-    width: 80,
-    height: 60,
     borderRadius: 8,
+    height: 60,
     marginRight: 12,
+    width: 80,
   },
   listInfo: {
     flex: 1,
     justifyContent: 'center',
   },
   listName: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 4,
   },
-  listCount: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  listPreview: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    flexDirection: 'row',
+    marginBottom: 12,
+    padding: 12,
   },
-  actions: {
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 16,
+  },
+  placeDetails: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  placeImage: {
+    borderRadius: 8,
+    height: 80,
+    marginRight: 12,
+    width: 80,
+  },
+  placeInfo: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  placeLocation: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  placeName: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  placePreview: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+    flexDirection: 'row',
+    marginBottom: 12,
+    padding: 12,
+  },
+  placeRating: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  rating: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  timestamp: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  userDetails: {
+    flex: 1,
+  },
+  userHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    marginBottom: 12,
   },
-  actionButton: {
-    flexDirection: 'row',
+  userInfo: {
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  actionText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 6,
+    flexDirection: 'row',
   },
 });

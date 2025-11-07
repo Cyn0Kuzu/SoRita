@@ -2,6 +2,7 @@
 import { getAnalytics, logEvent, setUserProperties, setUserId } from 'firebase/analytics';
 import { getPerformance, trace } from 'firebase/performance';
 import DeviceInfo from 'react-native-device-info';
+
 import { FEATURE_FLAGS, APP_CONFIG } from '../config/environment';
 import { logError } from '../utils/errorHandler';
 import { app } from '../config/firebase';
@@ -15,7 +16,7 @@ class AnalyticsService {
     this.sessionStartTime = null;
     this.eventQueue = [];
     this.flushInterval = 30000; // 30 seconds
-    
+
     this.initializeSession();
     this.startEventFlushing();
   }
@@ -26,7 +27,7 @@ class AnalyticsService {
       this.sessionStartTime = Date.now();
 
       const deviceInfo = await DeviceInfo.getDeviceInfo();
-      
+
       // Set user properties for analytics
       if (this.isEnabled) {
         await analytics().setUserProperties({
@@ -35,7 +36,7 @@ class AnalyticsService {
           device_model: deviceInfo.model,
           device_brand: deviceInfo.brand,
           system_version: deviceInfo.systemVersion,
-          session_id: this.sessionId
+          session_id: this.sessionId,
         });
       }
 
@@ -44,16 +45,15 @@ class AnalyticsService {
         await crashlytics().setAttributes({
           session_id: this.sessionId,
           app_version: APP_CONFIG.VERSION,
-          environment: APP_CONFIG.ENVIRONMENT
+          environment: APP_CONFIG.ENVIRONMENT,
         });
       }
 
       this.logEvent('session_started', {
         session_id: this.sessionId,
         app_version: APP_CONFIG.VERSION,
-        environment: APP_CONFIG.ENVIRONMENT
+        environment: APP_CONFIG.ENVIRONMENT,
       });
-
     } catch (error) {
       logError(error, 'Analytics initialization');
     }
@@ -69,9 +69,9 @@ class AnalyticsService {
           session_id: this.sessionId,
           timestamp: Date.now(),
           platform: Platform.OS,
-          app_version: APP_CONFIG.VERSION
+          app_version: APP_CONFIG.VERSION,
         },
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       this.eventQueue.push(event);
@@ -84,7 +84,6 @@ class AnalyticsService {
       if (this.isEnabled && this.isCriticalEvent(eventName)) {
         this.flushEvent(event);
       }
-
     } catch (error) {
       logError(error, 'Log event');
     }
@@ -98,7 +97,7 @@ class AnalyticsService {
       'purchase_completed',
       'error_occurred',
       'session_started',
-      'session_ended'
+      'session_ended',
     ];
     return criticalEvents.includes(eventName);
   }
@@ -122,9 +121,9 @@ class AnalyticsService {
 
       for (const event of eventsToFlush) {
         await this.flushEvent(event);
-        
+
         // Small delay to prevent overwhelming the service
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       console.log(`[Analytics] Flushed ${eventsToFlush.length} events`);
@@ -143,13 +142,13 @@ class AnalyticsService {
   logScreenView(screenName, screenClass = null) {
     this.logEvent('screen_view', {
       screen_name: screenName,
-      screen_class: screenClass || screenName
+      screen_class: screenClass || screenName,
     });
 
     if (this.isEnabled) {
       analytics().logScreenView({
         screen_name: screenName,
-        screen_class: screenClass || screenName
+        screen_class: screenClass || screenName,
       });
     }
   }
@@ -196,7 +195,7 @@ class AnalyticsService {
         context,
         is_fatal: isFatal,
         session_id: this.sessionId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       if (this.crashlyticsEnabled) {
@@ -219,7 +218,7 @@ class AnalyticsService {
     this.logEvent('app_crash', {
       error_message: error.message,
       context,
-      session_id: this.sessionId
+      session_id: this.sessionId,
     });
   }
 
@@ -230,15 +229,15 @@ class AnalyticsService {
         stop: () => {},
         putAttribute: () => {},
         putMetric: () => {},
-        incrementMetric: () => {}
+        incrementMetric: () => {},
       };
     }
 
     try {
       const trace = perf().startTrace(traceName);
-      
+
       this.logEvent('trace_started', { trace_name: traceName });
-      
+
       return {
         stop: async () => {
           try {
@@ -268,7 +267,7 @@ class AnalyticsService {
           } catch (error) {
             logError(error, 'Increment trace metric');
           }
-        }
+        },
       };
     } catch (error) {
       logError(error, 'Start trace');
@@ -276,7 +275,7 @@ class AnalyticsService {
         stop: () => {},
         putAttribute: () => {},
         putMetric: () => {},
-        incrementMetric: () => {}
+        incrementMetric: () => {},
       };
     }
   }
@@ -286,7 +285,7 @@ class AnalyticsService {
     this.logEvent('custom_metric', {
       metric_name: metricName,
       metric_value: value,
-      metric_unit: unit
+      metric_unit: unit,
     });
   }
 
@@ -296,14 +295,14 @@ class AnalyticsService {
       value,
       currency,
       items: items.length,
-      item_details: JSON.stringify(items)
+      item_details: JSON.stringify(items),
     });
 
     if (this.isEnabled) {
       analytics().logPurchase({
         value,
         currency,
-        items
+        items,
       });
     }
   }
@@ -327,13 +326,13 @@ class AnalyticsService {
   recordShare(contentType = 'unknown', itemId = null) {
     this.logEvent('share', {
       content_type: contentType,
-      item_id: itemId
+      item_id: itemId,
     });
 
     if (this.isEnabled) {
       analytics().logShare({
         content_type: contentType,
-        item_id: itemId
+        item_id: itemId,
       });
     }
   }
@@ -341,11 +340,11 @@ class AnalyticsService {
   // Session management
   endSession() {
     const sessionDuration = Date.now() - this.sessionStartTime;
-    
+
     this.logEvent('session_ended', {
       session_id: this.sessionId,
       session_duration: sessionDuration,
-      events_logged: this.eventQueue.length
+      events_logged: this.eventQueue.length,
     });
 
     // Flush all remaining events
@@ -356,7 +355,7 @@ class AnalyticsService {
   recordExperiment(experimentName, variant) {
     this.logEvent('experiment_exposure', {
       experiment_name: experimentName,
-      variant
+      variant,
     });
   }
 
@@ -369,24 +368,24 @@ class AnalyticsService {
       try {
         const result = await operation();
         const duration = Date.now() - startTime;
-        
+
         trace.putMetric('duration_ms', duration);
         trace.putAttribute('status', 'success');
         trace.stop();
 
         this.recordMetric(`${operationName}_duration`, duration, 'ms');
-        
+
         resolve(result);
       } catch (error) {
         const duration = Date.now() - startTime;
-        
+
         trace.putMetric('duration_ms', duration);
         trace.putAttribute('status', 'error');
         trace.putAttribute('error_message', error.message);
         trace.stop();
 
         this.recordError(error, `Performance measurement: ${operationName}`);
-        
+
         reject(error);
       }
     });
@@ -400,7 +399,7 @@ class AnalyticsService {
       queuedEvents: this.eventQueue.length,
       isEnabled: this.isEnabled,
       crashlyticsEnabled: this.crashlyticsEnabled,
-      performanceEnabled: this.performanceEnabled
+      performanceEnabled: this.performanceEnabled,
     };
   }
 }

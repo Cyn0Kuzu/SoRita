@@ -1,4 +1,5 @@
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+
 import { auth } from '../config/firebase';
 
 class StorageService {
@@ -16,7 +17,7 @@ class StorageService {
   async uploadImage(uri, folder = 'lists', filename = null) {
     try {
       console.log('📤 [StorageService] Starting image upload:', { uri, folder, filename });
-      
+
       if (!auth.currentUser) {
         throw new Error('User not authenticated');
       }
@@ -86,11 +87,11 @@ class StorageService {
   async uploadListPlacePhoto(userId, listId, uri) {
     try {
       console.log('📤 [StorageService] Uploading list place photo:', { userId, listId, uri });
-      
+
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substring(2);
       const filename = `place_${timestamp}_${randomId}.jpg`;
-      
+
       // Create storage reference for list place photos
       const imagePath = `lists/${userId}/${listId}/places/${filename}`;
       const imageRef = ref(this.storage, imagePath);
@@ -125,18 +126,18 @@ class StorageService {
   async deleteImageByUrl(imageUrl) {
     try {
       if (!imageUrl) return;
-      
+
       console.log('🗑️ [StorageService] Starting image deletion:', imageUrl);
-      
+
       // Extract the path from the URL
       const url = new URL(imageUrl);
       const pathStart = url.pathname.indexOf('/o/') + 3;
       const pathEnd = url.pathname.indexOf('?');
       const filePath = decodeURIComponent(url.pathname.substring(pathStart, pathEnd));
-      
+
       const imageRef = ref(this.storage, filePath);
       await deleteObject(imageRef);
-      
+
       console.log('✅ [StorageService] Image deleted successfully:', filePath);
     } catch (error) {
       console.error('❌ [StorageService] Error deleting image:', error);
@@ -151,9 +152,9 @@ class StorageService {
    */
   isCacheFile(url) {
     if (!url) return false;
-    return url.includes('cache/ImagePicker') || 
-           url.includes('file://') || 
-           url.startsWith('file:///');
+    return (
+      url.includes('cache/ImagePicker') || url.includes('file://') || url.startsWith('file:///')
+    );
   }
 
   /**
@@ -166,7 +167,7 @@ class StorageService {
       list: 'collections',
       profile: 'person',
       place: 'place',
-      photo: 'photo'
+      photo: 'photo',
     };
     return icons[type] || 'image';
   }

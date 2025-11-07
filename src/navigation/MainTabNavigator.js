@@ -1,9 +1,8 @@
-import React, { useEffect, memo } from 'react';
-import { StatusBar, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { StatusBar } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -18,72 +17,76 @@ import { colors } from '../theme/theme';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Home Stack Navigator (includes Notifications and ViewProfile)
-function HomeStackNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="HomeMain" component={HomeScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
-      <Stack.Screen name="MapScreen" component={MapScreen} />
-    </Stack.Navigator>
-  );
-}
-
 // Profile Stack Navigator (includes ViewProfile)
 function ProfileStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
-      <Stack.Screen name="MapScreen" component={MapScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// Notifications Stack Navigator (includes ViewProfile)
+function NotificationsStackNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="NotificationsMain" component={NotificationsScreen} />
+      <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
     </Stack.Navigator>
   );
 }
 
 export default function MainTabNavigator() {
   console.log('🧭 [Navigation] MainTabNavigator rendering...');
-  
-  // Get safe area insets for proper bottom padding
-  const insets = useSafeAreaInsets();
-  
+
   // StatusBar'ı MainTabNavigator için ayarla
   useEffect(() => {
-    console.log('🧭 [Navigation] MainTabNavigator useEffect - setting up StatusBar');
     StatusBar.setBarStyle('light-content', true);
     StatusBar.setBackgroundColor(colors.primary, true);
   }, []);
-  
-  // Early return with debug info
-  console.log('🧭 [Navigation] About to render Tab.Navigator with Home, Map, Profile tabs');
-  
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
-        // console.log('🧭 [Navigation] Setting up screen options for route:', route.name);
-        
+        console.log('🧭 [Navigation] Setting up screen options for route:', route.name);
+
         return {
           tabBarIcon: ({ focused, color, size }) => {
             if (route.name === 'Home') {
-              return <MaterialCommunityIcons 
-                name={focused ? 'home' : 'home-outline'} 
-                size={24} 
-                color={color} 
-              />;
+              return (
+                <MaterialCommunityIcons
+                  name={focused ? 'home' : 'home-outline'}
+                  size={size}
+                  color={color}
+                />
+              );
             } else if (route.name === 'Map') {
-              return <MaterialCommunityIcons 
-                name={focused ? 'map' : 'map-outline'} 
-                size={24} 
-                color={color} 
-              />;
+              return (
+                <MaterialCommunityIcons
+                  name={focused ? 'map' : 'map-outline'}
+                  size={size}
+                  color={color}
+                />
+              );
+            } else if (route.name === 'Notifications') {
+              return (
+                <MaterialCommunityIcons
+                  name={focused ? 'bell' : 'bell-outline'}
+                  size={size}
+                  color={color}
+                />
+              );
             } else if (route.name === 'Profile') {
-              return <MaterialCommunityIcons 
-                name={focused ? 'account' : 'account-outline'} 
-                size={24} 
-                color={color} 
-              />;
+              return (
+                <MaterialCommunityIcons
+                  name={focused ? 'account' : 'account-outline'}
+                  size={size}
+                  color={color}
+                />
+              );
             }
-            return <MaterialCommunityIcons name="help-circle" size={24} color={color} />;
+            return <MaterialCommunityIcons name="help-circle" size={size} color={color} />;
           },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
@@ -97,24 +100,13 @@ export default function MainTabNavigator() {
             },
             shadowOpacity: 0.1,
             shadowRadius: 3,
-            height: 65,
+            height: 60,
             paddingBottom: 8,
             paddingTop: 8,
-            paddingLeft: Math.max(insets.left, 0),
-            paddingRight: Math.max(insets.right, 0),
-            // Sistem navigasyon barının üstünde konumlandır
-            marginBottom: Platform.OS === 'android' ? insets.bottom : 0,
-            // iOS için safe area padding
-            ...(Platform.OS === 'ios' && {
-              height: 65 + insets.bottom,
-              paddingBottom: insets.bottom + 8,
-            }),
           },
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
-            marginTop: 2,
-            marginBottom: 2,
           },
           headerShown: false,
         };
@@ -122,7 +114,7 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeStackNavigator}
+        component={HomeScreen}
         options={{
           tabBarLabel: 'Ana Sayfa',
         }}
@@ -141,6 +133,18 @@ export default function MainTabNavigator() {
         listeners={{
           tabPress: (e) => {
             console.log('🧭 [Navigation] Map tab pressed');
+          },
+        }}
+      />
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsStackNavigator}
+        options={{
+          tabBarLabel: 'Bildirimler',
+        }}
+        listeners={{
+          tabPress: (e) => {
+            console.log('🧭 [Navigation] Notifications tab pressed');
           },
         }}
       />

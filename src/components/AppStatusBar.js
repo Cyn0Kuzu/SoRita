@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar as RNStatusBar, Platform } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+
 import { colors } from '../theme/theme';
 
 // Global StatusBar configuration for all screens
@@ -25,13 +26,9 @@ export const AppStatusBar = () => {
 
   return (
     <>
-      <ExpoStatusBar 
-        style="light" 
-        backgroundColor={colors.primary}
-        translucent={false}
-      />
-      <RNStatusBar 
-        barStyle="light-content" 
+      <ExpoStatusBar style="light" backgroundColor={colors.primary} translucent={false} />
+      <RNStatusBar
+        barStyle="light-content"
         backgroundColor={colors.primary}
         translucent={false}
         animated={true}

@@ -32,5 +32,5 @@ export const DEFAULT_AVATARS = [
   '\uD83D\uDC04', // 🐄 - Cow
   '\uD83E\uDD8E', // 🦎 - Lizard
   '\uD83D\uDC0D', // 🐍 - Snake
-  '\uD83D\uDD77'  // 🕷️ - Spider
+  '\uD83D\uDD77', // 🕷️ - Spider
 ];

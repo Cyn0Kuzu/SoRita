@@ -85,11 +85,27 @@
     "extra": {
       "eas": {
         "projectId": "60b2745f-2ad0-45cb-b898-90526d5c1040"
+      },
+      "firebase": {
+        "apiKey": "${FIREBASE_API_KEY}",
+        "authDomain": "${FIREBASE_AUTH_DOMAIN}",
+        "projectId": "${FIREBASE_PROJECT_ID}",
+        "storageBucket": "${FIREBASE_STORAGE_BUCKET}",
+        "messagingSenderId": "${FIREBASE_MESSAGING_SENDER_ID}",
+        "appId": "${FIREBASE_APP_ID}",
+        "measurementId": "${FIREBASE_MEASUREMENT_ID}"
       }
     },
     "owner": "cayan",
     "description": "SoRita is a modern location sharing and social mapping application that allows users to discover, share, and explore places with friends and family.",
-    "keywords": ["location", "maps", "social", "sharing", "places", "travel"],
+    "keywords": [
+      "location",
+      "maps",
+      "social",
+      "sharing",
+      "places",
+      "travel"
+    ],
     "githubUrl": "https://github.com/Cyn0Kuzu/SoRita____",
     "primaryColor": "#0ea5e9",
     "privacy": "public",
@@ -99,6 +115,9 @@
       "color": "#0ea5e9",
       "androidMode": "default",
       "androidCollapsedTitle": "SoRita"
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

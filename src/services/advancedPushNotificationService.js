@@ -7,8 +7,10 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { auth, db } from '../config/firebase';
+
 import { doc, updateDoc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore';
+
+import { auth, db } from '../config/firebase';
 import { logger } from '../utils/logger';
 import { ENV, ENVIRONMENTS } from '../config/environment';
 
@@ -27,7 +29,7 @@ const NOTIFICATION_CATEGORIES = {
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     notificationLogger.debug('Received notification:', notification);
-    
+
     return {
       shouldShowAlert: true,
       shouldPlaySound: true,
@@ -145,7 +147,6 @@ class PushNotificationService {
       notificationLogger.info('Push notifications initialized successfully');
 
       return this.expoPushToken;
-
     } catch (error) {
       notificationLogger.error('Failed to initialize push notifications:', error);
       return null;
@@ -155,10 +156,13 @@ class PushNotificationService {
   // Get Expo push token
   async getExpoPushToken() {
     try {
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-      
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+
       if (!projectId) {
-        notificationLogger.warn('No project ID found for push notifications - using development mode');
+        notificationLogger.warn(
+          'No project ID found for push notifications - using development mode'
+        );
         // In development, we can skip push tokens
         if (__DEV__) {
           return null;
@@ -173,14 +177,17 @@ class PushNotificationService {
 
       notificationLogger.debug('Expo push token obtained');
       return token.data;
-
     } catch (error) {
       // Handle specific error types
       if (error.message.includes('INVALID_SENDER')) {
-        notificationLogger.warn('Push notifications not configured for this project - this is normal in development');
+        notificationLogger.warn(
+          'Push notifications not configured for this project - this is normal in development'
+        );
         return null;
       } else if (error.message.includes('ExecutionException')) {
-        notificationLogger.warn('Push notification service not available - continuing without notifications');
+        notificationLogger.warn(
+          'Push notification service not available - continuing without notifications'
+        );
         return null;
       } else {
         notificationLogger.error('Error getting Expo push token:', error.message);
@@ -210,7 +217,7 @@ class PushNotificationService {
       notificationLogger.debug('Notification received:', notification);
 
       const { data, request } = notification;
-      
+
       // Update badge count
       if (Platform.OS === 'ios') {
         const currentBadgeCount = await Notifications.getBadgeCountAsync();
@@ -228,7 +235,6 @@ class PushNotificationService {
       if (data?.category) {
         await this.handleNotificationByCategory(data.category, data);
       }
-
     } catch (error) {
       notificationLogger.error('Error handling notification received:', error);
     }
@@ -263,7 +269,6 @@ class PushNotificationService {
         // Default tap action - navigate to appropriate screen
         await this.handleDefaultTapAction(data);
       }
-
     } catch (error) {
       notificationLogger.error('Error handling notification response:', error);
     }
@@ -308,7 +313,6 @@ class PushNotificationService {
       });
 
       notificationLogger.debug('Push token saved to database');
-
     } catch (error) {
       notificationLogger.error('Error saving push token to database:', error);
     }
@@ -372,7 +376,6 @@ class PushNotificationService {
 
       notificationLogger.debug('Local notification sent:', notificationId);
       return notificationId;
-
     } catch (error) {
       notificationLogger.error('Error sending local notification:', error);
       return null;
@@ -385,7 +388,7 @@ class PushNotificationService {
       // Get user's push token
       const userDoc = await getDoc(doc(db, 'users', userId));
       const userData = userDoc.data();
-      
+
       if (!userData?.pushToken) {
         // Only warn in production, as this is expected in development
         if (ENV !== ENVIRONMENTS.DEVELOPMENT) {
@@ -420,7 +423,6 @@ class PushNotificationService {
 
       notificationLogger.debug('Push notification queued for user:', userId);
       return true;
-
     } catch (error) {
       notificationLogger.error('Error sending push notification:', error);
       return false;
@@ -439,7 +441,6 @@ class PushNotificationService {
         timestamp: new Date(),
         platform: Platform.OS,
       });
-
     } catch (error) {
       notificationLogger.error('Error tracking notification event:', error);
     }
@@ -454,21 +455,22 @@ class PushNotificationService {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const userData = userDoc.data();
 
-      return userData?.notificationSettings || {
-        messages: true,
-        friendRequests: true,
-        locationShares: true,
-        listInvites: true,
-        systemUpdates: true,
-        marketingEmails: false,
-        pushEnabled: true,
-        quietHours: {
-          enabled: false,
-          start: '22:00',
-          end: '08:00',
-        },
-      };
-
+      return (
+        userData?.notificationSettings || {
+          messages: true,
+          friendRequests: true,
+          locationShares: true,
+          listInvites: true,
+          systemUpdates: true,
+          marketingEmails: false,
+          pushEnabled: true,
+          quietHours: {
+            enabled: false,
+            start: '22:00',
+            end: '08:00',
+          },
+        }
+      );
     } catch (error) {
       notificationLogger.error('Error getting notification settings:', error);
       return null;
@@ -489,7 +491,6 @@ class PushNotificationService {
 
       notificationLogger.debug('Notification settings updated');
       return true;
-
     } catch (error) {
       notificationLogger.error('Error updating notification settings:', error);
       return false;
@@ -500,13 +501,12 @@ class PushNotificationService {
   async clearAllNotifications() {
     try {
       await Notifications.dismissAllNotificationsAsync();
-      
+
       if (Platform.OS === 'ios') {
         await Notifications.setBadgeCountAsync(0);
       }
 
       notificationLogger.debug('All notifications cleared');
-
     } catch (error) {
       notificationLogger.error('Error clearing notifications:', error);
     }
@@ -517,7 +517,7 @@ class PushNotificationService {
     if (this.notificationListener) {
       Notifications.removeNotificationSubscription(this.notificationListener);
     }
-    
+
     if (this.responseListener) {
       Notifications.removeNotificationSubscription(this.responseListener);
     }
@@ -574,7 +574,7 @@ export const pushNotificationService = new PushNotificationService();
 
 // Export utility functions
 export const registerForPushNotifications = () => pushNotificationService.initialize();
-export const sendLocalNotification = (title, body, data) => 
+export const sendLocalNotification = (title, body, data) =>
   pushNotificationService.sendLocalNotification(title, body, data);
 export const clearAllNotifications = () => pushNotificationService.clearAllNotifications();
 

@@ -3,9 +3,8 @@
  * Modern custom hooks for SoRita application
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppState, Keyboard, Dimensions } from 'react-native';
-import { debounce, throttle } from './performanceUtils';
 
 // Hook for handling app state changes
 export const useAppState = () => {
@@ -100,12 +99,15 @@ export const useThrottle = (value, limit) => {
   const lastRan = useRef(Date.now());
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      if (Date.now() - lastRan.current >= limit) {
-        setThrottledValue(value);
-        lastRan.current = Date.now();
-      }
-    }, limit - (Date.now() - lastRan.current));
+    const handler = setTimeout(
+      () => {
+        if (Date.now() - lastRan.current >= limit) {
+          setThrottledValue(value);
+          lastRan.current = Date.now();
+        }
+      },
+      limit - (Date.now() - lastRan.current)
+    );
 
     return () => {
       clearTimeout(handler);
@@ -118,11 +120,11 @@ export const useThrottle = (value, limit) => {
 // Hook for previous value
 export const usePrevious = (value) => {
   const ref = useRef();
-  
+
   useEffect(() => {
     ref.current = value;
   });
-  
+
   return ref.current;
 };
 
@@ -136,7 +138,7 @@ export const useAsync = (asyncFunction, dependencies = []) => {
 
   const execute = useCallback(async (...args) => {
     setState({ data: null, loading: true, error: null });
-    
+
     try {
       const result = await asyncFunction(...args);
       setState({ data: result, loading: false, error: null });
@@ -156,42 +158,51 @@ export const useFormValidation = (initialValues, validationRules) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouchedFields] = useState({});
 
-  const validateField = useCallback((name, value) => {
-    const rules = validationRules[name];
-    if (!rules) return null;
+  const validateField = useCallback(
+    (name, value) => {
+      const rules = validationRules[name];
+      if (!rules) return null;
 
-    for (const rule of rules) {
-      const result = rule.validator(value);
-      if (!result.isValid) {
-        return result.error;
+      for (const rule of rules) {
+        const result = rule.validator(value);
+        if (!result.isValid) {
+          return result.error;
+        }
       }
-    }
-    return null;
-  }, [validationRules]);
+      return null;
+    },
+    [validationRules]
+  );
 
-  const setValue = useCallback((name, value) => {
-    setValues(prev => ({ ...prev, [name]: value }));
-    
-    // Validate if field has been touched
-    if (touched[name]) {
-      const error = validateField(name, value);
-      setErrors(prev => ({ ...prev, [name]: error }));
-    }
-  }, [touched, validateField]);
+  const setValue = useCallback(
+    (name, value) => {
+      setValues((prev) => ({ ...prev, [name]: value }));
 
-  const setTouched = useCallback((name) => {
-    setTouchedFields(prev => ({ ...prev, [name]: true }));
-    
-    // Validate on first touch
-    const error = validateField(name, values[name]);
-    setErrors(prev => ({ ...prev, [name]: error }));
-  }, [values, validateField]);
+      // Validate if field has been touched
+      if (touched[name]) {
+        const error = validateField(name, value);
+        setErrors((prev) => ({ ...prev, [name]: error }));
+      }
+    },
+    [touched, validateField]
+  );
+
+  const setTouched = useCallback(
+    (name) => {
+      setTouchedFields((prev) => ({ ...prev, [name]: true }));
+
+      // Validate on first touch
+      const error = validateField(name, values[name]);
+      setErrors((prev) => ({ ...prev, [name]: error }));
+    },
+    [values, validateField]
+  );
 
   const validateAll = useCallback(() => {
     const newErrors = {};
     let isValid = true;
 
-    Object.keys(validationRules).forEach(name => {
+    Object.keys(validationRules).forEach((name) => {
       const error = validateField(name, values[name]);
       if (error) {
         newErrors[name] = error;
@@ -200,10 +211,12 @@ export const useFormValidation = (initialValues, validationRules) => {
     });
 
     setErrors(newErrors);
-    setTouchedFields(Object.keys(validationRules).reduce((acc, key) => {
-      acc[key] = true;
-      return acc;
-    }, {}));
+    setTouchedFields(
+      Object.keys(validationRules).reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {})
+    );
 
     return isValid;
   }, [values, validationRules, validateField]);
@@ -243,21 +256,24 @@ export const useLocalStorage = (key, initialValue) => {
     }
   });
 
-  const setValue = useCallback((value) => {
-    try {
-      // Check if localStorage is available (web only)
-      if (typeof window === 'undefined' || !window.localStorage) {
-        setStoredValue(value instanceof Function ? value(storedValue) : value);
-        return;
+  const setValue = useCallback(
+    (value) => {
+      try {
+        // Check if localStorage is available (web only)
+        if (typeof window === 'undefined' || !window.localStorage) {
+          setStoredValue(value instanceof Function ? value(storedValue) : value);
+          return;
+        }
+        // Allow value to be a function so we have the same API as useState
+        const valueToStore = value instanceof Function ? value(storedValue) : value;
+        setStoredValue(valueToStore);
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      } catch (error) {
+        console.error(`Error setting localStorage key "${key}":`, error);
       }
-      // Allow value to be a function so we have the same API as useState
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
-  }, [key, storedValue]);
+    },
+    [key, storedValue]
+  );
 
   return [storedValue, setValue];
 };
@@ -265,11 +281,11 @@ export const useLocalStorage = (key, initialValue) => {
 // Hook for toggle functionality
 export const useToggle = (initialValue = false) => {
   const [value, setValue] = useState(initialValue);
-  
-  const toggle = useCallback(() => setValue(v => !v), []);
+
+  const toggle = useCallback(() => setValue((v) => !v), []);
   const setTrue = useCallback(() => setValue(true), []);
   const setFalse = useCallback(() => setValue(false), []);
-  
+
   return [value, toggle, setTrue, setFalse];
 };
 
@@ -278,23 +294,23 @@ export const useArray = (initialArray = []) => {
   const [array, setArray] = useState(initialArray);
 
   const push = useCallback((element) => {
-    setArray(arr => [...arr, element]);
+    setArray((arr) => [...arr, element]);
   }, []);
 
   const remove = useCallback((index) => {
-    setArray(arr => arr.filter((_, i) => i !== index));
+    setArray((arr) => arr.filter((_, i) => i !== index));
   }, []);
 
   const removeById = useCallback((id) => {
-    setArray(arr => arr.filter(item => item.id !== id));
+    setArray((arr) => arr.filter((item) => item.id !== id));
   }, []);
 
   const update = useCallback((index, newElement) => {
-    setArray(arr => arr.map((item, i) => i === index ? newElement : item));
+    setArray((arr) => arr.map((item, i) => (i === index ? newElement : item)));
   }, []);
 
   const updateById = useCallback((id, newElement) => {
-    setArray(arr => arr.map(item => item.id === id ? newElement : item));
+    setArray((arr) => arr.map((item) => (item.id === id ? newElement : item)));
   }, []);
 
   const clear = useCallback(() => {
@@ -332,15 +348,15 @@ export const useCountdown = (initialTime) => {
 
   useEffect(() => {
     let interval = null;
-    
+
     if (isActive && time > 0) {
       interval = setInterval(() => {
-        setTime(time => time - 1);
+        setTime((time) => time - 1);
       }, 1000);
     } else if (time === 0) {
       setIsActive(false);
     }
-    
+
     return () => clearInterval(interval);
   }, [isActive, time]);
 
@@ -363,7 +379,7 @@ export const useOnlineStatus = () => {
     if (typeof window === 'undefined') {
       return;
     }
-    
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 

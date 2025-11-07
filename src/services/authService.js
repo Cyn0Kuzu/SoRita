@@ -1,16 +1,29 @@
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
   updateProfile,
   sendEmailVerification,
   sendPasswordResetEmail,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, getDocs, query, where, collection, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  collection,
+  deleteDoc,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+
 import { auth, db } from '../config/firebase';
+
 import { ValidationService } from './validationService';
 
 // Global registration flag to prevent App.js interference
@@ -27,40 +40,22 @@ export class AuthService {
   static usernameCheckTimeout = null;
   static emailCheckTimeout = null;
 
-  // Development helper function to reset test accounts
-  static async resetTestAccountPassword(email) {
-    if (!__DEV__) {
-      throw new Error('This function is only available in development mode');
-    }
-    
-    try {
-      console.log('🔧 [AuthService] Resetting password for test account:', email);
-      await sendPasswordResetEmail(auth, email);
-      console.log('✅ [AuthService] Password reset email sent successfully');
-      console.log('📧 [AuthService] Check your email and click the reset link');
-      return { success: true, message: 'Password reset email sent' };
-    } catch (error) {
-      console.error('❌ [AuthService] Password reset failed:', error);
-      throw error;
-    }
-  }
-
   // Generate username suggestions
   static generateUsernameSuggestions(username) {
     const suggestions = [];
     const base = username.toLowerCase().replace(/[^a-z0-9]/g, '');
-    
+
     // Add numbers
     for (let i = 1; i <= 5; i++) {
       suggestions.push(`${base}${i}`);
     }
-    
+
     // Add common suffixes
     const suffixes = ['_user', '_official', '2024', '_tr'];
-    suffixes.forEach(suffix => {
+    suffixes.forEach((suffix) => {
       suggestions.push(`${base}${suffix}`);
     });
-    
+
     return suggestions.slice(0, 5);
   }
 
@@ -81,19 +76,19 @@ export class AuthService {
                 available: false,
                 valid: false,
                 error: validation.errors[0],
-                suggestions: this.generateUsernameSuggestions(username)
+                suggestions: this.generateUsernameSuggestions(username),
               });
               return;
             }
 
             const usernameDoc = doc(db, 'usernames', username.toLowerCase());
             const docSnap = await getDoc(usernameDoc);
-            
+
             resolve({
               available: !docSnap.exists(),
               valid: true,
               error: !docSnap.exists() ? null : 'Bu kullanıcı adı zaten kullanılıyor',
-              suggestions: !docSnap.exists() ? [] : this.generateUsernameSuggestions(username)
+              suggestions: !docSnap.exists() ? [] : this.generateUsernameSuggestions(username),
             });
           } catch (error) {
             console.error('Error checking username:', error);
@@ -101,7 +96,7 @@ export class AuthService {
               available: false,
               valid: false,
               error: 'Kullanıcı adı kontrol edilemedi',
-              suggestions: []
+              suggestions: [],
             });
           }
         }, 500); // 500ms debounce
@@ -128,28 +123,28 @@ export class AuthService {
               resolve({
                 available: false,
                 valid: false,
-                error: validation.errors[0]
+                error: validation.errors[0],
               });
               return;
             }
 
             const emailQuery = query(
-              collection(db, 'users'), 
+              collection(db, 'users'),
               where('email', '==', email.toLowerCase())
             );
             const querySnapshot = await getDocs(emailQuery);
-            
+
             resolve({
               available: querySnapshot.empty,
               valid: true,
-              error: querySnapshot.empty ? null : 'Bu e-posta adresi zaten kullanılıyor'
+              error: querySnapshot.empty ? null : 'Bu e-posta adresi zaten kullanılıyor',
             });
           } catch (error) {
             console.error('Error checking email:', error);
             resolve({
               available: false,
               valid: false,
-              error: 'E-posta kontrol edilemedi'
+              error: 'E-posta kontrol edilemedi',
             });
           }
         }, 500); // 500ms debounce
@@ -166,7 +161,7 @@ export class AuthService {
       await setDoc(doc(db, 'usernames', username.toLowerCase()), {
         userId,
         reservedAt: new Date(),
-        createdAt: new Date()
+        createdAt: new Date(),
       });
     } catch (error) {
       console.error('Error reserving username:', error);
@@ -186,13 +181,13 @@ export class AuthService {
   // Professional user registration with comprehensive validation and email verification
   static async registerUser(userData) {
     const { firstName, lastName, username, email, password, avatar } = userData;
-    
+
     try {
       console.log('🚀 [AuthService] Starting user registration process...');
-      
+
       // Set registration in progress flag
       setRegistrationInProgress(true);
-      
+
       // Step 1: Comprehensive form validation
       const validation = ValidationService.validateRegistrationForm(userData);
       if (!validation.isValid) {
@@ -203,7 +198,7 @@ export class AuthService {
       console.log('🔍 [AuthService] Checking availability...');
       const [usernameCheck, emailCheck] = await Promise.all([
         this.checkUsernameAvailability(username),
-        this.checkEmailAvailability(email)
+        this.checkEmailAvailability(email),
       ]);
 
       if (!usernameCheck.available) {
@@ -217,7 +212,7 @@ export class AuthService {
       // Step 3: Create Firebase Auth user
       console.log('👤 [AuthService] Creating Firebase Auth user...');
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const { user } = userCredential;
 
       try {
         // Step 4: Reserve username
@@ -233,37 +228,37 @@ export class AuthService {
           username: username.toLowerCase(),
           email: email.toLowerCase(),
           displayName: `${firstName.trim()} ${lastName.trim()}`,
-          
+
           // Profile
           avatar: avatar || '🐱',
           bio: '',
           location: '',
           website: '',
-          
+
           // Counters
           followersCount: 0,
           followingCount: 0,
           placesCount: 0,
           listsCount: 0,
           reviewsCount: 0,
-          
+
           // Social arrays
           followers: [],
           following: [],
-          
+
           // Status
           isPublic: true,
           isActive: true,
           isEmailVerified: false,
           emailVerificationSent: true,
           emailVerificationSentAt: serverTimestamp(),
-          
+
           // Timestamps
           joinedAt: serverTimestamp(),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           lastLoginAt: serverTimestamp(),
-          
+
           // Settings
           settings: {
             notifications: {
@@ -272,32 +267,35 @@ export class AuthService {
               followers: true,
               reviews: true,
               lists: true,
-              marketing: false
+              marketing: false,
             },
             privacy: {
               showEmail: false,
               showLocation: true,
               allowFollowers: true,
-              profileVisibility: 'public'
+              profileVisibility: 'public',
             },
             language: 'tr',
-            theme: 'light'
-          }
+            theme: 'light',
+          },
         };
 
         await setDoc(doc(db, 'users', user.uid), userProfile);
 
         // Cache user data locally
-        await AsyncStorage.setItem(`userData_${user.uid}`, JSON.stringify({
-          ...userProfile,
-          uid: user.uid,
-          email: user.email
-        }));
+        await AsyncStorage.setItem(
+          `userData_${user.uid}`,
+          JSON.stringify({
+            ...userProfile,
+            uid: user.uid,
+            email: user.email,
+          })
+        );
 
         // Step 6: Update Firebase Auth profile
         console.log('🔄 [AuthService] Updating auth profile...');
         await updateProfile(user, {
-          displayName: userProfile.displayName
+          displayName: userProfile.displayName,
         });
 
         // Step 7: Send email verification IMMEDIATELY
@@ -311,31 +309,31 @@ export class AuthService {
         console.log('✅ [AuthService] User signed out, must verify email to login');
 
         console.log('✅ [AuthService] Registration completed successfully');
-        
+
         const returnData = {
           success: true,
           user: {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
-            emailVerified: user.emailVerified
+            emailVerified: user.emailVerified,
           },
           profile: userProfile,
-          message: 'Kayıt başarıyla tamamlandı! E-posta adresinizi kontrol edin ve doğrulama linkine tıklayın.'
+          message:
+            'Kayıt başarıyla tamamlandı! E-posta adresinizi kontrol edin ve doğrulama linkine tıklayın.',
         };
-        
+
         console.log('🎯 [AuthService] Returning registration result:', returnData);
-        
+
         // Clear registration flag
         setRegistrationInProgress(false);
-        
-        return returnData;
 
+        return returnData;
       } catch (profileError) {
         // Cleanup on profile creation failure
         console.error('❌ [AuthService] Profile creation failed:', profileError);
         await this.removeUsernameReservation(username);
-        
+
         // Delete the auth user if profile creation failed
         if (user) {
           try {
@@ -344,10 +342,9 @@ export class AuthService {
             console.error('Error deleting user on cleanup:', deleteError);
           }
         }
-        
+
         throw profileError;
       }
-
     } catch (error) {
       console.error('❌ [AuthService] Registration failed:', error);
       // Clear registration flag on error
@@ -362,16 +359,21 @@ export class AuthService {
       console.log('🚀 [AuthService] Starting login process...');
       console.log('📧 [AuthService] Email:', email);
       console.log('🔑 [AuthService] Password length:', password?.length);
-      
+
       // Debug: Print available test accounts in development
       if (__DEV__) {
         console.log('🔧 [AuthService] DEVELOPMENT MODE - Available test accounts:');
         console.log('📧 [AuthService] Test account 1: finduk513@gmail.com');
         console.log('📧 [AuthService] Test account 2: cayankuzu.0@gmail.com');
         console.log('💡 [AuthService] If you forgot password, use "Şifremi Unuttum" button');
-        console.log('🔍 [AuthService] Current attempt - Email:', email, 'Password length:', password?.length);
+        console.log(
+          '🔍 [AuthService] Current attempt - Email:',
+          email,
+          'Password length:',
+          password?.length
+        );
       }
-      
+
       // Step 1: Validate inputs
       const validation = ValidationService.validateLoginForm({ email, password });
       if (!validation.isValid) {
@@ -380,14 +382,20 @@ export class AuthService {
 
       // Step 2: Sign in with Firebase Auth
       console.log('🔐 [AuthService] Authenticating with Firebase...');
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
-      const user = userCredential.user;
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+      );
+      const { user } = userCredential;
 
       // Step 2.5: Check email verification
       console.log('📧 [AuthService] Checking email verification status...');
       let requiresVerification = false;
       if (!user.emailVerified) {
-        console.log('⚠️ [AuthService] Email not verified - allowing login with verification warning');
+        console.log(
+          '⚠️ [AuthService] Email not verified - allowing login with verification warning'
+        );
         requiresVerification = true;
         // Don't sign out - let user use the app with verification reminders
       } else {
@@ -398,25 +406,25 @@ export class AuthService {
       console.log('📋 [AuthService] Fetching user profile...');
       console.log('🔍 [AuthService] User UID:', user.uid);
       console.log('🔍 [AuthService] User authenticated:', !!user.uid);
-      
+
       const userDocRef = doc(db, 'users', user.uid);
       console.log('📄 [AuthService] Document path:', `users/${user.uid}`);
-      
+
       let profile;
       try {
         console.log('📋 [AuthService] Fetching user document with timeout...');
-        
+
         // Add timeout to prevent hanging
         const fetchWithTimeout = Promise.race([
           getDoc(userDocRef),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Firestore timeout')), 8000)
-          )
+          ),
         ]);
-        
+
         const userDoc = await fetchWithTimeout;
         console.log('📋 [AuthService] Document fetch result:', { exists: userDoc.exists() });
-        
+
         if (!userDoc.exists()) {
           console.error('❌ [AuthService] User document does not exist');
           throw new Error('Kullanıcı profili bulunamadı');
@@ -426,23 +434,27 @@ export class AuthService {
         console.log('✅ [AuthService] Profile data retrieved successfully');
 
         // Cache user data locally
-        await AsyncStorage.setItem(`userData_${user.uid}`, JSON.stringify({
-          ...profile,
-          uid: user.uid,
-          email: user.email
-        }));
-
+        await AsyncStorage.setItem(
+          `userData_${user.uid}`,
+          JSON.stringify({
+            ...profile,
+            uid: user.uid,
+            email: user.email,
+          })
+        );
       } catch (firestoreError) {
         console.error('❌ [AuthService] Firestore error details:', firestoreError);
         console.error('❌ [AuthService] Error code:', firestoreError.code);
         console.error('❌ [AuthService] Error message:', firestoreError.message);
-        
+
         // Handle offline scenarios and timeouts gracefully
-        if (firestoreError.code === 'unavailable' || 
-            firestoreError.message.includes('offline') ||
-            firestoreError.message.includes('timeout')) {
+        if (
+          firestoreError.code === 'unavailable' ||
+          firestoreError.message.includes('offline') ||
+          firestoreError.message.includes('timeout')
+        ) {
           console.log('🔄 [AuthService] Connection issue detected, checking cached data...');
-          
+
           try {
             // Try to get cached user data
             const cachedData = await AsyncStorage.getItem(`userData_${user.uid}`);
@@ -451,14 +463,18 @@ export class AuthService {
               profile = JSON.parse(cachedData);
             } else {
               console.log('⚠️ [AuthService] No cached data available');
-              throw new Error('İnternet bağlantısı gerekli - ilk kez giriş yaparken çevrimiçi olmanız gerekiyor');
+              throw new Error(
+                'İnternet bağlantısı gerekli - ilk kez giriş yaparken çevrimiçi olmanız gerekiyor'
+              );
             }
           } catch (cacheError) {
             console.error('❌ [AuthService] Cache error:', cacheError);
-            throw new Error('İnternet bağlantısı gerekli - ilk kez giriş yaparken çevrimiçi olmanız gerekiyor');
+            throw new Error(
+              'İnternet bağlantısı gerekli - ilk kez giriş yaparken çevrimiçi olmanız gerekiyor'
+            );
           }
         } else {
-          throw new Error('Profil bilgileri alınamadı: ' + firestoreError.message);
+          throw new Error(`Profil bilgileri alınamadı: ${firestoreError.message}`);
         }
       }
 
@@ -469,42 +485,47 @@ export class AuthService {
         const updateWithTimeout = Promise.race([
           updateDoc(userDocRef, {
             lastLoginAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Update timeout')), 5000)
-          )
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Update timeout')), 5000)),
         ]);
-        
+
         await updateWithTimeout;
         console.log('✅ [AuthService] Last login updated');
       } catch (updateError) {
-        console.log('⚠️ [AuthService] Could not update last login (offline/timeout):', updateError.message);
+        console.log(
+          '⚠️ [AuthService] Could not update last login (offline/timeout):',
+          updateError.message
+        );
         // Don't fail login just because we can't update last login time
       }
 
       // Step 5: Check email verification status
-      const emailVerified = user.emailVerified;
-      
+      const { emailVerified } = user;
+
       // Step 6: Handle password reset completion and save credentials for auto-login
       if (!skipCredentialSave) {
         try {
           console.log('💾 [AuthService] Saving credentials for auto-login...');
-          
+
           // Check if this user just completed a password reset
           const passwordResetPending = await AsyncStorage.getItem('passwordResetPending');
           const passwordResetEmail = await AsyncStorage.getItem('passwordResetEmail');
-          
-          if (passwordResetPending === 'true' && 
-              passwordResetEmail && 
-              passwordResetEmail.toLowerCase() === email.trim().toLowerCase()) {
-            console.log('🔄 [AuthService] Password reset completed - updating saved credentials with new password');
-            
+
+          if (
+            passwordResetPending === 'true' &&
+            passwordResetEmail &&
+            passwordResetEmail.toLowerCase() === email.trim().toLowerCase()
+          ) {
+            console.log(
+              '🔄 [AuthService] Password reset completed - updating saved credentials with new password'
+            );
+
             // Clear the password reset tracking
             await AsyncStorage.removeItem('passwordResetPending');
             await AsyncStorage.removeItem('passwordResetEmail');
           }
-          
+
           // Save credentials with error handling
           try {
             await SecureStore.setItemAsync('userEmail', email.trim().toLowerCase());
@@ -512,8 +533,11 @@ export class AuthService {
             await AsyncStorage.setItem('autoLoginEnabled', 'true');
             console.log('✅ [AuthService] Credentials saved successfully');
           } catch (secureStoreError) {
-            console.warn('⚠️ [AuthService] SecureStore failed, clearing and disabling auto-login:', secureStoreError.message);
-            
+            console.warn(
+              '⚠️ [AuthService] SecureStore failed, clearing and disabling auto-login:',
+              secureStoreError.message
+            );
+
             // Clear potentially corrupted data and disable auto-login
             try {
               await SecureStore.deleteItemAsync('userEmail');
@@ -522,7 +546,7 @@ export class AuthService {
             } catch (clearError) {
               console.warn('⚠️ [AuthService] Could not clear SecureStore:', clearError.message);
             }
-            
+
             // Don't throw error - just continue without saving credentials
             console.log('📝 [AuthService] Login continues without credential saving');
           }
@@ -533,31 +557,32 @@ export class AuthService {
       } else {
         console.log('⏭️ [AuthService] Skipping credential save (auto-login)');
       }
-      
+
       console.log('✅ [AuthService] Login completed successfully');
-      
+
       return {
         success: true,
         user: {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
-          emailVerified: emailVerified
+          emailVerified,
         },
         profile,
         emailVerified,
         requiresVerification: !emailVerified,
-        message: emailVerified ? 'Başarıyla giriş yaptınız!' : 'E-posta adresinizi doğrulamanız gerekiyor.'
+        message: emailVerified
+          ? 'Başarıyla giriş yaptınız!'
+          : 'E-posta adresinizi doğrulamanız gerekiyor.',
       };
-
     } catch (error) {
       console.error('❌ [AuthService] Login failed:', error);
-      
+
       // If this is our custom email verification error, preserve the original message
       if (error.message.includes('doğrulanmamış') || error.message.includes('verified')) {
         throw error; // Re-throw with original message
       }
-      
+
       // Provide user-friendly error messages for Firebase errors
       let errorMessage = 'Giriş işlemi başarısız oldu';
       if (error.code === 'auth/user-not-found') {
@@ -579,7 +604,7 @@ export class AuthService {
         // Use original error message if available
         errorMessage = error.message;
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -595,27 +620,26 @@ export class AuthService {
       if (user.emailVerified) {
         return {
           success: false,
-          message: 'E-posta adresi zaten doğrulanmış'
+          message: 'E-posta adresi zaten doğrulanmış',
         };
       }
 
       await sendEmailVerification(user, {
         url: `https://sorita-6d27e.web.app/verify-email`,
-        handleCodeInApp: true
+        handleCodeInApp: true,
       });
 
       // Update user profile
       const userDocRef = doc(db, 'users', user.uid);
       await updateDoc(userDocRef, {
         emailVerificationSentAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       return {
         success: true,
-        message: 'Doğrulama e-postası gönderildi. E-posta kutunuzu kontrol edin.'
+        message: 'Doğrulama e-postası gönderildi. E-posta kutunuzu kontrol edin.',
       };
-
     } catch (error) {
       console.error('Error sending email verification:', error);
       throw new Error('E-posta doğrulama gönderilemedi');
@@ -630,7 +654,7 @@ export class AuthService {
       await this.clearSavedCredentials();
       return {
         success: true,
-        message: 'Başarıyla çıkış yaptınız'
+        message: 'Başarıyla çıkış yaptınız',
       };
     } catch (error) {
       console.error('Logout error:', error);
@@ -647,23 +671,23 @@ export class AuthService {
       }
 
       await sendPasswordResetEmail(auth, email);
-      
+
       // Mark user for password reset tracking
       await AsyncStorage.setItem('passwordResetEmail', email.trim().toLowerCase());
       await AsyncStorage.setItem('passwordResetPending', 'true');
-      
+
       return {
         success: true,
-        message: 'Şifre sıfırlama e-postası gönderildi'
+        message: 'Şifre sıfırlama e-postası gönderildi',
       };
     } catch (error) {
       console.error('Password reset error:', error);
-      
+
       let errorMessage = 'Şifre sıfırlama e-postası gönderilemedi';
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı';
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -690,10 +714,10 @@ export class AuthService {
     try {
       const rememberMe = await AsyncStorage.getItem('rememberMe');
       const userEmail = await AsyncStorage.getItem('userEmail');
-      
+
       return {
         shouldRemember: rememberMe === 'true',
-        email: userEmail
+        email: userEmail,
       };
     } catch (error) {
       console.error('❌ [AuthService] Error checking remember me:', error);
@@ -715,7 +739,7 @@ export class AuthService {
   static async checkAutoLogin() {
     try {
       console.log('🔍 [AuthService] Checking for saved credentials...');
-      
+
       const autoLoginEnabled = await AsyncStorage.getItem('autoLoginEnabled');
       if (autoLoginEnabled !== 'true') {
         console.log('🚫 [AuthService] Auto-login not enabled');
@@ -723,13 +747,16 @@ export class AuthService {
       }
 
       let email, password;
-      
+
       try {
         email = await SecureStore.getItemAsync('userEmail');
         password = await SecureStore.getItemAsync('userPassword');
       } catch (secureStoreError) {
-        console.warn('⚠️ [AuthService] SecureStore error, clearing corrupted data:', secureStoreError.message);
-        
+        console.warn(
+          '⚠️ [AuthService] SecureStore error, clearing corrupted data:',
+          secureStoreError.message
+        );
+
         // Clear potentially corrupted SecureStore data
         try {
           await SecureStore.deleteItemAsync('userEmail');
@@ -738,7 +765,7 @@ export class AuthService {
         } catch (clearError) {
           console.warn('⚠️ [AuthService] Could not clear corrupted data:', clearError.message);
         }
-        
+
         return { hasCredentials: false };
       }
 
@@ -747,7 +774,7 @@ export class AuthService {
         return {
           hasCredentials: true,
           email,
-          password
+          password,
         };
       } else {
         console.log('❌ [AuthService] No saved credentials found');
@@ -763,15 +790,19 @@ export class AuthService {
   static async performAutoLogin() {
     try {
       console.log('🤖 [AuthService] Performing auto-login...');
-      
+
       const credentialsCheck = await this.checkAutoLogin();
       if (!credentialsCheck.hasCredentials) {
         return { success: false, reason: 'No saved credentials' };
       }
 
       // Attempt login with saved credentials (skip saving credentials again)
-      const loginResult = await this.loginUser(credentialsCheck.email, credentialsCheck.password, true);
-      
+      const loginResult = await this.loginUser(
+        credentialsCheck.email,
+        credentialsCheck.password,
+        true
+      );
+
       if (loginResult.success) {
         console.log('✅ [AuthService] Auto-login successful');
         return {
@@ -779,7 +810,7 @@ export class AuthService {
           user: loginResult.user,
           profile: loginResult.profile,
           emailVerified: loginResult.emailVerified,
-          requiresVerification: loginResult.requiresVerification
+          requiresVerification: loginResult.requiresVerification,
         };
       } else {
         console.log('❌ [AuthService] Auto-login failed');
@@ -799,27 +830,33 @@ export class AuthService {
   static async clearSavedCredentials() {
     try {
       console.log('🗑️ [AuthService] Clearing saved credentials...');
-      
+
       // Clear SecureStore items with individual error handling
       try {
         await SecureStore.deleteItemAsync('userEmail');
       } catch (error) {
-        console.warn('⚠️ [AuthService] Could not delete userEmail from SecureStore:', error.message);
+        console.warn(
+          '⚠️ [AuthService] Could not delete userEmail from SecureStore:',
+          error.message
+        );
       }
-      
+
       try {
         await SecureStore.deleteItemAsync('userPassword');
       } catch (error) {
-        console.warn('⚠️ [AuthService] Could not delete userPassword from SecureStore:', error.message);
+        console.warn(
+          '⚠️ [AuthService] Could not delete userPassword from SecureStore:',
+          error.message
+        );
       }
-      
+
       // Clear AsyncStorage items
       await AsyncStorage.removeItem('autoLoginEnabled');
-      
+
       // Also clear password reset tracking
       await AsyncStorage.removeItem('passwordResetPending');
       await AsyncStorage.removeItem('passwordResetEmail');
-      
+
       console.log('✅ [AuthService] Credentials cleared');
     } catch (error) {
       console.error('❌ [AuthService] Error clearing credentials:', error);

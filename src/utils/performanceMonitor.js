@@ -11,7 +11,7 @@ class PerformanceMonitor {
     this.metrics[label] = {
       startTime: Date.now(),
       endTime: null,
-      duration: null
+      duration: null,
     };
   }
 
@@ -19,11 +19,11 @@ class PerformanceMonitor {
     if (this.metrics[label]) {
       this.metrics[label].endTime = Date.now();
       this.metrics[label].duration = this.metrics[label].endTime - this.metrics[label].startTime;
-      
+
       if (__DEV__) {
         console.log(`[Performance] ${label}: ${this.metrics[label].duration}ms`);
       }
-      
+
       return this.metrics[label].duration;
     }
     return null;
@@ -32,14 +32,14 @@ class PerformanceMonitor {
   measureScreenTransition(screenName) {
     return new Promise((resolve) => {
       const startTime = Date.now();
-      
+
       InteractionManager.runAfterInteractions(() => {
         const duration = Date.now() - startTime;
-        
+
         if (__DEV__) {
           console.log(`[Performance] Screen transition to ${screenName}: ${duration}ms`);
         }
-        
+
         resolve(duration);
       });
     });
@@ -48,11 +48,11 @@ class PerformanceMonitor {
   measureAsyncOperation(label, operation) {
     return new Promise(async (resolve, reject) => {
       this.startTimer(label);
-      
+
       try {
         const result = await operation();
         const duration = this.endTimer(label);
-        
+
         resolve({ result, duration });
       } catch (error) {
         this.endTimer(label);
@@ -67,7 +67,7 @@ class PerformanceMonitor {
     return {
       screenWidth: this.screenDimensions.width,
       screenHeight: this.screenDimensions.height,
-      scale: this.screenDimensions.scale
+      scale: this.screenDimensions.scale,
     };
   }
 

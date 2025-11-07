@@ -2,14 +2,15 @@
 import React from 'react';
 import { View, StyleSheet, Platform, StatusBar, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { FEATURE_FLAGS } from '../config/environment';
 
-const EdgeToEdgeContainer = ({ 
-  children, 
-  style, 
-  useStatusBarPadding = true, 
+const EdgeToEdgeContainer = ({
+  children,
+  style,
+  useStatusBarPadding = true,
   useBottomPadding = true,
-  backgroundColor = 'transparent' 
+  backgroundColor = 'transparent',
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -22,26 +23,22 @@ const EdgeToEdgeContainer = ({
       paddingLeft: insets.left,
       paddingRight: insets.right,
     },
-    style
+    style,
   ];
 
   if (Platform.OS === 'android' && FEATURE_FLAGS.ENABLE_LOGGING) {
     console.log('[EdgeToEdge] Container rendered with insets:', insets);
   }
 
-  return (
-    <View style={containerStyle}>
-      {children}
-    </View>
-  );
+  return <View style={containerStyle}>{children}</View>;
 };
 
-const EdgeToEdgeScreen = ({ 
-  children, 
-  style, 
+const EdgeToEdgeScreen = ({
+  children,
+  style,
   statusBarStyle = 'light-content',
   statusBarBackgroundColor = 'transparent',
-  statusBarTranslucent = true
+  statusBarTranslucent = true,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -65,14 +62,14 @@ const EdgeToEdgeScreen = ({
 // Hook for edge-to-edge dimensions
 const useEdgeToEdgeDimensions = () => {
   const insets = useSafeAreaInsets();
-  
+
   return {
     safeAreaInsets: insets,
     statusBarHeight: insets.top,
     bottomSafeAreaHeight: insets.bottom,
     leftSafeAreaWidth: insets.left,
     rightSafeAreaWidth: insets.right,
-    isEdgeToEdgeSupported: Platform.OS === 'android' && Platform.Version >= 15
+    isEdgeToEdgeSupported: Platform.OS === 'android' && Platform.Version >= 15,
   };
 };
 
@@ -86,43 +83,34 @@ const ResponsiveContainer = ({ children, style }) => {
     styles.responsiveContainer,
     isTablet && styles.tabletContainer,
     isLandscape && styles.landscapeContainer,
-    style
+    style,
   ];
 
-  return (
-    <View style={containerStyle}>
-      {children}
-    </View>
-  );
+  return <View style={containerStyle}>{children}</View>;
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  screen: {
-    flex: 1,
-    backgroundColor: 'transparent',
+  landscapeContainer: {
+    paddingHorizontal: 24,
   },
   responsiveContainer: {
     flex: 1,
     paddingHorizontal: 16,
   },
-  tabletContainer: {
-    paddingHorizontal: 32,
-    maxWidth: 1200,
-    alignSelf: 'center',
+  screen: {
+    backgroundColor: 'transparent',
+    flex: 1,
   },
-  landscapeContainer: {
-    paddingHorizontal: 24,
+  tabletContainer: {
+    alignSelf: 'center',
+    maxWidth: 1200,
+    paddingHorizontal: 32,
   },
 });
 
-export {
-  EdgeToEdgeContainer,
-  EdgeToEdgeScreen,
-  useEdgeToEdgeDimensions,
-  ResponsiveContainer
-};
+export { EdgeToEdgeContainer, EdgeToEdgeScreen, useEdgeToEdgeDimensions, ResponsiveContainer };
 
 export default EdgeToEdgeContainer;

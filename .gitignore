@@ -96,10 +96,12 @@ jspm_packages/
 # Flipper
 flipper-device.json
 
-# Firebase
+# Firebase & Credentials
 google-services.json
 GoogleService-Info.plist
 firebase-debug.log
+credentials.json
+*.keystore
 
 # Android/IntelliJ
 android/local.properties

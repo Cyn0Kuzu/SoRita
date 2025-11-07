@@ -9,19 +9,19 @@ import Constants from 'expo-constants';
 export const ENVIRONMENTS = {
   DEVELOPMENT: 'development',
   STAGING: 'staging',
-  PRODUCTION: 'production'
+  PRODUCTION: 'production',
 };
 
 // Get current environment
 export const getCurrentEnvironment = () => {
   if (__DEV__) return ENVIRONMENTS.DEVELOPMENT;
-  
+
   // You can add more sophisticated logic here
   const releaseChannel = Constants.manifest?.releaseChannel;
-  
+
   if (releaseChannel === 'staging') return ENVIRONMENTS.STAGING;
   if (releaseChannel === 'production') return ENVIRONMENTS.PRODUCTION;
-  
+
   return ENVIRONMENTS.DEVELOPMENT;
 };
 
@@ -39,7 +39,7 @@ const configs = {
     ENABLE_CRASH_REPORTING: false,
     CACHE_TTL: 5 * 60 * 1000, // 5 minutes
   },
-  
+
   [ENVIRONMENTS.STAGING]: {
     API_BASE_URL: 'https://staging-api.sorita.com',
     FIREBASE_CONFIG: {
@@ -52,7 +52,7 @@ const configs = {
     ENABLE_CRASH_REPORTING: true,
     CACHE_TTL: 10 * 60 * 1000, // 10 minutes
   },
-  
+
   [ENVIRONMENTS.PRODUCTION]: {
     API_BASE_URL: 'https://api.sorita.com',
     FIREBASE_CONFIG: {
@@ -64,7 +64,7 @@ const configs = {
     ENABLE_PERFORMANCE_MONITORING: true,
     ENABLE_CRASH_REPORTING: true,
     CACHE_TTL: 30 * 60 * 1000, // 30 minutes
-  }
+  },
 };
 
 // Get current config
@@ -95,14 +95,14 @@ export const getApiConfig = () => {
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'X-App-Version': Constants.manifest?.version || '1.0.0',
       'X-Platform': 'mobile',
     },
     retryConfig: {
       retries: getCurrentEnvironment() === ENVIRONMENTS.DEVELOPMENT ? 1 : 3,
       retryDelay: 1000,
-    }
+    },
   };
 };
 
@@ -110,7 +110,8 @@ export const getApiConfig = () => {
 export const getDatabaseConfig = () => {
   const config = getConfig();
   return {
-    cacheSize: getCurrentEnvironment() === ENVIRONMENTS.PRODUCTION ? 100 * 1024 * 1024 : 10 * 1024 * 1024, // 100MB prod, 10MB dev
+    cacheSize:
+      getCurrentEnvironment() === ENVIRONMENTS.PRODUCTION ? 100 * 1024 * 1024 : 10 * 1024 * 1024, // 100MB prod, 10MB dev
     persistenceEnabled: true,
     cacheTTL: config.CACHE_TTL,
     offlineSupport: true,

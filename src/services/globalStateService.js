@@ -2,6 +2,7 @@
 // Tüm ekranlar ve bileşenler arasında veri senkronizasyonu sağlar
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { auth } from '../config/firebase';
 
 // Simple EventEmitter implementation for React Native
@@ -19,16 +20,14 @@ class SimpleEventEmitter {
 
   off(event, listenerToRemove) {
     if (!this.events[event]) return;
-    
-    this.events[event] = this.events[event].filter(
-      listener => listener !== listenerToRemove
-    );
+
+    this.events[event] = this.events[event].filter((listener) => listener !== listenerToRemove);
   }
 
   emit(event, ...args) {
     if (!this.events[event]) return;
-    
-    this.events[event].forEach(listener => {
+
+    this.events[event].forEach((listener) => {
       try {
         listener(...args);
       } catch (error) {
@@ -57,7 +56,7 @@ class GlobalStateService extends SimpleEventEmitter {
         followers: 0,
         following: 0,
         posts: 0,
-        lists: 0
+        lists: 0,
       },
       notifications: [],
       unreadNotificationCount: 0,
@@ -65,12 +64,12 @@ class GlobalStateService extends SimpleEventEmitter {
         profile: 0,
         home: 0,
         maps: 0,
-        notifications: 0
+        notifications: 0,
       },
       // PlaceCard cache for real-time synchronization
-      placeCardCache: new Map() // placeId -> { likes: [], comments: [], likesCount: 0, commentsCount: 0, lastUpdate: timestamp }
+      placeCardCache: new Map(), // placeId -> { likes: [], comments: [], likesCount: 0, commentsCount: 0, lastUpdate: timestamp }
     };
-    
+
     this.isInitialized = false;
     this.lastUpdate = null;
   }
@@ -79,7 +78,7 @@ class GlobalStateService extends SimpleEventEmitter {
   async initialize() {
     try {
       console.log('🌐 [GlobalState] Initializing global state...');
-      
+
       const user = auth.currentUser;
       if (!user) {
         console.log('❌ [GlobalState] No authenticated user');
@@ -88,13 +87,13 @@ class GlobalStateService extends SimpleEventEmitter {
 
       // Load cached data
       await this.loadCachedData(user.uid);
-      
+
       this.isInitialized = true;
       this.lastUpdate = Date.now();
-      
+
       console.log('✅ [GlobalState] Global state initialized');
       this.emit('initialized');
-      
+
       return true;
     } catch (error) {
       console.error('❌ [GlobalState] Error initializing:', error);
@@ -110,15 +109,15 @@ class GlobalStateService extends SimpleEventEmitter {
         `userLists_${userId}`,
         `userPlaces_${userId}`,
         `userStats_${userId}`,
-        `notifications_${userId}`
+        `notifications_${userId}`,
       ];
 
       const results = await AsyncStorage.multiGet(keys);
-      
+
       results.forEach(([key, value]) => {
         if (value) {
           const data = JSON.parse(value);
-          
+
           if (key.includes('userData')) {
             this.state.userData = data;
           } else if (key.includes('userLists')) {
@@ -129,7 +128,7 @@ class GlobalStateService extends SimpleEventEmitter {
             this.state.userStats = data;
           } else if (key.includes('notifications')) {
             this.state.notifications = data;
-            this.state.unreadNotificationCount = data.filter(n => !n.read).length;
+            this.state.unreadNotificationCount = data.filter((n) => !n.read).length;
           }
         }
       });
@@ -144,20 +143,17 @@ class GlobalStateService extends SimpleEventEmitter {
   async updateUserData(newData) {
     try {
       this.state.userData = { ...this.state.userData, ...newData };
-      
+
       // Cache update
       const user = auth.currentUser;
       if (user) {
-        await AsyncStorage.setItem(
-          `userData_${user.uid}`,
-          JSON.stringify(this.state.userData)
-        );
+        await AsyncStorage.setItem(`userData_${user.uid}`, JSON.stringify(this.state.userData));
       }
-      
+
       // Notify all listeners
       this.emit('userDataUpdated', this.state.userData);
       this.triggerRefresh('profile');
-      
+
       console.log('✅ [GlobalState] User data updated globally');
     } catch (error) {
       console.error('❌ [GlobalState] Error updating user data:', error);
@@ -168,24 +164,24 @@ class GlobalStateService extends SimpleEventEmitter {
   async updateUserLists(lists) {
     try {
       this.state.userLists = lists;
-      
+
       // Update stats
       this.state.userStats.lists = lists.length;
-      
+
       // Cache update
       const user = auth.currentUser;
       if (user) {
         await AsyncStorage.multiSet([
           [`userLists_${user.uid}`, JSON.stringify(lists)],
-          [`userStats_${user.uid}`, JSON.stringify(this.state.userStats)]
+          [`userStats_${user.uid}`, JSON.stringify(this.state.userStats)],
         ]);
       }
-      
+
       // Notify all listeners
       this.emit('userListsUpdated', lists);
       this.emit('userStatsUpdated', this.state.userStats);
       this.triggerRefresh(['profile', 'maps']);
-      
+
       console.log('✅ [GlobalState] User lists updated globally');
     } catch (error) {
       console.error('❌ [GlobalState] Error updating user lists:', error);
@@ -196,20 +192,17 @@ class GlobalStateService extends SimpleEventEmitter {
   async updateUserPlaces(places) {
     try {
       this.state.userPlaces = places;
-      
+
       // Cache update
       const user = auth.currentUser;
       if (user) {
-        await AsyncStorage.setItem(
-          `userPlaces_${user.uid}`,
-          JSON.stringify(places)
-        );
+        await AsyncStorage.setItem(`userPlaces_${user.uid}`, JSON.stringify(places));
       }
-      
+
       // Notify all listeners
       this.emit('userPlacesUpdated', places);
       this.triggerRefresh(['profile', 'maps']);
-      
+
       console.log('✅ [GlobalState] User places updated globally');
     } catch (error) {
       console.error('❌ [GlobalState] Error updating user places:', error);
@@ -220,22 +213,19 @@ class GlobalStateService extends SimpleEventEmitter {
   async updateNotifications(notifications) {
     try {
       this.state.notifications = notifications;
-      this.state.unreadNotificationCount = notifications.filter(n => !n.read).length;
-      
+      this.state.unreadNotificationCount = notifications.filter((n) => !n.read).length;
+
       // Cache update
       const user = auth.currentUser;
       if (user) {
-        await AsyncStorage.setItem(
-          `notifications_${user.uid}`,
-          JSON.stringify(notifications)
-        );
+        await AsyncStorage.setItem(`notifications_${user.uid}`, JSON.stringify(notifications));
       }
-      
+
       // Notify all listeners
       this.emit('notificationsUpdated', notifications);
       this.emit('unreadCountUpdated', this.state.unreadNotificationCount);
       this.triggerRefresh(['notifications', 'home']);
-      
+
       console.log('✅ [GlobalState] Notifications updated globally');
     } catch (error) {
       console.error('❌ [GlobalState] Error updating notifications:', error);
@@ -246,20 +236,17 @@ class GlobalStateService extends SimpleEventEmitter {
   async updateUserStats(stats) {
     try {
       this.state.userStats = { ...this.state.userStats, ...stats };
-      
+
       // Cache update
       const user = auth.currentUser;
       if (user) {
-        await AsyncStorage.setItem(
-          `userStats_${user.uid}`,
-          JSON.stringify(this.state.userStats)
-        );
+        await AsyncStorage.setItem(`userStats_${user.uid}`, JSON.stringify(this.state.userStats));
       }
-      
+
       // Notify all listeners
       this.emit('userStatsUpdated', this.state.userStats);
       this.triggerRefresh('profile');
-      
+
       console.log('✅ [GlobalState] User stats updated globally');
     } catch (error) {
       console.error('❌ [GlobalState] Error updating user stats:', error);
@@ -269,14 +256,14 @@ class GlobalStateService extends SimpleEventEmitter {
   // Trigger refresh for specific screens
   triggerRefresh(screens) {
     const screensArray = Array.isArray(screens) ? screens : [screens];
-    
-    screensArray.forEach(screen => {
+
+    screensArray.forEach((screen) => {
       if (this.state.refreshTriggers[screen] !== undefined) {
         this.state.refreshTriggers[screen]++;
         this.emit(`refresh_${screen}`, this.state.refreshTriggers[screen]);
       }
     });
-    
+
     console.log('🔄 [GlobalState] Refresh triggered for:', screensArray);
   }
 
@@ -288,9 +275,9 @@ class GlobalStateService extends SimpleEventEmitter {
   setPlaceCardData(placeId, data) {
     this.state.placeCardCache.set(placeId, {
       ...data,
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
     });
-    
+
     // Emit event to notify all PlaceCards with this placeId
     this.emit('placeCardDataUpdated', { placeId, data });
   }
@@ -301,7 +288,7 @@ class GlobalStateService extends SimpleEventEmitter {
       ...cached,
       likes,
       likesCount,
-      isLiked
+      isLiked,
     });
   }
 
@@ -310,7 +297,7 @@ class GlobalStateService extends SimpleEventEmitter {
     this.setPlaceCardData(placeId, {
       ...cached,
       comments,
-      commentsCount
+      commentsCount,
     });
   }
 
@@ -321,10 +308,10 @@ class GlobalStateService extends SimpleEventEmitter {
   // Trigger refresh for all PlaceCard components
   refreshAllPlaceCards() {
     console.log('🔄 [GlobalState] Refreshing all PlaceCard components');
-    this.emit('placeInteraction', { 
+    this.emit('placeInteraction', {
       placeId: null, // null means all places
-      type: 'global_refresh', 
-      action: 'refresh_all' 
+      type: 'global_refresh',
+      action: 'refresh_all',
     });
   }
 
@@ -373,12 +360,12 @@ class GlobalStateService extends SimpleEventEmitter {
         notifications: [],
         unreadNotificationCount: 0,
         refreshTriggers: { profile: 0, home: 0, maps: 0, notifications: 0 },
-        placeCardCache: new Map()
+        placeCardCache: new Map(),
       };
-      
+
       this.isInitialized = false;
       this.lastUpdate = null;
-      
+
       // Clear cache
       const user = auth.currentUser;
       if (user) {
@@ -387,15 +374,15 @@ class GlobalStateService extends SimpleEventEmitter {
           `userLists_${user.uid}`,
           `userPlaces_${user.uid}`,
           `userStats_${user.uid}`,
-          `notifications_${user.uid}`
+          `notifications_${user.uid}`,
         ];
-        
+
         await AsyncStorage.multiRemove(keysToRemove);
       }
-      
+
       // Notify all listeners
       this.emit('stateCleared');
-      
+
       console.log('✅ [GlobalState] State cleared');
     } catch (error) {
       console.error('❌ [GlobalState] Error clearing state:', error);
@@ -407,7 +394,7 @@ class GlobalStateService extends SimpleEventEmitter {
     try {
       this.triggerRefresh(['profile', 'home', 'maps', 'notifications']);
       this.emit('forceRefresh');
-      
+
       console.log('🔄 [GlobalState] Force refresh triggered');
     } catch (error) {
       console.error('❌ [GlobalState] Error in force refresh:', error);

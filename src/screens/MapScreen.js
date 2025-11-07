@@ -1,9 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Alert, 
+import {
+  View,
+  StyleSheet,
+  Alert,
   ActivityIndicator,
   Text,
   Dimensions,
@@ -14,13 +14,26 @@ import {
   Modal,
   Share,
   Image,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+} from 'firebase/firestore';
+
 import { colors } from '../theme/theme';
 import { placesService } from '../services/placesService';
 import SoRitaHeader from '../components/SoRitaHeader';
@@ -28,7 +41,6 @@ import { AppStatusBar } from '../components/AppStatusBar';
 import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 import { pickImageFromLibraryAndUpload } from '../utils/imagePicker';
 import { auth, db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ListCard } from '../components/CommonComponents';
 import StorageService from '../services/storageService';
 import { sendListInvitationPushNotification } from '../services/pushNotificationService';
@@ -40,41 +52,109 @@ import GlobalStateService from '../services/globalStateService';
 
 // Türkiye İlleri
 const turkishProvinces = [
-  'Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Aksaray', 'Amasya',
-  'Ankara', 'Antalya', 'Ardahan', 'Artvin', 'Aydın', 'Balıkesir', 'Bartın',
-  'Batman', 'Bayburt', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur',
-  'Bursa', 'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır',
-  'Düzce', 'Edirne', 'Elazığ', 'Erzincan', 'Erzurum', 'Eskişehir',
-  'Gaziantep', 'Giresun', 'Gümüşhane', 'Hakkari', 'Hatay', 'Iğdır',
-  'Isparta', 'İstanbul', 'İzmir', 'Kahramanmaraş', 'Karabük', 'Karaman',
-  'Kars', 'Kastamonu', 'Kayseri', 'Kırıkkale', 'Kırklareli', 'Kırşehir',
-  'Kilis', 'Kocaeli', 'Konya', 'Kütahya', 'Malatya', 'Manisa', 'Mardin',
-  'Mersin', 'Muğla', 'Muş', 'Nevşehir', 'Niğde', 'Ordu', 'Osmaniye',
-  'Rize', 'Sakarya', 'Samsun', 'Siirt', 'Sinop', 'Sivas', 'Şanlıurfa',
-  'Şırnak', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Uşak', 'Van',
-  'Yalova', 'Yozgat', 'Zonguldak'
+  'Adana',
+  'Adıyaman',
+  'Afyonkarahisar',
+  'Ağrı',
+  'Aksaray',
+  'Amasya',
+  'Ankara',
+  'Antalya',
+  'Ardahan',
+  'Artvin',
+  'Aydın',
+  'Balıkesir',
+  'Bartın',
+  'Batman',
+  'Bayburt',
+  'Bilecik',
+  'Bingöl',
+  'Bitlis',
+  'Bolu',
+  'Burdur',
+  'Bursa',
+  'Çanakkale',
+  'Çankırı',
+  'Çorum',
+  'Denizli',
+  'Diyarbakır',
+  'Düzce',
+  'Edirne',
+  'Elazığ',
+  'Erzincan',
+  'Erzurum',
+  'Eskişehir',
+  'Gaziantep',
+  'Giresun',
+  'Gümüşhane',
+  'Hakkari',
+  'Hatay',
+  'Iğdır',
+  'Isparta',
+  'İstanbul',
+  'İzmir',
+  'Kahramanmaraş',
+  'Karabük',
+  'Karaman',
+  'Kars',
+  'Kastamonu',
+  'Kayseri',
+  'Kırıkkale',
+  'Kırklareli',
+  'Kırşehir',
+  'Kilis',
+  'Kocaeli',
+  'Konya',
+  'Kütahya',
+  'Malatya',
+  'Manisa',
+  'Mardin',
+  'Mersin',
+  'Muğla',
+  'Muş',
+  'Nevşehir',
+  'Niğde',
+  'Ordu',
+  'Osmaniye',
+  'Rize',
+  'Sakarya',
+  'Samsun',
+  'Siirt',
+  'Sinop',
+  'Sivas',
+  'Şanlıurfa',
+  'Şırnak',
+  'Tekirdağ',
+  'Tokat',
+  'Trabzon',
+  'Tunceli',
+  'Uşak',
+  'Van',
+  'Yalova',
+  'Yozgat',
+  'Zonguldak',
 ];
 
 const { height } = Dimensions.get('window');
 
 const MapScreen = ({ navigation, route }) => {
-  const { 
-    listId, 
-    listData, 
-    showListDetail, 
-    editMode, 
+  const {
+    listId,
+    listData,
+    showListDetail,
+    editMode,
     showEditPanel,
     selectedPlace4List: routeSelectedPlace,
     showAddToListModal: routeShowAddToListModal,
-    fromViewList
+    fromViewList,
   } = route.params || {};
-  
+
   // Edit mode states
   const [isEditMode, setIsEditMode] = useState(editMode || false);
   const [editingList, setEditingList] = useState(listData || null);
   const [showEditBottomPanel, setShowEditBottomPanel] = useState(showEditPanel || false);
   const [editListPlaces, setEditListPlaces] = useState([]);
-  
+
   // ViewList modal navigation state
   const [cameFromViewList, setCameFromViewList] = useState(false);
 
@@ -86,34 +166,41 @@ const MapScreen = ({ navigation, route }) => {
       listDataName: listData?.name,
       fromViewList,
       hasRouteSelectedPlace: !!routeSelectedPlace,
-      routeShowAddToListModal
+      routeShowAddToListModal,
     });
-    
+
     setIsEditMode(editMode || false);
     setEditingList(listData || null);
     setShowEditBottomPanel(showEditPanel || false);
-    
+
     // Handle place from ViewListModal
     if (fromViewList && routeSelectedPlace) {
       console.log('⭐ [MapScreen] Handling place from ViewListModal:', routeSelectedPlace.name);
       setCameFromViewList(true); // Save that we came from ViewList
       setSelectedPlace4List(routeSelectedPlace);
       setShowAddToListModal(true);
-      
+
       // Clear the route parameters to prevent re-triggering
       navigation.setParams({
         selectedPlace4List: undefined,
         showAddToListModal: undefined,
-        fromViewList: undefined
+        fromViewList: undefined,
       });
     }
-  }, [editMode, showEditPanel, listData, fromViewList, routeSelectedPlace, routeShowAddToListModal]);
-  
+  }, [
+    editMode,
+    showEditPanel,
+    listData,
+    fromViewList,
+    routeSelectedPlace,
+    routeShowAddToListModal,
+  ]);
+
   const mapRef = useRef(null);
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [mapReady, setMapReady] = useState(false);
-  
+
   // Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -121,15 +208,15 @@ const MapScreen = ({ navigation, route }) => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [places, setPlaces] = useState([]);
-  
+
   // Map interaction states
   const [tappedLocation, setTappedLocation] = useState(null);
   const [tappedPlaceInfo, setTappedPlaceInfo] = useState(null);
   const [loadingPlaceInfo, setLoadingPlaceInfo] = useState(false);
-  
+
   // Search UI states
   const [showSearchModal, setShowSearchModal] = useState(false);
-  
+
   // List management states
   const [showAddToListModal, setShowAddToListModal] = useState(false);
   const [showCreateListModal, setShowCreateListModal] = useState(false);
@@ -145,16 +232,16 @@ const MapScreen = ({ navigation, route }) => {
   const [selectedCollaborators, setSelectedCollaborators] = useState([]); // Seçilen işbirlikçiler
   const [loadingFollowers, setLoadingFollowers] = useState(false); // Takipçi yükleme durumu
   const [selectedPlace4List, setSelectedPlace4List] = useState(null);
-  
+
   // Place details for adding to list - NEW
   const [placeNote, setPlaceNote] = useState('');
   const [placeRating, setPlaceRating] = useState(0);
   const [placePhotos, setPlacePhotos] = useState([]);
-  
+
   // Photo preview modal states
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
   const [previewPhotoIndex, setPreviewPhotoIndex] = useState(0);
-  
+
   // List detail states
   const [currentListDetail, setCurrentListDetail] = useState(null);
   const [showListDetailModal, setShowListDetailModal] = useState(false);
@@ -177,7 +264,7 @@ const MapScreen = ({ navigation, route }) => {
     isEditMode,
     hasEditingList: !!editingList,
     showEditBottomPanel,
-    editListPlacesCount: editListPlaces.length
+    editListPlacesCount: editListPlaces.length,
   });
 
   console.log('🔍 [MapScreen] Modal states:', {
@@ -187,12 +274,12 @@ const MapScreen = ({ navigation, route }) => {
     selectedPlace4List: !!selectedPlace4List,
     tappedPlaceInfo: !!tappedPlaceInfo,
     userListsCount: userLists.length,
-    cameFromViewList
+    cameFromViewList,
   });
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const setDefaultLocation = () => {
       console.log('🏙️ [Location] Using Turkey center...');
       const defaultCoords = {
@@ -204,12 +291,12 @@ const MapScreen = ({ navigation, route }) => {
       setLocation(defaultCoords);
       console.log('🗺️ [MapScreen] Default location set, should render map now');
     };
-    
+
     const getLocationPermission = async () => {
       try {
         console.log('📍 [Location] Requesting permissions...');
         const { status } = await Location.requestForegroundPermissionsAsync();
-        
+
         if (status !== 'granted') {
           if (isMounted) {
             setErrorMsg('Konum erişimi gerekli');
@@ -219,19 +306,19 @@ const MapScreen = ({ navigation, route }) => {
         }
 
         console.log('📍 [Location] Getting current position...');
-        
+
         // Add timeout for location request with proper error handling
         const locationPromise = Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
-        }).catch(error => {
+        }).catch((error) => {
           console.log('📍 [Location] getCurrentPosition failed:', error.message);
           throw error;
         });
-        
+
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Location timeout')), 10000)
         );
-        
+
         try {
           const locationResult = await Promise.race([locationPromise, timeoutPromise]);
 
@@ -242,7 +329,7 @@ const MapScreen = ({ navigation, route }) => {
               latitudeDelta: 0.05,
               longitudeDelta: 0.05,
             };
-            
+
             console.log('✅ [Location] Location set:', coords.latitude, coords.longitude);
             setLocation(coords);
             console.log('🗺️ [MapScreen] Location state updated, should render map now');
@@ -253,7 +340,6 @@ const MapScreen = ({ navigation, route }) => {
             setDefaultLocation();
           }
         }
-        
       } catch (error) {
         console.log('⚠️ [Location] Permission error, using default location:', error.message);
         if (isMounted) {
@@ -277,14 +363,17 @@ const MapScreen = ({ navigation, route }) => {
         try {
           // ColorAssignments'ı yenile
           await CollaborativeListService.refreshColorAssignments(listId);
-          
+
           // Güncel liste verisini al
           const listRef = doc(db, 'lists', listId);
           const listDoc = await getDoc(listRef);
           if (listDoc.exists()) {
             const updatedListData = { id: listDoc.id, ...listDoc.data() };
             setCurrentListDetail(updatedListData);
-            console.log('🔄 [MapScreen] Liste verisi güncellendi:', updatedListData['name'] || 'İsimsiz');
+            console.log(
+              '🔄 [MapScreen] Liste verisi güncellendi:',
+              updatedListData['name'] || 'İsimsiz'
+            );
           }
         } catch (error) {
           console.error('❌ [MapScreen] Liste verisi güncellenirken hata:', error);
@@ -300,22 +389,22 @@ const MapScreen = ({ navigation, route }) => {
     if (showListDetail && listData) {
       setCurrentListDetail(listData);
       setShowListDetailModal(true);
-      
+
       // Show list places on map
       if (listData.places && listData.places.length > 0) {
         setPlaces(listData.places);
-        
+
         // Focus map on list places
         if (mapRef.current && listData.places.length > 0) {
-          const coordinates = listData.places.map(place => ({
+          const coordinates = listData.places.map((place) => ({
             latitude: place.latitude,
-            longitude: place.longitude
+            longitude: place.longitude,
           }));
-          
+
           setTimeout(() => {
             mapRef.current.fitToCoordinates(coordinates, {
               edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-              animated: true
+              animated: true,
             });
           }, 1000);
         }
@@ -329,44 +418,47 @@ const MapScreen = ({ navigation, route }) => {
       isEditMode,
       hasEditingList: !!editingList,
       editingListName: editingList?.name,
-      editingListPlaces: editingList?.places?.length || 0
+      editingListPlaces: editingList?.places?.length || 0,
     });
-    
+
     if (isEditMode && editingList) {
       console.log('✏️ [MapScreen] Entering edit mode for list:', editingList.name);
       console.log('📋 [MapScreen] List places:', editingList.places);
-      
+
       // Load list places for editing
       if (editingList.places && editingList.places.length > 0) {
         console.log('📍 [MapScreen] Setting edit places:', editingList.places.length);
         setEditListPlaces([...editingList.places]);
         setPlaces([...editingList.places]);
-        
+
         // Focus map on list places
         if (mapRef.current) {
           const coordinates = editingList.places
-            .map(place => {
+            .map((place) => {
               const latitude = place.coordinate?.latitude || place.latitude;
               const longitude = place.coordinate?.longitude || place.longitude;
-              
+
               if (latitude && longitude) {
                 return { latitude, longitude };
               }
               return null;
             })
-            .filter(coord => coord !== null);
-          
+            .filter((coord) => coord !== null);
+
           console.log('🗺️ [MapScreen] Focusing map on coordinates:', coordinates.length);
-          
+
           if (coordinates.length > 0) {
             setTimeout(() => {
               if (coordinates.length === 1) {
-                mapRef.current.animateToRegion({
-                  latitude: coordinates[0].latitude,
-                  longitude: coordinates[0].longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }, 1000);
+                mapRef.current.animateToRegion(
+                  {
+                    latitude: coordinates[0].latitude,
+                    longitude: coordinates[0].longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  },
+                  1000
+                );
               } else if (coordinates.length > 1) {
                 mapRef.current.fitToCoordinates(coordinates, {
                   edgePadding: { top: 50, right: 50, bottom: 150, left: 50 },
@@ -381,7 +473,7 @@ const MapScreen = ({ navigation, route }) => {
         setEditListPlaces([]);
         setPlaces([]);
       }
-      
+
       // Show edit panel
       console.log('📱 [MapScreen] Showing edit bottom panel');
       setShowEditBottomPanel(true);
@@ -404,24 +496,21 @@ const MapScreen = ({ navigation, route }) => {
 
       console.log('📋 [MapScreen] Loading all user lists (manual mode)');
       setRefreshingLists(true);
-      
+
       const allLists = [];
       const seenListIds = new Set();
-      
+
       // 1. Kendi listelerini al
       try {
-        const ownListsQuery = query(
-          collection(db, 'lists'),
-          where('userId', '==', user.uid)
-        );
+        const ownListsQuery = query(collection(db, 'lists'), where('userId', '==', user.uid));
         const ownListsSnap = await getDocs(ownListsQuery);
         console.log('✅ [MapScreen] Own lists found:', ownListsSnap.size);
-        
+
         ownListsSnap.forEach((doc) => {
-          const listData = { 
-            id: doc.id, 
+          const listData = {
+            id: doc.id,
             ...doc.data(),
-            isOwned: true
+            isOwned: true,
           };
           allLists.push(listData);
           seenListIds.add(doc.id);
@@ -429,25 +518,27 @@ const MapScreen = ({ navigation, route }) => {
       } catch (error) {
         console.error('❌ [MapScreen] Error getting own lists:', error);
       }
-      
+
       // 2. Collaborative listeleri al (sadece basit bir deneme)
       try {
         // Tüm listeleri al ve collaborators kontrolü yap
         const allListsQuery = query(collection(db, 'lists'));
         const allListsSnap = await getDocs(allListsQuery);
         console.log('🔍 [MapScreen] Checking all lists for collaborations:', allListsSnap.size);
-        
+
         allListsSnap.forEach((doc) => {
           const listData = doc.data();
           // Eğer bu kullanıcı collaborators listesinde varsa ve daha önce eklenmemişse
-          if (listData.collaborators && 
-              listData.collaborators.includes(user.uid) && 
-              !seenListIds.has(doc.id)) {
-            const collaborativeListData = { 
-              id: doc.id, 
+          if (
+            listData.collaborators &&
+            listData.collaborators.includes(user.uid) &&
+            !seenListIds.has(doc.id)
+          ) {
+            const collaborativeListData = {
+              id: doc.id,
               ...listData,
               isOwned: false,
-              isCollaborative: true
+              isCollaborative: true,
             };
             allLists.push(collaborativeListData);
             seenListIds.add(doc.id);
@@ -456,37 +547,37 @@ const MapScreen = ({ navigation, route }) => {
       } catch (error) {
         console.warn('⚠️ [MapScreen] Error getting collaborative lists:', error);
       }
-      
+
       console.log('📋 [MapScreen] Total lists loaded:', allLists.length);
-      
+
       // Debug: Her liste için kategori bilgisi
       console.log('🔍 [MapScreen] Liste kategorileri analizi:');
       allLists.forEach((list, index) => {
         const currentUserId = auth.currentUser?.uid;
-        const isCollaborative = (list.collaborators && list.collaborators.includes(currentUserId)) || 
-                               list.isCollaborative === true;
+        const isCollaborative =
+          (list.collaborators && list.collaborators.includes(currentUserId)) ||
+          list.isCollaborative === true;
         const isPrivate = list.isPrivate === true || list.privacy === 'private';
-        
+
         let category = 'Herkese Açık';
         if (isCollaborative) {
           category = 'Ortak';
         } else if (isPrivate) {
           category = 'Özel';
         }
-        
+
         console.log(`${index + 1}. "${list.name}" → ${category}`, {
           hasCollaborators: !!list.collaborators?.length,
           isUserInCollaborators: list.collaborators?.includes(currentUserId),
           isCollaborativeFlag: list.isCollaborative,
-          isPrivate: isPrivate,
+          isPrivate,
           privacy: list.privacy,
           finalCategory: category,
-          collaboratorsArray: list.collaborators
+          collaboratorsArray: list.collaborators,
         });
       });
-      
+
       setModalUserLists(allLists);
-      
     } catch (error) {
       console.error('❌ [MapScreen] Error loading user lists:', error);
       Alert.alert('Hata', 'Listeler yüklenirken bir hata oluştu');
@@ -499,17 +590,18 @@ const MapScreen = ({ navigation, route }) => {
   const getListCounts = () => {
     const total = modalUserLists.length;
     const currentUserId = auth.currentUser?.uid;
-    
+
     let publicCount = 0;
     let collaborativeCount = 0;
     let privateCount = 0;
-    
-    modalUserLists.forEach(list => {
+
+    modalUserLists.forEach((list) => {
       // Collaborative kontrolü - hem collaborators array'i hem isCollaborative flag'i kontrol et
-      const isCollaborative = (list.collaborators && list.collaborators.includes(currentUserId)) || 
-                             list.isCollaborative === true;
+      const isCollaborative =
+        (list.collaborators && list.collaborators.includes(currentUserId)) ||
+        list.isCollaborative === true;
       const isPrivate = list.isPrivate === true || list.privacy === 'private';
-      
+
       // Öncelik sırası: Ortak > Özel > Herkese Açık (mutual exclusive)
       if (isCollaborative) {
         collaborativeCount++;
@@ -519,44 +611,44 @@ const MapScreen = ({ navigation, route }) => {
         publicCount++;
       }
     });
-    
+
     console.log('📊 [MapScreen] Liste kategorileri:', {
       total,
       public: publicCount,
       collaborative: collaborativeCount,
       private: privateCount,
-      toplam: publicCount + collaborativeCount + privateCount
+      toplam: publicCount + collaborativeCount + privateCount,
     });
-    
+
     return {
       total,
       public: publicCount,
       collaborative: collaborativeCount,
-      private: privateCount
+      private: privateCount,
     };
   };
 
   // Search functionality
   const searchPlaces = async (query) => {
     if (!query.trim() || !location) return;
-    
+
     try {
       console.log('🔍 [Search] Searching for:', query);
       setSearchLoading(true);
-      
+
       const results = await placesService.searchPlacesByText(
-        query + ' Turkey',
+        `${query} Turkey`,
         location.latitude,
         location.longitude
       );
-      
+
       // Filter to Turkey bounds
-      const turkeyResults = results.filter(place => {
-        const lat = place.geometry.location.lat;
-        const lng = place.geometry.location.lng;
+      const turkeyResults = results.filter((place) => {
+        const { lat } = place.geometry.location;
+        const { lng } = place.geometry.location;
         return lat >= 35.8 && lat <= 42.2 && lng >= 25.6 && lng <= 44.8;
       });
-      
+
       console.log('✅ [Search] Found', turkeyResults.length, 'places in Turkey');
       setSearchResults(turkeyResults);
       setShowSuggestions(true);
@@ -571,22 +663,22 @@ const MapScreen = ({ navigation, route }) => {
   // Extract district from address
   const extractDistrict = (address) => {
     if (!address) return '';
-    
+
     console.log('🔍 [Extract] Extracting district from:', address);
-    
+
     // Google Places API formatında adres parçala
-    const parts = address.split(',').map(part => part.trim());
+    const parts = address.split(',').map((part) => part.trim());
     console.log('🔍 [Extract] Address parts:', parts);
-    
+
     // Turkish district patterns - daha spesifik
     const districtPatterns = [
-      /(\w+)\s+İlçesi/i,                          // "Kadıköy İlçesi"
-      /(\w+)\s*\/\s*(\w+)/i,                      // "Kadıköy/İstanbul" 
-      /(\w+)\s*,\s*(\w+)\s*İli?/i,               // "Kadıköy, İstanbul"
-      /(\w+)\s*,\s*(\w+)\s*Province/i,           // "Kadıköy, Istanbul Province"
-      /(\w+)\s+Mahallesi,?\s*(\w+)/i,            // "Merkez Mahallesi, Kadıköy"
+      /(\w+)\s+İlçesi/i, // "Kadıköy İlçesi"
+      /(\w+)\s*\/\s*(\w+)/i, // "Kadıköy/İstanbul"
+      /(\w+)\s*,\s*(\w+)\s*İli?/i, // "Kadıköy, İstanbul"
+      /(\w+)\s*,\s*(\w+)\s*Province/i, // "Kadıköy, Istanbul Province"
+      /(\w+)\s+Mahallesi,?\s*(\w+)/i, // "Merkez Mahallesi, Kadıköy"
     ];
-    
+
     // Pattern'leri dene
     for (const pattern of districtPatterns) {
       const match = address.match(pattern);
@@ -595,35 +687,66 @@ const MapScreen = ({ navigation, route }) => {
         return match[1];
       }
     }
-    
+
     // Google Places formatında genellikle: "Street, District, City, Country"
     if (parts.length >= 3) {
       const districtCandidate = parts[parts.length - 3];
-      
+
       // İl ismi değilse ilçe olabilir
       const turkishProvinces = [
-        'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya',
-        'Gaziantep', 'Mersin', 'Diyarbakır', 'Kayseri', 'Eskişehir', 'Urfa',
-        'Malatya', 'Erzurum', 'Van', 'Batman', 'Elazığ', 'Tekirdağ', 'Samsun',
-        'Denizli', 'Sakarya', 'Muğla', 'Balıkesir', 'Uşak', 'Tokat', 'Manisa',
-        'Trabzon', 'Hatay', 'Kocaeli', 'Aydın', 'Mardin', 'Afyon', 'Isparta'
+        'İstanbul',
+        'Ankara',
+        'İzmir',
+        'Bursa',
+        'Antalya',
+        'Adana',
+        'Konya',
+        'Gaziantep',
+        'Mersin',
+        'Diyarbakır',
+        'Kayseri',
+        'Eskişehir',
+        'Urfa',
+        'Malatya',
+        'Erzurum',
+        'Van',
+        'Batman',
+        'Elazığ',
+        'Tekirdağ',
+        'Samsun',
+        'Denizli',
+        'Sakarya',
+        'Muğla',
+        'Balıkesir',
+        'Uşak',
+        'Tokat',
+        'Manisa',
+        'Trabzon',
+        'Hatay',
+        'Kocaeli',
+        'Aydın',
+        'Mardin',
+        'Afyon',
+        'Isparta',
       ];
-      
-      if (!turkishProvinces.some(province => 
-        districtCandidate.toLowerCase().includes(province.toLowerCase())
-      )) {
+
+      if (
+        !turkishProvinces.some((province) =>
+          districtCandidate.toLowerCase().includes(province.toLowerCase())
+        )
+      ) {
         console.log('🔍 [Extract] District from parts:', districtCandidate);
         return districtCandidate;
       }
     }
-    
+
     // Son çare: ikinci son parça
     if (parts.length >= 2) {
       const fallback = parts[parts.length - 2];
       console.log('🔍 [Extract] District fallback:', fallback);
       return fallback;
     }
-    
+
     console.log('🔍 [Extract] No district found');
     return '';
   };
@@ -631,20 +754,20 @@ const MapScreen = ({ navigation, route }) => {
   // Extract province from address
   const extractProvince = (address) => {
     if (!address) return '';
-    
+
     console.log('🔍 [Extract] Extracting province from:', address);
-    
+
     // Google Places API formatında adres parçala
-    const parts = address.split(',').map(part => part.trim());
-    
+    const parts = address.split(',').map((part) => part.trim());
+
     // Turkish province patterns - daha kapsamlı
     const provincePatterns = [
-      /(\w+)\s+İli/i,                             // "İstanbul İli"
-      /(\w+)\s+Province/i,                        // "Istanbul Province"
-      /(\w+),?\s*Turkey/i,                        // "İstanbul, Turkey"
-      /(\w+),?\s*Türkiye/i,                       // "İstanbul, Türkiye"
+      /(\w+)\s+İli/i, // "İstanbul İli"
+      /(\w+)\s+Province/i, // "Istanbul Province"
+      /(\w+),?\s*Turkey/i, // "İstanbul, Turkey"
+      /(\w+),?\s*Türkiye/i, // "İstanbul, Türkiye"
     ];
-    
+
     // Pattern'leri dene
     for (const pattern of provincePatterns) {
       const match = address.match(pattern);
@@ -653,46 +776,116 @@ const MapScreen = ({ navigation, route }) => {
         return match[1];
       }
     }
-    
+
     // Türkiye'nin tüm illeri - güncel liste
     const turkishProvinces = [
-      'Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Amasya', 'Ankara', 'Antalya',
-      'Artvin', 'Aydın', 'Balıkesir', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu',
-      'Burdur', 'Bursa', 'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır',
-      'Edirne', 'Elazığ', 'Erzincan', 'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun',
-      'Gümüşhane', 'Hakkari', 'Hatay', 'Isparta', 'Mersin', 'İstanbul', 'İzmir',
-      'Kars', 'Kastamonu', 'Kayseri', 'Kırklareli', 'Kırşehir', 'Kocaeli', 'Konya',
-      'Kütahya', 'Malatya', 'Manisa', 'Kahramanmaraş', 'Mardin', 'Muğla', 'Muş',
-      'Nevşehir', 'Niğde', 'Ordu', 'Rize', 'Sakarya', 'Samsun', 'Siirt', 'Sinop',
-      'Sivas', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Şanlıurfa', 'Uşak',
-      'Van', 'Yozgat', 'Zonguldak', 'Aksaray', 'Bayburt', 'Karaman', 'Kırıkkale',
-      'Batman', 'Şırnak', 'Bartın', 'Ardahan', 'Iğdır', 'Yalova', 'Karabük', 'Kilis',
-      'Osmaniye', 'Düzce'
+      'Adana',
+      'Adıyaman',
+      'Afyonkarahisar',
+      'Ağrı',
+      'Amasya',
+      'Ankara',
+      'Antalya',
+      'Artvin',
+      'Aydın',
+      'Balıkesir',
+      'Bilecik',
+      'Bingöl',
+      'Bitlis',
+      'Bolu',
+      'Burdur',
+      'Bursa',
+      'Çanakkale',
+      'Çankırı',
+      'Çorum',
+      'Denizli',
+      'Diyarbakır',
+      'Edirne',
+      'Elazığ',
+      'Erzincan',
+      'Erzurum',
+      'Eskişehir',
+      'Gaziantep',
+      'Giresun',
+      'Gümüşhane',
+      'Hakkari',
+      'Hatay',
+      'Isparta',
+      'Mersin',
+      'İstanbul',
+      'İzmir',
+      'Kars',
+      'Kastamonu',
+      'Kayseri',
+      'Kırklareli',
+      'Kırşehir',
+      'Kocaeli',
+      'Konya',
+      'Kütahya',
+      'Malatya',
+      'Manisa',
+      'Kahramanmaraş',
+      'Mardin',
+      'Muğla',
+      'Muş',
+      'Nevşehir',
+      'Niğde',
+      'Ordu',
+      'Rize',
+      'Sakarya',
+      'Samsun',
+      'Siirt',
+      'Sinop',
+      'Sivas',
+      'Tekirdağ',
+      'Tokat',
+      'Trabzon',
+      'Tunceli',
+      'Şanlıurfa',
+      'Uşak',
+      'Van',
+      'Yozgat',
+      'Zonguldak',
+      'Aksaray',
+      'Bayburt',
+      'Karaman',
+      'Kırıkkale',
+      'Batman',
+      'Şırnak',
+      'Bartın',
+      'Ardahan',
+      'Iğdır',
+      'Yalova',
+      'Karabük',
+      'Kilis',
+      'Osmaniye',
+      'Düzce',
     ];
-    
+
     // Her parçayı Türkiye illeri ile karşılaştır
     for (const part of parts) {
       for (const province of turkishProvinces) {
-        if (part.toLowerCase().includes(province.toLowerCase()) || 
-            province.toLowerCase().includes(part.toLowerCase())) {
+        if (
+          part.toLowerCase().includes(province.toLowerCase()) ||
+          province.toLowerCase().includes(part.toLowerCase())
+        ) {
           console.log('🔍 [Extract] Province found:', province);
           return province;
         }
       }
     }
-    
+
     // Son çare: "Turkey" ve "Türkiye"den önceki parça
-    const turkeyIndex = parts.findIndex(part => 
-      part.toLowerCase().includes('turkey') || 
-      part.toLowerCase().includes('türkiye')
+    const turkeyIndex = parts.findIndex(
+      (part) => part.toLowerCase().includes('turkey') || part.toLowerCase().includes('türkiye')
     );
-    
+
     if (turkeyIndex > 0) {
       const provinceCandidate = parts[turkeyIndex - 1];
       console.log('🔍 [Extract] Province from Turkey index:', provinceCandidate);
       return provinceCandidate;
     }
-    
+
     console.log('🔍 [Extract] No province found');
     return '';
   };
@@ -717,18 +910,21 @@ const MapScreen = ({ navigation, route }) => {
     setSelectedPlace(place);
     setSearchQuery(place.name);
     setShowSuggestions(false);
-    
+
     // Add to map markers
     setPlaces([place]);
-    
+
     // Animate to location
     if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: place.geometry.location.lat,
-        longitude: place.geometry.location.lng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
+      mapRef.current.animateToRegion(
+        {
+          latitude: place.geometry.location.lat,
+          longitude: place.geometry.location.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        1000
+      );
     }
   };
 
@@ -736,15 +932,15 @@ const MapScreen = ({ navigation, route }) => {
   const handlePoiClick = async (event) => {
     const { coordinate, name, placeId } = event.nativeEvent;
     console.log('🏢 [POI] POI clicked:', { name, placeId, coordinate });
-    
+
     // Clear suggestions when tapping on POI
     setShowSuggestions(false);
-    
+
     // Set tapped location immediately
     setTappedLocation(coordinate);
     setLoadingPlaceInfo(true);
     setTappedPlaceInfo(null);
-    
+
     try {
       // POI için detaylı bilgi al
       let placeDetails;
@@ -752,70 +948,75 @@ const MapScreen = ({ navigation, route }) => {
         console.log('🏢 [POI] Getting place details for:', placeId);
         placeDetails = await placesService.getPlaceDetails(placeId);
       }
-      
+
       // Address bilgisini al
       const addressInfo = await placesService.getAddressFromCoordinates(
-        coordinate.latitude, 
+        coordinate.latitude,
         coordinate.longitude
       );
-      
+
       // POI için place info oluştur
-      const address = placeDetails?.formatted_address || addressInfo.formatted_address || 'Adres bilgisi alınamadı';
-      
+      const address =
+        placeDetails?.formatted_address ||
+        addressInfo.formatted_address ||
+        'Adres bilgisi alınamadı';
+
       // Detaylı adres bilgisi oluştur
       const detailedAddress = createDetailedAddress(addressInfo);
-      
+
       // Önce placesService'ten gelen hazır il/ilçe bilgilerini kullan
       let district = addressInfo.district || '';
       let province = addressInfo.province || '';
-      
+
       // Google Places placeDetails'ten address_components kontrol et
       if (placeDetails?.address_components && (!district || !province)) {
         console.log('🏢 [POI] Address components:', placeDetails.address_components);
-        
+
         for (const component of placeDetails.address_components) {
-          const types = component.types;
-          
+          const { types } = component;
+
           // İlçe bilgisi
-          if (!district && (types.includes('administrative_area_level_2') || 
+          if (
+            !district &&
+            (types.includes('administrative_area_level_2') ||
               types.includes('sublocality_level_1') ||
-              types.includes('locality'))) {
+              types.includes('locality'))
+          ) {
             district = component.long_name;
           }
-          
+
           // İl bilgisi
           if (!province && types.includes('administrative_area_level_1')) {
             province = component.long_name;
           }
         }
       }
-      
+
       // Eğer hala alınamadıysa, extract fonksiyonlarını kullan
       if (!district) district = extractDistrict(address);
       if (!province) province = extractProvince(address);
-      
+
       console.log('🏢 [POI] POI info - District:', district, 'Province:', province);
-      
+
       const placeInfo = {
         name: name || placeDetails?.name || 'Mekan',
         address: detailedAddress,
-        district: district,
-        province: province,
+        district,
+        province,
         isEstablishment: true,
         placeTypes: placeDetails?.types || [],
-        coordinate: coordinate
+        coordinate,
       };
-      
+
       console.log('🏢 [POI] Created POI info:', placeInfo);
-      
+
       // Place info'yu set et
       setTappedPlaceInfo(placeInfo);
-      
+
       console.log('✅ [POI] POI info set successfully');
-      
     } catch (error) {
       console.error('❌ [POI] Error getting POI info:', error);
-      
+
       // Hata durumunda basit POI bilgisi oluştur
       setTappedPlaceInfo({
         name: name || 'Mekan',
@@ -823,7 +1024,7 @@ const MapScreen = ({ navigation, route }) => {
         district: '',
         province: '',
         isEstablishment: true,
-        coordinate: coordinate
+        coordinate,
       });
     } finally {
       setLoadingPlaceInfo(false);
@@ -833,41 +1034,41 @@ const MapScreen = ({ navigation, route }) => {
   // Create detailed address from address components
   const createDetailedAddress = (addressInfo) => {
     if (!addressInfo) return 'Adres bilgisi alınamadı';
-    
+
     const parts = [];
-    
+
     // Sokak bilgisi
     if (addressInfo.street) {
       parts.push(addressInfo.street);
     }
-    
+
     // Mahalle bilgisi
     if (addressInfo.neighborhood) {
-      parts.push(addressInfo.neighborhood + ' Mahallesi');
+      parts.push(`${addressInfo.neighborhood} Mahallesi`);
     }
-    
+
     // İlçe bilgisi
     if (addressInfo.district) {
       parts.push(addressInfo.district);
     }
-    
+
     // İl bilgisi
     if (addressInfo.province) {
       parts.push(addressInfo.province);
     }
-    
+
     // Ülke bilgisi
     if (addressInfo.country) {
       parts.push(addressInfo.country);
     }
-    
+
     // Posta kodu varsa ekle
     if (addressInfo.postal_code) {
-      parts.push('PK: ' + addressInfo.postal_code);
+      parts.push(`PK: ${addressInfo.postal_code}`);
     }
-    
+
     const detailedAddress = parts.length > 0 ? parts.join(', ') : addressInfo.formatted_address;
-    
+
     console.log('📍 [Address] Created detailed address:', detailedAddress);
     return detailedAddress;
   };
@@ -882,7 +1083,7 @@ const MapScreen = ({ navigation, route }) => {
     try {
       const result = await Share.share({
         message: `📍 ${tappedPlaceInfo.name}\n\n${tappedPlaceInfo.address}`,
-        title: 'Adres Bilgisi'
+        title: 'Adres Bilgisi',
       });
 
       if (result.action === Share.sharedAction) {
@@ -902,7 +1103,7 @@ const MapScreen = ({ navigation, route }) => {
   const handleAddToList = () => {
     console.log('⭐ [MapScreen] Star button pressed - handleAddToList called');
     console.log('📍 [MapScreen] tappedPlaceInfo:', tappedPlaceInfo);
-    
+
     if (tappedPlaceInfo) {
       console.log('✅ [MapScreen] Setting place for list and showing modal');
       setSelectedPlace4List(tappedPlaceInfo);
@@ -915,12 +1116,12 @@ const MapScreen = ({ navigation, route }) => {
   const handleCloseAddToListModal = () => {
     console.log('📱 [MapScreen] Add to List modal close - cameFromViewList:', cameFromViewList);
     setShowAddToListModal(false);
-    
+
     // Reset place details
     setPlaceNote('');
     setPlaceRating(0);
     setPlacePhotos([]);
-    
+
     if (cameFromViewList) {
       console.log('🔙 [MapScreen] Going back to ViewListModal');
       setCameFromViewList(false); // Reset the state
@@ -936,7 +1137,7 @@ const MapScreen = ({ navigation, route }) => {
   const addPlacePhoto = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (permissionResult.granted === false) {
         Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri erişim izni gerekiyor.');
         return;
@@ -950,7 +1151,7 @@ const MapScreen = ({ navigation, route }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setPlacePhotos(prev => [...prev, result.assets[0].uri]);
+        setPlacePhotos((prev) => [...prev, result.assets[0].uri]);
       }
     } catch (error) {
       console.error('Error adding photo:', error);
@@ -959,7 +1160,7 @@ const MapScreen = ({ navigation, route }) => {
   };
 
   const removePlacePhoto = (index) => {
-    setPlacePhotos(prev => prev.filter((_, i) => i !== index));
+    setPlacePhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Photo preview functions
@@ -996,22 +1197,21 @@ const MapScreen = ({ navigation, route }) => {
 
       // Use the automatic upload function with updated Storage rules
       const result = await pickImageFromLibraryAndUpload('list-images', filename);
-      
+
       if (!result.cancelled && result.downloadURL) {
         setNewListImage(result.downloadURL);
         setNewListImageType('photo');
         console.log('✅ List image uploaded successfully:', result.downloadURL);
       }
-      
     } catch (error) {
       console.error('❌ [MapScreen] Error picking and uploading image:', error);
-      Alert.alert('Hata', 'Fotoğraf yüklenirken bir hata oluştu: ' + error.message);
+      Alert.alert('Hata', `Fotoğraf yüklenirken bir hata oluştu: ${error.message}`);
     }
   };
 
   const handleAddToExistingList = async (listId) => {
     console.log('📝 [List] Adding place to list:', listId, selectedPlace4List?.name);
-    
+
     if (!selectedPlace4List) {
       Alert.alert('Hata', 'Seçili mekan bulunamadı');
       return;
@@ -1019,9 +1219,9 @@ const MapScreen = ({ navigation, route }) => {
 
     try {
       console.log('🔧 [List] Updating list in Firestore:', listId);
-      
+
       // Upload photos first if any
-      let uploadedPhotoUrls = [];
+      const uploadedPhotoUrls = [];
       if (placePhotos.length > 0) {
         try {
           const user = auth.currentUser;
@@ -1034,11 +1234,11 @@ const MapScreen = ({ navigation, route }) => {
           // Continue without photos
         }
       }
-      
+
       // Get current list data
       const listRef = doc(db, 'lists', listId);
       const listSnap = await getDoc(listRef);
-      
+
       if (!listSnap.exists()) {
         Alert.alert('Hata', 'Liste bulunamadı');
         return;
@@ -1048,10 +1248,11 @@ const MapScreen = ({ navigation, route }) => {
       const currentPlaces = currentList.places || [];
 
       // Check if place already exists in the list
-      const placeExists = currentPlaces.some(place => 
-        place.name === selectedPlace4List.name &&
-        place.coordinate.latitude === selectedPlace4List.coordinate.latitude &&
-        place.coordinate.longitude === selectedPlace4List.coordinate.longitude
+      const placeExists = currentPlaces.some(
+        (place) =>
+          place.name === selectedPlace4List.name &&
+          place.coordinate.latitude === selectedPlace4List.coordinate.latitude &&
+          place.coordinate.longitude === selectedPlace4List.coordinate.longitude
       );
 
       if (placeExists) {
@@ -1071,8 +1272,8 @@ const MapScreen = ({ navigation, route }) => {
             rating: placeRating,
             photos: uploadedPhotoUrls,
             addedAt: new Date(),
-            addedBy: auth.currentUser.uid
-          }
+            addedBy: auth.currentUser.uid,
+          },
         };
 
         await CollaborativeListService.addPlaceToList(listId, placeData, auth.currentUser.uid);
@@ -1086,28 +1287,27 @@ const MapScreen = ({ navigation, route }) => {
             rating: placeRating,
             photos: uploadedPhotoUrls,
             addedAt: new Date(),
-            addedBy: auth.currentUser.uid
-          }
+            addedBy: auth.currentUser.uid,
+          },
         };
 
         const updatedPlaces = [...currentPlaces, enhancedPlace];
-        
+
         await updateDoc(listRef, {
           places: updatedPlaces,
           placesCount: updatedPlaces.length,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
         });
         console.log('✅ [List] Place added to normal list successfully');
       }
 
       Alert.alert('Başarılı', `"${selectedPlace4List?.name}" listene eklendi!`);
-      
+
       // Trigger global refresh
       forceRefresh();
-      
+
       setShowAddToListModal(false);
       setSelectedPlace4List(null);
-      
     } catch (error) {
       console.error('❌ [List] Error adding place to list:', error);
       Alert.alert('Hata', 'Mekan listeye eklenirken bir hata oluştu');
@@ -1119,7 +1319,7 @@ const MapScreen = ({ navigation, route }) => {
     console.log('📝 [MapScreen] Liste adı:', newListName.trim());
     console.log('📝 [MapScreen] Liste fotoğrafı:', newListImage ? 'var' : 'yok');
     console.log('📝 [MapScreen] Liste gizliliği:', newListPrivacy);
-    
+
     if (!newListName.trim()) {
       Alert.alert('Uyarı', 'Liste adı boş olamaz');
       return;
@@ -1133,7 +1333,7 @@ const MapScreen = ({ navigation, route }) => {
     try {
       const user = auth.currentUser;
       console.log('👤 [MapScreen] Kullanıcı kontrolü:', user ? user.uid : 'yok');
-      
+
       if (!user) {
         Alert.alert('Hata', 'Kullanıcı oturumu bulunamadı');
         return;
@@ -1142,26 +1342,30 @@ const MapScreen = ({ navigation, route }) => {
       // Firebase Storage'da URL zaten mevcut, doğrudan kullan
       console.log('📤 [MapScreen] Using Firebase Storage URL');
       let imageURL = newListImage;
-      
+
       // URL'nin Firebase Storage URL'si olup olmadığını kontrol et
       if (StorageService.isCacheFile(newListImage)) {
-        console.log('🔄 [MapScreen] Cache dosyası tespit edildi, Firebase\'e yükleniyor...');
+        console.log("🔄 [MapScreen] Cache dosyası tespit edildi, Firebase'e yükleniyor...");
         const tempListId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
         imageURL = await StorageService.uploadListCoverImage(newListImage, tempListId);
-        console.log('✅ [MapScreen] Resim Firebase\'e yüklendi:', imageURL);
+        console.log("✅ [MapScreen] Resim Firebase'e yüklendi:", imageURL);
       }
 
       // Seçili mekanı hazırla (eğer varsa)
       let processedPlace = null;
       if (selectedPlace4List) {
         // Mekan fotoğraflarını Firebase'e yükle
-        let uploadedPhotoUrls = [];
+        const uploadedPhotoUrls = [];
         if (placePhotos.length > 0) {
           try {
             console.log('📸 [MapScreen] Uploading place photos:', placePhotos.length);
             const tempListId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
             for (const photoUri of placePhotos) {
-              const photoUrl = await StorageService.uploadListPlacePhoto(user.uid, tempListId, photoUri);
+              const photoUrl = await StorageService.uploadListPlacePhoto(
+                user.uid,
+                tempListId,
+                photoUri
+              );
               uploadedPhotoUrls.push(photoUrl);
               console.log('✅ [MapScreen] Photo uploaded:', photoUrl);
             }
@@ -1170,7 +1374,7 @@ const MapScreen = ({ navigation, route }) => {
             // Continue without photos
           }
         }
-        
+
         processedPlace = {
           ...selectedPlace4List,
           userContent: {
@@ -1178,8 +1382,8 @@ const MapScreen = ({ navigation, route }) => {
             addedAt: new Date(),
             note: placeNote || '',
             rating: placeRating || 0,
-            photos: uploadedPhotoUrls // Yüklenen fotoğraf URL'leri
-          }
+            photos: uploadedPhotoUrls, // Yüklenen fotoğraf URL'leri
+          },
         };
         console.log('📝 [MapScreen] Mekan userContent ile hazırlandı:', processedPlace);
       }
@@ -1189,67 +1393,72 @@ const MapScreen = ({ navigation, route }) => {
         name: newListName.trim(),
         image: imageURL, // Artık Firebase URL
         imageType: newListImageType,
-        isPrivate: newListPrivacy === 'private' || (newListPrivacy === 'collaborative' && isCollaborativePrivate),
+        isPrivate:
+          newListPrivacy === 'private' ||
+          (newListPrivacy === 'collaborative' && isCollaborativePrivate),
         isCollaborative: newListPrivacy === 'collaborative',
         privacy: newListPrivacy, // Ek alan
         userId: user.uid,
         places: processedPlace ? [processedPlace] : [],
         placesCount: processedPlace ? 1 : 0, // Places count ekleyelim
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
       // Eğer ortak liste ise, işbirlikçi bilgileri ve renk atamaları ekle
       if (newListPrivacy === 'collaborative') {
         // Liste sahibi her zaman ilk sırada olmalı (ilk rengi alır)
-        const allParticipants = [user.uid, ...selectedCollaborators.map(c => c.id)];
+        const allParticipants = [user.uid, ...selectedCollaborators.map((c) => c.id)];
         const colorAssignments = generateColorAssignments(allParticipants);
-        
+
         newListData.collaborators = []; // Başlangıçta boş, davet kabul edilince eklenecek
-        newListData.pendingCollaborators = selectedCollaborators.map(c => c.id); // Bekleyen davetler
+        newListData.pendingCollaborators = selectedCollaborators.map((c) => c.id); // Bekleyen davetler
         newListData.colorAssignments = colorAssignments;
         newListData.collaboratorDetails = {}; // Kabul edenlerin detayları sonra eklenecek
-        
+
         // Liste sahibinin rengi (her zaman ilk renk)
         newListData.ownerColor = colorAssignments[user.uid];
-        
+
         console.log('🎨 [MapScreen] Renk atamaları oluşturuldu:', colorAssignments);
         console.log('👑 [MapScreen] Liste sahibi rengi:', newListData.ownerColor);
       }
 
-      console.log('💾 [MapScreen] Firebase\'e kaydedilecek veri:', newListData);
+      console.log("💾 [MapScreen] Firebase'e kaydedilecek veri:", newListData);
 
       // Firebase'e kaydet
       const docRef = await addDoc(collection(db, 'lists'), newListData);
-      console.log('✅ [MapScreen] Liste Firebase\'e kaydedildi, ID:', docRef.id);
+      console.log("✅ [MapScreen] Liste Firebase'e kaydedildi, ID:", docRef.id);
 
       // Local state'i güncelle
       const newList = {
         id: docRef.id,
         ...newListData,
-        createdAt: new Date() // Local için timestamp
+        createdAt: new Date(), // Local için timestamp
       };
 
       console.log('🔄 [MapScreen] Global state güncelleniyor:', newList);
       // Update global state instead of local state
       GlobalStateService.updateUserLists([...userLists, newList]);
-      
+
       // Eğer işbirlikçi liste ise davet bildirimleri gönder
       if (newListPrivacy === 'collaborative' && selectedCollaborators.length > 0) {
         try {
           console.log('📤 [MapScreen] Davet bildirimleri gönderiliyor...');
           console.log('👥 [MapScreen] Seçilen işbirlikçi sayısı:', selectedCollaborators.length);
-          console.log('👥 [MapScreen] Seçilen işbirlikçiler:', selectedCollaborators.map(c => c.firstName).join(', '));
-          
-          const currentUser = auth.currentUser;
-          
+          console.log(
+            '👥 [MapScreen] Seçilen işbirlikçiler:',
+            selectedCollaborators.map((c) => c.firstName).join(', ')
+          );
+
+          const { currentUser } = auth;
+
           for (const collaborator of selectedCollaborators) {
             console.log('👤 [MapScreen] Collaborator bilgisi:', {
               id: collaborator.id,
               firstName: collaborator.firstName,
-              username: collaborator.username
+              username: collaborator.username,
             });
-            
+
             // NotificationService kullanarak bildirim gönder
             try {
               await sendInviteNotification({
@@ -1259,14 +1468,14 @@ const MapScreen = ({ navigation, route }) => {
                 toUserId: collaborator.id,
                 toUserName: collaborator.firstName || 'Kullanıcı',
                 listId: docRef.id,
-                listName: newListName.trim()
+                listName: newListName.trim(),
               });
-              
+
               console.log('✅ [MapScreen] Invite notification sent to:', collaborator.firstName);
             } catch (notificationError) {
               console.warn('⚠️ [MapScreen] Error sending notification:', notificationError);
             }
-            
+
             // Push notification gönder
             try {
               await sendListInvitationPushNotification(
@@ -1275,7 +1484,7 @@ const MapScreen = ({ navigation, route }) => {
                   displayName: currentUser.displayName,
                   firstName: currentUser.displayName || 'Bir kullanıcı',
                   lastName: '',
-                  avatar: currentUser.photoURL
+                  avatar: currentUser.photoURL,
                 },
                 collaborator.id,
                 newListName.trim(),
@@ -1286,9 +1495,9 @@ const MapScreen = ({ navigation, route }) => {
               console.error('❌ [MapScreen] Push notification error:', pushError);
               // Push notification hatası liste oluşturmayı engellememeli
             }
-            
+
             console.log('📤 [MapScreen] Davet bildirimi gönderildi:', collaborator.firstName);
-            
+
             // Push bildirimi gönder
             try {
               const fromUser = {
@@ -1296,9 +1505,9 @@ const MapScreen = ({ navigation, route }) => {
                 displayName: currentUser.displayName,
                 firstName: currentUser.displayName?.split(' ')[0] || 'Kullanıcı',
                 lastName: currentUser.displayName?.split(' ').slice(1).join(' ') || '',
-                avatar: currentUser.photoURL || '👤'
+                avatar: currentUser.photoURL || '👤',
               };
-              
+
               await sendListInvitationPushNotification(
                 fromUser,
                 collaborator.id,
@@ -1311,27 +1520,33 @@ const MapScreen = ({ navigation, route }) => {
               // Push bildirimi hata verse bile devam et
             }
           }
-          
+
           // Davet gönderme başarı mesajı
-          const collaboratorNames = selectedCollaborators.map(c => c.firstName).join(', ');
+          const collaboratorNames = selectedCollaborators.map((c) => c.firstName).join(', ');
           Alert.alert(
-            'Davet Gönderildi!', 
+            'Davet Gönderildi!',
             `${collaboratorNames} kullanıcılarına "${newListName.trim()}" listesi için davet gönderildi.\n\nDavet kabul veya reddedildiğinde bildirim alacaksınız.`,
             [{ text: 'Tamam' }]
           );
         } catch (error) {
           console.error('❌ [MapScreen] Davet bildirimi hatası:', error);
-          Alert.alert('Uyarı', 'Liste oluşturuldu ancak davet bildirimleri gönderilemedi. Lütfen daha sonra tekrar deneyin.');
+          Alert.alert(
+            'Uyarı',
+            'Liste oluşturuldu ancak davet bildirimleri gönderilemedi. Lütfen daha sonra tekrar deneyin.'
+          );
         }
       } else if (newListPrivacy === 'collaborative' && selectedCollaborators.length === 0) {
         // Collaborative liste ama kimse seçilmemiş
         console.log('⚠️ [MapScreen] Collaborative liste oluşturuldu ama kimse davet edilmedi');
-        Alert.alert('Başarılı!', `"${newListName.trim()}" listesi oluşturuldu.\n\nDaha sonra kişileri davet edebilirsiniz.`);
+        Alert.alert(
+          'Başarılı!',
+          `"${newListName.trim()}" listesi oluşturuldu.\n\nDaha sonra kişileri davet edebilirsiniz.`
+        );
       } else {
         // Normal liste oluşturuldu mesajı
         Alert.alert('Başarılı!', `"${newListName.trim()}" listesi başarıyla oluşturuldu.`);
       }
-      
+
       // Reset states
       setShowCreateListModal(false);
       setNewListName('');
@@ -1349,15 +1564,14 @@ const MapScreen = ({ navigation, route }) => {
       setFilteredFollowers([]);
 
       console.log('✅ [MapScreen] Liste oluşturma işlemi tamamlandı');
-
     } catch (error) {
       console.error('❌ [MapScreen] Liste oluşturma hatası:', error);
       console.error('❌ [MapScreen] Hata detayları:', {
         code: error.code,
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
       });
-      Alert.alert('Hata', 'Liste oluşturulurken bir hata oluştu: ' + error.message);
+      Alert.alert('Hata', `Liste oluşturulurken bir hata oluştu: ${error.message}`);
     }
   };
 
@@ -1383,8 +1597,8 @@ const MapScreen = ({ navigation, route }) => {
     try {
       console.log('📋 [MapScreen] Loading followers...');
       setLoadingFollowers(true);
-      
-      const currentUser = auth.currentUser;
+
+      const { currentUser } = auth;
       if (!currentUser) {
         console.log('❌ [MapScreen] No current user found');
         return;
@@ -1401,13 +1615,13 @@ const MapScreen = ({ navigation, route }) => {
         collection(db, 'follows'),
         where('followedUserId', '==', currentUser.uid)
       );
-      
+
       console.log('📋 [MapScreen] Executing followers query...');
       const followersSnapshot = await getDocs(followersQuery);
-      const followerIds = followersSnapshot.docs.map(doc => doc.data().followerId);
-      
+      const followerIds = followersSnapshot.docs.map((doc) => doc.data().followerId);
+
       console.log('📋 [MapScreen] Found follower IDs:', followerIds.length, followerIds);
-      
+
       if (followerIds.length === 0) {
         console.log('📋 [MapScreen] No followers found');
         setFollowers([]);
@@ -1418,7 +1632,7 @@ const MapScreen = ({ navigation, route }) => {
       // Takipçi kullanıcı bilgilerini getir
       const followersData = [];
       console.log('📋 [MapScreen] Loading follower data...');
-      
+
       for (const followerId of followerIds) {
         try {
           console.log('📋 [MapScreen] Loading data for follower:', followerId);
@@ -1430,10 +1644,14 @@ const MapScreen = ({ navigation, route }) => {
               username: userData.username || 'unknown',
               firstName: userData.firstName || 'İsimsiz',
               lastName: userData.lastName || 'Kullanıcı',
-              avatar: userData.avatar || '👤'
+              avatar: userData.avatar || '👤',
             };
             followersData.push(followerData);
-            console.log('✅ [MapScreen] Loaded follower:', followerData.firstName, followerData.username);
+            console.log(
+              '✅ [MapScreen] Loaded follower:',
+              followerData.firstName,
+              followerData.username
+            );
           } else {
             console.log('⚠️ [MapScreen] User document not found for:', followerId);
           }
@@ -1458,27 +1676,28 @@ const MapScreen = ({ navigation, route }) => {
   // Takipçileri filtrele
   const filterFollowers = (query) => {
     setCollaboratorQuery(query);
-    
+
     if (!query.trim()) {
       setFilteredFollowers(followers);
       return;
     }
 
-    const filtered = followers.filter(follower => 
-      follower.username.toLowerCase().includes(query.toLowerCase()) ||
-      follower.firstName.toLowerCase().includes(query.toLowerCase()) ||
-      follower.lastName.toLowerCase().includes(query.toLowerCase())
+    const filtered = followers.filter(
+      (follower) =>
+        follower.username.toLowerCase().includes(query.toLowerCase()) ||
+        follower.firstName.toLowerCase().includes(query.toLowerCase()) ||
+        follower.lastName.toLowerCase().includes(query.toLowerCase())
     );
-    
+
     setFilteredFollowers(filtered);
   };
 
   // İşbirlikçi seç/seçimi kaldır
   const toggleCollaborator = (follower) => {
-    const isSelected = selectedCollaborators.some(c => c.id === follower.id);
-    
+    const isSelected = selectedCollaborators.some((c) => c.id === follower.id);
+
     if (isSelected) {
-      const newSelected = selectedCollaborators.filter(c => c.id !== follower.id);
+      const newSelected = selectedCollaborators.filter((c) => c.id !== follower.id);
       setSelectedCollaborators(newSelected);
     } else {
       const newSelected = [...selectedCollaborators, follower];
@@ -1488,33 +1707,32 @@ const MapScreen = ({ navigation, route }) => {
 
   // Edit Mode Fonksiyonları
   const handleRemovePlaceFromEdit = (placeIndex) => {
-    Alert.alert(
-      'Mekan Sil',
-      'Bu mekanı listeden kaldırmak istediğinizden emin misiniz?',
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Sil', 
-          style: 'destructive',
-          onPress: () => {
-            const updatedPlaces = editListPlaces.filter((_, index) => index !== placeIndex);
-            setEditListPlaces(updatedPlaces);
-            setPlaces(updatedPlaces);
-            console.log('🗑️ [MapScreen] Place removed from edit list');
-          }
-        }
-      ]
-    );
+    Alert.alert('Mekan Sil', 'Bu mekanı listeden kaldırmak istediğinizden emin misiniz?', [
+      { text: 'İptal', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: () => {
+          const updatedPlaces = editListPlaces.filter((_, index) => index !== placeIndex);
+          setEditListPlaces(updatedPlaces);
+          setPlaces(updatedPlaces);
+          console.log('🗑️ [MapScreen] Place removed from edit list');
+        },
+      },
+    ]);
   };
 
   const handlePlaceCardPress = (place) => {
     if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: place.latitude,
-        longitude: place.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
+      mapRef.current.animateToRegion(
+        {
+          latitude: place.latitude,
+          longitude: place.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        1000
+      );
       console.log('🎯 [MapScreen] Map focused on place:', place.name);
     }
   };
@@ -1522,12 +1740,12 @@ const MapScreen = ({ navigation, route }) => {
   const saveEditChanges = async () => {
     try {
       console.log('💾 [MapScreen] Saving edit changes for list:', editingList.id);
-      
+
       const listRef = doc(db, 'lists', editingList.id);
       await updateDoc(listRef, {
         places: editListPlaces,
         placesCount: editListPlaces.length,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       Alert.alert('Başarılı', 'Liste güncellendi!', [
@@ -1541,10 +1759,9 @@ const MapScreen = ({ navigation, route }) => {
             } else {
               navigation.navigate('Home');
             }
-          }
-        }
+          },
+        },
       ]);
-      
     } catch (error) {
       console.error('❌ [MapScreen] Save edit failed:', error);
       Alert.alert('Hata', 'Liste güncellenirken bir hata oluştu');
@@ -1557,8 +1774,8 @@ const MapScreen = ({ navigation, route }) => {
       'Yaptığınız değişiklikler kaydedilmeyecek. Devam etmek istediğinizden emin misiniz?',
       [
         { text: 'Kalın', style: 'cancel' },
-        { 
-          text: 'İptal Et', 
+        {
+          text: 'İptal Et',
           style: 'destructive',
           onPress: () => {
             setIsEditMode(false);
@@ -1568,8 +1785,8 @@ const MapScreen = ({ navigation, route }) => {
             } else {
               navigation.navigate('Home');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -1579,134 +1796,137 @@ const MapScreen = ({ navigation, route }) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     const coordinate = { latitude, longitude };
     console.log('🗺️ [Map] Tapped at:', coordinate);
-    
+
     // Clear suggestions when tapping on map
     setShowSuggestions(false);
-    
+
     // Normal map press behavior
     // Set tapped location immediately
     setTappedLocation(coordinate);
     setLoadingPlaceInfo(true);
     setTappedPlaceInfo(null);
-    
+
     try {
       // Önce tam olarak tıklanan koordinatın adres bilgisini al
       console.log('📍 [Map] Getting exact address for clicked coordinates...');
       const addressInfo = await placesService.getAddressFromCoordinates(
-        coordinate.latitude, 
+        coordinate.latitude,
         coordinate.longitude
       );
 
       // Sonra yakında mekan var mı kontrol et (çok küçük radius ile)
       console.log('📍 [Map] Searching for nearby establishments...');
       const nearbyResults = await placesService.searchNearbyPlaces(
-        coordinate.latitude, 
-        coordinate.longitude, 
+        coordinate.latitude,
+        coordinate.longitude,
         50, // 50 metre radius
         'establishment|point_of_interest'
       );
-      
+
       let placeInfo;
-      
+
       if (nearbyResults.length > 0) {
         // Yakında mekan varsa, en yakın mekanı seç
         console.log('📍 [Map] Found', nearbyResults.length, 'nearby establishments');
         const nearestPlace = nearbyResults[0];
-        
+
         // Detaylı mekan bilgisi al
         let placeDetails;
         if (nearestPlace.place_id) {
           placeDetails = await placesService.getPlaceDetails(nearestPlace.place_id);
         }
-        
+
         // Address bilgisi
-        const address = addressInfo.formatted_address || nearestPlace.vicinity || nearestPlace.formatted_address;
-        
+        const address =
+          addressInfo.formatted_address || nearestPlace.vicinity || nearestPlace.formatted_address;
+
         // Önce placesService'ten gelen hazır il/ilçe bilgilerini kullan
         let district = addressInfo.district || '';
         let province = addressInfo.province || '';
-        
+
         // Detaylı adres bilgisi oluştur
         const detailedAddress = createDetailedAddress(addressInfo);
-        
+
         // Google Places placeDetails'ten address_components kontrol et
         if (placeDetails?.address_components && (!district || !province)) {
           console.log('📍 [Map] Address components:', placeDetails.address_components);
-          
+
           for (const component of placeDetails.address_components) {
-            const types = component.types;
-            
+            const { types } = component;
+
             // İlçe bilgisi
-            if (!district && (types.includes('administrative_area_level_2') || 
+            if (
+              !district &&
+              (types.includes('administrative_area_level_2') ||
                 types.includes('sublocality_level_1') ||
-                types.includes('locality'))) {
+                types.includes('locality'))
+            ) {
               district = component.long_name;
             }
-            
+
             // İl bilgisi
             if (!province && types.includes('administrative_area_level_1')) {
               province = component.long_name;
             }
           }
         }
-        
+
         // Eğer hala alınamadıysa, extract fonksiyonlarını kullan
         if (!district) district = extractDistrict(address);
         if (!province) province = extractProvince(address);
-        
+
         console.log('📍 [Map] Establishment info - District:', district, 'Province:', province);
-        
+
         // İstablishment türünde mekan bilgisi oluştur
         placeInfo = {
           name: nearestPlace.name,
           address: detailedAddress,
-          district: district,
-          province: province,
+          district,
+          province,
           isEstablishment: true,
           placeTypes: nearestPlace.types || [],
-          coordinate: coordinate
+          coordinate,
         };
-        
+
         console.log('📍 [Map] Created establishment info:', placeInfo);
       } else {
         // Yakında mekan yoksa, sokak/konum bilgisi oluştur
         console.log('📍 [Map] No establishments found, creating location info');
-        
+
         const address = addressInfo.formatted_address || 'Adres bilgisi alınamadı';
-        
+
         // Detaylı adres bilgisi oluştur
         const detailedAddress = createDetailedAddress(addressInfo);
-        
+
         // PlacesService'ten gelen hazır il/ilçe bilgilerini kullan
         let district = addressInfo.district || '';
         let province = addressInfo.province || '';
-        
+
         // Eğer placesService'ten alınamadıysa, extract fonksiyonlarını kullan
         if (!district) district = extractDistrict(address);
         if (!province) province = extractProvince(address);
-        
+
         console.log('📍 [Map] Location info - District:', district, 'Province:', province);
-        
+
         placeInfo = {
           name: 'Seçilen Konum',
           address: detailedAddress,
-          district: district,
-          province: province,
+          district,
+          province,
           isEstablishment: false,
-          coordinate: coordinate
+          coordinate,
         };
-        
+
         console.log('📍 [Map] Created location info:', placeInfo);
       }
-      
+
       // Place info'yu set et
       setTappedPlaceInfo(placeInfo);
-      
+
       console.log('✅ [Map] Place info set successfully');
-      
     } catch (error) {
       console.error('❌ [Map] Error getting location info:', error);
-      
+
       // Hata durumunda basit konum bilgisi oluştur
       setTappedPlaceInfo({
         name: 'Seçilen Konum',
@@ -1714,7 +1934,7 @@ const MapScreen = ({ navigation, route }) => {
         district: '',
         province: '',
         isEstablishment: false,
-        coordinate: coordinate
+        coordinate,
       });
     } finally {
       setLoadingPlaceInfo(false);
@@ -1752,15 +1972,12 @@ const MapScreen = ({ navigation, route }) => {
   return (
     <EdgeToEdgeScreen style={styles.container} edges={['top', 'left', 'right']}>
       <AppStatusBar />
-      
+
       {/* If we came from ViewList, don't show header and map */}
       {!cameFromViewList && (
         <>
-          <SoRitaHeader 
-            showMapControls={true}
-            onSearchPress={handleSearchModalPress}
-          />
-          
+          <SoRitaHeader showMapControls={true} onSearchPress={handleSearchModalPress} />
+
           <View style={styles.mapContainer}>
             <MapView
               ref={mapRef}
@@ -1769,109 +1986,114 @@ const MapScreen = ({ navigation, route }) => {
               initialRegion={{
                 latitude: location.latitude,
                 longitude: location.longitude,
-            latitudeDelta: location.latitudeDelta || 0.0922,
-            longitudeDelta: location.longitudeDelta || 0.0421,
-          }}
-          onPress={handleMapPress}
-          onPoiClick={handlePoiClick}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-          showsCompass={true}
-          showsScale={true}
-          showsBuildings={true}
-          showsTraffic={false}
-          showsIndoors={true}
-          showsPointsOfInterest={true}
-          zoomEnabled={true}
-          scrollEnabled={true}
-          pitchEnabled={true}
-          rotateEnabled={true}
-          onMapReady={() => {
-            console.log('🗺️ [MapScreen] Map is ready!');
-            setMapReady(true);
-          }}
-        >
-          {/* Search Result Markers */}
-          {places.map((place, index) => (
-            place.geometry?.location && (
-              <Marker
-                key={`search-${index}`}
-                coordinate={{
-                  latitude: place.geometry.location.lat,
-                  longitude: place.geometry.location.lng,
-                }}
-                title={place.name}
-                description={place.vicinity || place.formatted_address}
-              >
-                <View style={styles.customMarker}>
-                  <Text style={styles.markerEmoji}>📍</Text>
-                </View>
-              </Marker>
-            )
-          ))}
-          
-          {/* Tapped Location Marker */}
-          {tappedLocation && (
-            <Marker
-              coordinate={tappedLocation}
-              title={tappedPlaceInfo?.name || 'Seçilen Konum'}
-              description={tappedPlaceInfo?.address || 'Konum bilgisi'}
+                latitudeDelta: location.latitudeDelta || 0.0922,
+                longitudeDelta: location.longitudeDelta || 0.0421,
+              }}
+              onPress={handleMapPress}
+              onPoiClick={handlePoiClick}
+              showsUserLocation={true}
+              showsMyLocationButton={true}
+              showsCompass={true}
+              showsScale={true}
+              showsBuildings={true}
+              showsTraffic={false}
+              showsIndoors={true}
+              showsPointsOfInterest={true}
+              zoomEnabled={true}
+              scrollEnabled={true}
+              pitchEnabled={true}
+              rotateEnabled={true}
+              onMapReady={() => {
+                console.log('🗺️ [MapScreen] Map is ready!');
+                setMapReady(true);
+              }}
             >
-              <View style={styles.customMarker}>
-                <Text style={styles.markerEmoji}>📍</Text>
+              {/* Search Result Markers */}
+              {places.map(
+                (place, index) =>
+                  place.geometry?.location && (
+                    <Marker
+                      key={`search-${index}`}
+                      coordinate={{
+                        latitude: place.geometry.location.lat,
+                        longitude: place.geometry.location.lng,
+                      }}
+                      title={place.name}
+                      description={place.vicinity || place.formatted_address}
+                    >
+                      <View style={styles.customMarker}>
+                        <Text style={styles.markerEmoji}>📍</Text>
+                      </View>
+                    </Marker>
+                  )
+              )}
+
+              {/* Tapped Location Marker */}
+              {tappedLocation && (
+                <Marker
+                  coordinate={tappedLocation}
+                  title={tappedPlaceInfo?.name || 'Seçilen Konum'}
+                  description={tappedPlaceInfo?.address || 'Konum bilgisi'}
+                >
+                  <View style={styles.customMarker}>
+                    <Text style={styles.markerEmoji}>📍</Text>
+                  </View>
+                </Marker>
+              )}
+
+              {/* List Places Markers */}
+              {currentListDetail &&
+                currentListDetail.places &&
+                currentListDetail.places.map((place, index) => {
+                  const latitude = place.coordinate?.latitude || place.latitude;
+                  const longitude = place.coordinate?.longitude || place.longitude;
+
+                  if (!latitude || !longitude) {
+                    return null;
+                  }
+
+                  // Kullanıcı rengini al
+                  const addedByUserId =
+                    place.userContent?.addedBy || place.addedBy || currentListDetail.userId; // Fallback: liste sahibi
+                  const userColor =
+                    currentListDetail.colorAssignments?.[addedByUserId] || '#FF6B6B';
+
+                  console.log('🗺️ [MapScreen] Marker color for', place.name, ':', {
+                    addedByUserId,
+                    userColor,
+                    colorAssignments: currentListDetail.colorAssignments,
+                    currentUserId: auth.currentUser?.uid,
+                    listOwnerId: currentListDetail.userId,
+                  });
+
+                  return (
+                    <Marker
+                      key={`list-place-${index}`}
+                      coordinate={{
+                        latitude,
+                        longitude,
+                      }}
+                      title={place.name}
+                      description={place.address}
+                    >
+                      <View style={[styles.listMarker, { backgroundColor: userColor }]}>
+                        <Text style={styles.listMarkerEmoji}>📍</Text>
+                      </View>
+                    </Marker>
+                  );
+                })}
+            </MapView>
+
+            {!mapReady && (
+              <View style={styles.mapLoadingOverlay}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.mapLoadingText}>Google Maps yükleniyor...</Text>
               </View>
-            </Marker>
-          )}
-          
-          {/* List Places Markers */}
-          {currentListDetail && currentListDetail.places && currentListDetail.places.map((place, index) => {
-            const latitude = place.coordinate?.latitude || place.latitude;
-            const longitude = place.coordinate?.longitude || place.longitude;
-            
-            if (!latitude || !longitude) {
-              return null;
-            }
-
-            // Kullanıcı rengini al
-            const addedByUserId = place.userContent?.addedBy || place.addedBy || currentListDetail.userId; // Fallback: liste sahibi
-            const userColor = currentListDetail.colorAssignments?.[addedByUserId] || '#FF6B6B';
-            
-            console.log('🗺️ [MapScreen] Marker color for', place.name, ':', {
-              addedByUserId,
-              userColor,
-              colorAssignments: currentListDetail.colorAssignments,
-              currentUserId: auth.currentUser?.uid,
-              listOwnerId: currentListDetail.userId
-            });
-
-            return (
-              <Marker
-                key={`list-place-${index}`}
-                coordinate={{
-                  latitude: latitude,
-                  longitude: longitude
-                }}
-                title={place.name}
-                description={place.address}
-              >
-                <View style={[styles.listMarker, { backgroundColor: userColor }]}>
-                  <Text style={styles.listMarkerEmoji}>📍</Text>
-                </View>
-              </Marker>
-            );
-          })}
-        </MapView>
-        
-        {!mapReady && (
-          <View style={styles.mapLoadingOverlay}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.mapLoadingText}>Google Maps yükleniyor...</Text>
+            )}
           </View>
-        )}
-      </View>
-      
-      {/* Close the conditional rendering for map */}
-      </>
+
+          {/* Close the conditional rendering for map */}
+        </>
       )}
 
       {/* Bottom Panel for Tapped Location Info - only show if not from ViewList */}
@@ -1879,13 +2101,14 @@ const MapScreen = ({ navigation, route }) => {
         <View style={styles.bottomPanel}>
           <View style={styles.bottomPanelHeader}>
             <View style={styles.bottomPanelTitle}>
-              <MaterialIcons 
-                name={tappedPlaceInfo?.isEstablishment ? "business" : "location-on"} 
-                size={24} 
-                color={colors.primary} 
+              <MaterialIcons
+                name={tappedPlaceInfo?.isEstablishment ? 'business' : 'location-on'}
+                size={24}
+                color={colors.primary}
               />
               <Text style={styles.bottomPanelTitleText} numberOfLines={2}>
-                {tappedPlaceInfo?.name || (tappedPlaceInfo?.isEstablishment ? "Mekan Bilgisi" : "Konum Bilgisi")}
+                {tappedPlaceInfo?.name ||
+                  (tappedPlaceInfo?.isEstablishment ? 'Mekan Bilgisi' : 'Konum Bilgisi')}
               </Text>
             </View>
             <View style={styles.bottomPanelActions}>
@@ -1895,10 +2118,7 @@ const MapScreen = ({ navigation, route }) => {
               >
                 <MaterialIcons name="content-copy" size={24} color="#666" />
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleAddToList}
-                style={styles.bottomPanelAction}
-              >
+              <TouchableOpacity onPress={handleAddToList} style={styles.bottomPanelAction}>
                 <MaterialIcons name="playlist-add" size={24} color="#666" />
               </TouchableOpacity>
               <TouchableOpacity
@@ -1913,7 +2133,7 @@ const MapScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           </View>
-          
+
           <View style={styles.bottomPanelContent}>
             {loadingPlaceInfo ? (
               <View style={styles.bottomPanelLoading}>
@@ -1921,7 +2141,7 @@ const MapScreen = ({ navigation, route }) => {
                 <Text style={styles.bottomPanelLoadingText}>Bilgiler alınıyor...</Text>
               </View>
             ) : tappedPlaceInfo ? (
-              <ScrollView 
+              <ScrollView
                 style={styles.infoContainer}
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled={true}
@@ -1943,7 +2163,7 @@ const MapScreen = ({ navigation, route }) => {
           </View>
         </View>
       )}
-      
+
       {/* Search Modal */}
       <Modal
         visible={showSearchModal}
@@ -1959,7 +2179,7 @@ const MapScreen = ({ navigation, route }) => {
             <Text style={styles.modalTitle}>Mekan Ara</Text>
             <View style={{ width: 24 }} />
           </View>
-          
+
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
               <MaterialIcons name="search" size={24} color="#666" />
@@ -1974,11 +2194,9 @@ const MapScreen = ({ navigation, route }) => {
                 onSubmitEditing={() => searchPlaces(searchQuery)}
                 autoFocus={true}
               />
-              {searchLoading && (
-                <ActivityIndicator size="small" color={colors.primary} />
-              )}
+              {searchLoading && <ActivityIndicator size="small" color={colors.primary} />}
               {searchQuery.length > 0 && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => {
                     setSearchQuery('');
                     setSearchResults([]);
@@ -2025,12 +2243,12 @@ const MapScreen = ({ navigation, route }) => {
           </View>
         </SafeAreaView>
       </Modal>
-      
+
       {/* Add to List Modal */}
       <Modal
         visible={showAddToListModal}
         animationType="slide"
-        presentationStyle={cameFromViewList ? "fullScreen" : "pageSheet"}
+        presentationStyle={cameFromViewList ? 'fullScreen' : 'pageSheet'}
         onRequestClose={() => {
           console.log('📱 [MapScreen] Add to List modal onRequestClose called');
           handleCloseAddToListModal();
@@ -2038,17 +2256,19 @@ const MapScreen = ({ navigation, route }) => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => {
-              console.log('📱 [MapScreen] Add to List modal close button pressed');
-              handleCloseAddToListModal();
-            }}>
+            <TouchableOpacity
+              onPress={() => {
+                console.log('📱 [MapScreen] Add to List modal close button pressed');
+                handleCloseAddToListModal();
+              }}
+            >
               <MaterialIcons name="close" size={24} color="#666" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Listeye Ekle</Text>
             <View style={{ width: 24 }} />
           </View>
-          
-          <ScrollView 
+
+          <ScrollView
             style={styles.modalContent}
             refreshControl={
               <RefreshControl
@@ -2069,7 +2289,7 @@ const MapScreen = ({ navigation, route }) => {
                 </View>
               </View>
             )}
-            
+
             {/* Place Details Section - NEW */}
             <View style={styles.placeDetailsSection}>
               {/* Note Input */}
@@ -2118,7 +2338,11 @@ const MapScreen = ({ navigation, route }) => {
               {/* Photo Input */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>📸 Fotoğraf Ekle (Opsiyonel)</Text>
-                <ScrollView horizontal style={styles.photoContainer} showsHorizontalScrollIndicator={false}>
+                <ScrollView
+                  horizontal
+                  style={styles.photoContainer}
+                  showsHorizontalScrollIndicator={false}
+                >
                   {placePhotos.map((photo, index) => (
                     <View key={index} style={styles.photoItem}>
                       <TouchableOpacity onPress={() => openPhotoPreview(index)}>
@@ -2133,10 +2357,7 @@ const MapScreen = ({ navigation, route }) => {
                     </View>
                   ))}
                   {placePhotos.length < 4 && (
-                    <TouchableOpacity
-                      style={styles.addPhotoButton}
-                      onPress={addPlacePhoto}
-                    >
+                    <TouchableOpacity style={styles.addPhotoButton} onPress={addPlacePhoto}>
                       <MaterialIcons name="add-a-photo" size={24} color={colors.primary} />
                       <Text style={styles.addPhotoText}>Ekle</Text>
                     </TouchableOpacity>
@@ -2147,26 +2368,21 @@ const MapScreen = ({ navigation, route }) => {
 
             {/* Divider */}
             <View style={styles.divider} />
-            
+
             {/* New List Button */}
-            <TouchableOpacity 
-              style={styles.newListButton}
-              onPress={handleCreateNewList}
-            >
+            <TouchableOpacity style={styles.newListButton} onPress={handleCreateNewList}>
               <View style={styles.newListIcon}>
                 <MaterialIcons name="add" size={24} color={colors.primary} />
               </View>
               <Text style={styles.newListText}>Yeni Liste Oluştur</Text>
             </TouchableOpacity>
-            
+
             {/* Existing Lists */}
-            <Text style={styles.sectionTitle}>
-              Mevcut Listeler
-            </Text>
-            
+            <Text style={styles.sectionTitle}>Mevcut Listeler</Text>
+
             {/* Filter Options */}
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.filterScrollView}
               contentContainerStyle={styles.filterContainer}
@@ -2174,8 +2390,8 @@ const MapScreen = ({ navigation, route }) => {
               {['Tümü', 'Herkese Açık', 'Ortak', 'Özel'].map((filter) => {
                 const counts = getListCounts();
                 let count = 0;
-                
-                switch(filter) {
+
+                switch (filter) {
                   case 'Tümü':
                     count = counts.total;
                     break;
@@ -2189,37 +2405,37 @@ const MapScreen = ({ navigation, route }) => {
                     count = counts.private;
                     break;
                 }
-                
+
                 return (
                   <TouchableOpacity
                     key={filter}
                     style={[
                       styles.filterButton,
-                      listFilter === filter && styles.filterButtonActive
+                      listFilter === filter && styles.filterButtonActive,
                     ]}
                     onPress={() => setListFilter(filter)}
                   >
-                    <Text style={[
-                      styles.filterText,
-                      listFilter === filter && styles.filterTextActive
-                    ]}>
+                    <Text
+                      style={[styles.filterText, listFilter === filter && styles.filterTextActive]}
+                    >
                       {filter} ({count})
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-            
+
             <View style={styles.listsContainer}>
               {modalUserLists.length > 0 ? (
                 modalUserLists
                   .filter((list) => {
                     // Filtre mantığı - Öncelik sırası: Ortak > Özel > Herkese Açık
                     const currentUserId = auth.currentUser?.uid;
-                    const isCollaborative = (list.collaborators && list.collaborators.includes(currentUserId)) || 
-                                           list.isCollaborative === true;
+                    const isCollaborative =
+                      (list.collaborators && list.collaborators.includes(currentUserId)) ||
+                      list.isCollaborative === true;
                     const isPrivate = list.isPrivate === true || list.privacy === 'private';
-                    
+
                     switch (listFilter) {
                       case 'Ortak':
                         // Sadece collaborative listeler
@@ -2236,38 +2452,38 @@ const MapScreen = ({ navigation, route }) => {
                     }
                   })
                   .map((list) => {
-                  // Liste türünü belirle
-                  const currentUserId = auth.currentUser?.uid;
-                  const isOwner = list.userId === currentUserId;
-                  const isCollaborator = list.collaborators?.includes(currentUserId);
-                  
-                  let listTypeLabel = '';
-                  if (isOwner && !isCollaborator) {
-                    listTypeLabel = ' (Kendi listem)';
-                  } else if (isCollaborator && !isOwner) {
-                    listTypeLabel = ' (Ortak liste)';
-                  } else if (isOwner && isCollaborator) {
-                    listTypeLabel = ' (Ortak - sahip)';
-                  }
-                  
-                  // Liste bilgisini güncelle
-                  const displayList = {
-                    ...list,
-                    name: list.name + listTypeLabel
-                  };
-                  
-                  return (
-                    <ListCard
-                      key={list.id}
-                      list={displayList}
-                      onPress={() => handleAddToExistingList(list.id)}
-                      showPrivacyIcon={true}
-                      showArrow={true}
-                      showDates={false}
-                      style={styles.listCardStyle}
-                    />
-                  );
-                })
+                    // Liste türünü belirle
+                    const currentUserId = auth.currentUser?.uid;
+                    const isOwner = list.userId === currentUserId;
+                    const isCollaborator = list.collaborators?.includes(currentUserId);
+
+                    let listTypeLabel = '';
+                    if (isOwner && !isCollaborator) {
+                      listTypeLabel = ' (Kendi listem)';
+                    } else if (isCollaborator && !isOwner) {
+                      listTypeLabel = ' (Ortak liste)';
+                    } else if (isOwner && isCollaborator) {
+                      listTypeLabel = ' (Ortak - sahip)';
+                    }
+
+                    // Liste bilgisini güncelle
+                    const displayList = {
+                      ...list,
+                      name: list.name + listTypeLabel,
+                    };
+
+                    return (
+                      <ListCard
+                        key={list.id}
+                        list={displayList}
+                        onPress={() => handleAddToExistingList(list.id)}
+                        showPrivacyIcon={true}
+                        showArrow={true}
+                        showDates={false}
+                        style={styles.listCardStyle}
+                      />
+                    );
+                  })
               ) : (
                 <View style={styles.emptyListsContainer}>
                   <MaterialIcons name="list" size={48} color="#ccc" />
@@ -2279,7 +2495,7 @@ const MapScreen = ({ navigation, route }) => {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-      
+
       {/* Create New List Modal */}
       <Modal
         visible={showCreateListModal}
@@ -2295,21 +2511,18 @@ const MapScreen = ({ navigation, route }) => {
             <Text style={styles.modalTitle}>Yeni Liste Oluştur</Text>
             <View style={{ width: 24 }} />
           </View>
-          
+
           <ScrollView style={styles.modalContent}>
             {/* List Image Selection */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Liste Fotoğrafı</Text>
-              
+
               {/* Gallery Button */}
-              <TouchableOpacity
-                style={styles.galleryButton}
-                onPress={pickImageFromGallery}
-              >
+              <TouchableOpacity style={styles.galleryButton} onPress={pickImageFromGallery}>
                 <MaterialIcons name="photo-library" size={24} color="#007AFF" />
                 <Text style={styles.galleryButtonText}>Galeriden Seç</Text>
               </TouchableOpacity>
-              
+
               {/* Selected Image Preview */}
               {newListImage ? (
                 <View style={styles.selectedImageContainer}>
@@ -2329,7 +2542,7 @@ const MapScreen = ({ navigation, route }) => {
                 </Text>
               )}
             </View>
-            
+
             {/* List Name */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Liste Adı</Text>
@@ -2341,39 +2554,66 @@ const MapScreen = ({ navigation, route }) => {
                 maxLength={50}
               />
             </View>
-            
+
             {/* Privacy Settings */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Gizlilik Ayarları</Text>
-              
+
               <TouchableOpacity
-                style={[styles.privacyOption, newListPrivacy === 'public' && styles.privacyOptionSelected]}
+                style={[
+                  styles.privacyOption,
+                  newListPrivacy === 'public' && styles.privacyOptionSelected,
+                ]}
                 onPress={() => {
                   setNewListPrivacy('public');
                   setShowCollaboratorSearch(false);
                 }}
               >
-                <MaterialIcons name="public" size={24} color={newListPrivacy === 'public' ? '#fff' : '#666'} />
-                <Text style={[styles.privacyOptionText, newListPrivacy === 'public' && styles.privacyOptionTextSelected]}>
+                <MaterialIcons
+                  name="public"
+                  size={24}
+                  color={newListPrivacy === 'public' ? '#fff' : '#666'}
+                />
+                <Text
+                  style={[
+                    styles.privacyOptionText,
+                    newListPrivacy === 'public' && styles.privacyOptionTextSelected,
+                  ]}
+                >
                   Herkese Açık
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[styles.privacyOption, newListPrivacy === 'private' && styles.privacyOptionSelected]}
+                style={[
+                  styles.privacyOption,
+                  newListPrivacy === 'private' && styles.privacyOptionSelected,
+                ]}
                 onPress={() => {
                   setNewListPrivacy('private');
                   setShowCollaboratorSearch(false);
                 }}
               >
-                <MaterialIcons name="lock" size={24} color={newListPrivacy === 'private' ? '#fff' : '#666'} />
-                <Text style={[styles.privacyOptionText, newListPrivacy === 'private' && styles.privacyOptionTextSelected]}>
+                <MaterialIcons
+                  name="lock"
+                  size={24}
+                  color={newListPrivacy === 'private' ? '#fff' : '#666'}
+                />
+                <Text
+                  style={[
+                    styles.privacyOptionText,
+                    newListPrivacy === 'private' && styles.privacyOptionTextSelected,
+                  ]}
+                >
                   Özel
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[styles.privacyOption, newListPrivacy === 'collaborative' && styles.privacyOptionSelected]}
+                style={[
+                  styles.privacyOption,
+                  newListPrivacy === 'collaborative' && styles.privacyOptionSelected,
+                ]}
                 onPress={async () => {
                   console.log('👥 [MapScreen] Collaborative privacy selected');
                   setNewListPrivacy('collaborative');
@@ -2383,12 +2623,21 @@ const MapScreen = ({ navigation, route }) => {
                   console.log('👥 [MapScreen] Followers loading completed');
                 }}
               >
-                <MaterialIcons name="group" size={24} color={newListPrivacy === 'collaborative' ? '#fff' : '#666'} />
-                <Text style={[styles.privacyOptionText, newListPrivacy === 'collaborative' && styles.privacyOptionTextSelected]}>
+                <MaterialIcons
+                  name="group"
+                  size={24}
+                  color={newListPrivacy === 'collaborative' ? '#fff' : '#666'}
+                />
+                <Text
+                  style={[
+                    styles.privacyOptionText,
+                    newListPrivacy === 'collaborative' && styles.privacyOptionTextSelected,
+                  ]}
+                >
                   Ortak
                 </Text>
               </TouchableOpacity>
-              
+
               {/* Davet Et seçiliyse özel ve herkese açık seçenekleri göster */}
               {newListPrivacy === 'collaborative' && (
                 <View style={styles.subPrivacyOptions}>
@@ -2396,8 +2645,10 @@ const MapScreen = ({ navigation, route }) => {
                   <View style={styles.subPrivacyContainer}>
                     <TouchableOpacity
                       style={[
-                        styles.subPrivacyOption, 
-                        (newListPrivacy === 'collaborative' && !isCollaborativePrivate) && styles.subPrivacyOptionSelected
+                        styles.subPrivacyOption,
+                        newListPrivacy === 'collaborative' &&
+                          !isCollaborativePrivate &&
+                          styles.subPrivacyOptionSelected,
                       ]}
                       onPress={() => {
                         // Herkese açık collaborative liste
@@ -2408,11 +2659,13 @@ const MapScreen = ({ navigation, route }) => {
                       <MaterialIcons name="public" size={20} color="#10B981" />
                       <Text style={styles.subPrivacyOptionText}>Herkese Açık</Text>
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity
                       style={[
                         styles.subPrivacyOption,
-                        (newListPrivacy === 'collaborative' && isCollaborativePrivate) && styles.subPrivacyOptionSelected
+                        newListPrivacy === 'collaborative' &&
+                          isCollaborativePrivate &&
+                          styles.subPrivacyOptionSelected,
                       ]}
                       onPress={() => {
                         // Özel collaborative liste
@@ -2426,8 +2679,8 @@ const MapScreen = ({ navigation, route }) => {
                   </View>
                 </View>
               )}
-              
-              {(showCollaboratorSearch && newListPrivacy === 'collaborative') && (
+
+              {showCollaboratorSearch && newListPrivacy === 'collaborative' && (
                 <View style={styles.collaboratorSearch}>
                   <TextInput
                     style={styles.modalInput}
@@ -2435,7 +2688,7 @@ const MapScreen = ({ navigation, route }) => {
                     value={collaboratorQuery}
                     onChangeText={filterFollowers}
                   />
-                  
+
                   {/* Seçilen işbirlikçiler */}
                   {selectedCollaborators.length > 0 && (
                     <View style={styles.selectedCollaborators}>
@@ -2443,7 +2696,7 @@ const MapScreen = ({ navigation, route }) => {
                         Seçilen Kişiler ({selectedCollaborators.length}):
                       </Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {selectedCollaborators.map(collaborator => (
+                        {selectedCollaborators.map((collaborator) => (
                           <TouchableOpacity
                             key={collaborator.id}
                             style={styles.selectedCollaboratorChip}
@@ -2461,13 +2714,16 @@ const MapScreen = ({ navigation, route }) => {
                       </ScrollView>
                     </View>
                   )}
-                  
+
                   {/* Takipçi listesi */}
                   <View style={styles.followersList}>
                     <Text style={styles.followersListTitle}>
                       Takipçileriniz ({filteredFollowers.length})
                     </Text>
-                    <ScrollView style={[styles.followersScrollView, { maxHeight: 200 }]} nestedScrollEnabled={true}>
+                    <ScrollView
+                      style={[styles.followersScrollView, { maxHeight: 200 }]}
+                      nestedScrollEnabled={true}
+                    >
                       {loadingFollowers ? (
                         <View style={styles.loadingFollowers}>
                           <ActivityIndicator size="small" color="#6366F1" />
@@ -2475,13 +2731,13 @@ const MapScreen = ({ navigation, route }) => {
                         </View>
                       ) : filteredFollowers.length > 0 ? (
                         filteredFollowers.map((item) => {
-                          const isSelected = selectedCollaborators.some(c => c.id === item.id);
+                          const isSelected = selectedCollaborators.some((c) => c.id === item.id);
                           return (
                             <TouchableOpacity
                               key={item.id}
                               style={[
                                 styles.followerItem,
-                                isSelected && styles.followerItemSelected
+                                isSelected && styles.followerItemSelected,
                               ]}
                               onPress={() => toggleCollaborator(item)}
                             >
@@ -2493,9 +2749,9 @@ const MapScreen = ({ navigation, route }) => {
                                 <Text style={styles.followerUsername}>@{item.username}</Text>
                               </View>
                               <MaterialIcons
-                                name={isSelected ? "check-circle" : "radio-button-unchecked"}
+                                name={isSelected ? 'check-circle' : 'radio-button-unchecked'}
                                 size={24}
-                                color={isSelected ? "#10B981" : "#999"}
+                                color={isSelected ? '#10B981' : '#999'}
                               />
                             </TouchableOpacity>
                           );
@@ -2510,7 +2766,7 @@ const MapScreen = ({ navigation, route }) => {
                       )}
                     </ScrollView>
                   </View>
-                  
+
                   <Text style={styles.collaboratorHint}>
                     Sadece takipçilerinizden davet edebilirsiniz
                   </Text>
@@ -2518,7 +2774,7 @@ const MapScreen = ({ navigation, route }) => {
               )}
             </View>
           </ScrollView>
-          
+
           {/* Modal Footer */}
           <View style={styles.createListFooter}>
             <TouchableOpacity
@@ -2528,9 +2784,12 @@ const MapScreen = ({ navigation, route }) => {
             >
               <Text style={styles.cancelCreateButtonText}>İptal için 2sn basılı tutun</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.createListButton, (!newListName.trim() || !newListImage) && styles.createListButtonDisabled]}
+              style={[
+                styles.createListButton,
+                (!newListName.trim() || !newListImage) && styles.createListButtonDisabled,
+              ]}
               onPress={createNewList}
               disabled={!newListName.trim() || !newListImage}
             >
@@ -2539,7 +2798,7 @@ const MapScreen = ({ navigation, route }) => {
           </View>
         </SafeAreaView>
       </Modal>
-      
+
       {/* List Detail Modal */}
       <Modal
         visible={showListDetailModal}
@@ -2552,12 +2811,10 @@ const MapScreen = ({ navigation, route }) => {
             <TouchableOpacity onPress={() => setShowListDetailModal(false)}>
               <MaterialIcons name="close" size={24} color="#666" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              {currentListDetail?.name || 'Liste Detayı'}
-            </Text>
+            <Text style={styles.modalTitle}>{currentListDetail?.name || 'Liste Detayı'}</Text>
             <View style={{ width: 24 }} />
           </View>
-          
+
           <ScrollView style={styles.modalContent}>
             {currentListDetail && (
               <>
@@ -2565,9 +2822,9 @@ const MapScreen = ({ navigation, route }) => {
                 <View style={styles.listDetailHeader}>
                   <View style={styles.listDetailImageContainer}>
                     {currentListDetail.image ? (
-                      <Image 
-                        source={{ uri: currentListDetail.image }} 
-                        style={styles.listDetailImage} 
+                      <Image
+                        source={{ uri: currentListDetail.image }}
+                        style={styles.listDetailImage}
                       />
                     ) : (
                       <View style={styles.listDetailIcon}>
@@ -2576,9 +2833,7 @@ const MapScreen = ({ navigation, route }) => {
                     )}
                   </View>
                   <View style={styles.listDetailInfo}>
-                    <Text style={styles.listDetailName}>
-                      {currentListDetail.name}
-                    </Text>
+                    <Text style={styles.listDetailName}>{currentListDetail.name}</Text>
                     <View style={styles.listDetailMeta}>
                       <Text style={styles.listDetailPlaces}>
                         {currentListDetail.places?.length || 0} yer
@@ -2588,11 +2843,13 @@ const MapScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                     <Text style={styles.listDetailDate}>
-                      {currentListDetail.createdAt ? 
-                        new Date(currentListDetail.createdAt.toDate ? currentListDetail.createdAt.toDate() : currentListDetail.createdAt)
-                          .toLocaleDateString('tr-TR') 
-                        : 'Tarih yok'
-                      }
+                      {currentListDetail.createdAt
+                        ? new Date(
+                            currentListDetail.createdAt.toDate
+                              ? currentListDetail.createdAt.toDate()
+                              : currentListDetail.createdAt
+                          ).toLocaleDateString('tr-TR')
+                        : 'Tarih yok'}
                     </Text>
                   </View>
                 </View>
@@ -2616,9 +2873,7 @@ const MapScreen = ({ navigation, route }) => {
                     <View style={styles.emptyState}>
                       <MaterialIcons name="location-off" size={48} color={colors.textSecondary} />
                       <Text style={styles.emptyTitle}>Henüz yer eklenmemiş</Text>
-                      <Text style={styles.emptySubtitle}>
-                        Bu listeye henüz hiç yer eklenmemiş.
-                      </Text>
+                      <Text style={styles.emptySubtitle}>Bu listeye henüz hiç yer eklenmemiş.</Text>
                     </View>
                   )}
                 </View>
@@ -2636,23 +2891,17 @@ const MapScreen = ({ navigation, route }) => {
         onRequestClose={closePhotoPreview}
       >
         <View style={styles.photoPreviewContainer}>
-          <TouchableOpacity 
-            style={styles.photoPreviewOverlay}
-            onPress={closePhotoPreview}
-          />
-          
+          <TouchableOpacity style={styles.photoPreviewOverlay} onPress={closePhotoPreview} />
+
           {placePhotos[previewPhotoIndex] && (
             <View style={styles.photoPreviewContent}>
               {/* Header with close and delete buttons */}
               <View style={styles.photoPreviewHeader}>
-                <TouchableOpacity 
-                  style={styles.photoPreviewButton}
-                  onPress={closePhotoPreview}
-                >
+                <TouchableOpacity style={styles.photoPreviewButton} onPress={closePhotoPreview}>
                   <MaterialIcons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.photoPreviewButton}
                   onPress={deletePhotoFromPreview}
                 >
@@ -2661,8 +2910,8 @@ const MapScreen = ({ navigation, route }) => {
               </View>
 
               {/* Photo */}
-              <Image 
-                source={{ uri: placePhotos[previewPhotoIndex] }} 
+              <Image
+                source={{ uri: placePhotos[previewPhotoIndex] }}
                 style={styles.photoPreviewImage}
                 resizeMode="contain"
               />
@@ -2684,14 +2933,14 @@ const MapScreen = ({ navigation, route }) => {
           <View style={styles.editHeader}>
             <Text style={styles.editTitle}>"{editingList?.name}" Düzenleme</Text>
             <View style={styles.editHeaderButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={cancelEdit}
                 style={[styles.editButton, styles.cancelButton]}
               >
                 <MaterialIcons name="close" size={16} color="#FFFFFF" />
                 <Text style={styles.editButtonText}>İptal</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={saveEditChanges}
                 style={[styles.editButton, styles.saveButton]}
               >
@@ -2700,7 +2949,7 @@ const MapScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           </View>
-          
+
           <ScrollView style={styles.editPlacesList} showsVerticalScrollIndicator={false}>
             {editListPlaces.length === 0 ? (
               <View style={styles.emptyEditPlaces}>
@@ -2735,82 +2984,82 @@ const MapScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#fff',
+    flex: 1,
   },
   // Search styles
   searchContainer: {
     backgroundColor: '#fff',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    paddingBottom: 8,
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     zIndex: 1000,
   },
   searchBar: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     borderRadius: 25,
+    elevation: 2,
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   searchInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
     color: '#333',
+    flex: 1,
+    fontSize: 16,
+    marginLeft: 12,
   },
   suggestionsContainer: {
     backgroundColor: '#fff',
-    marginTop: 8,
     borderRadius: 12,
     elevation: 4,
+    marginTop: 8,
+    maxHeight: 250,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    maxHeight: 250,
   },
   suggestionsList: {
     borderRadius: 12,
   },
   suggestionItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    padding: 16,
   },
   suggestionText: {
     flex: 1,
     marginLeft: 12,
   },
   suggestionName: {
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 4,
   },
   suggestionAddress: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
   },
   suggestionRating: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
     fontWeight: '500',
   },
   // Map styles
   mapContainer: {
-    flex: 1,
     backgroundColor: '#f5f5f5',
+    flex: 1,
   },
   map: {
     flex: 1,
@@ -2818,9 +3067,9 @@ const styles = StyleSheet.create({
   // Marker styles
   customMarker: {
     alignItems: 'center',
+    height: 32,
     justifyContent: 'center',
     width: 32,
-    height: 32,
   },
   markerEmoji: {
     fontSize: 24,
@@ -2828,135 +3077,135 @@ const styles = StyleSheet.create({
   },
   // Modal styles
   modalOverlay: {
-    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
     justifyContent: 'flex-end',
   },
   placeRating: {
-    fontSize: 16,
     color: '#333',
-    marginLeft: 12,
+    fontSize: 16,
     fontWeight: '500',
+    marginLeft: 12,
   },
   placeTypes: {
-    fontSize: 14,
     color: '#666',
-    marginLeft: 12,
     flex: 1,
+    fontSize: 14,
+    marginLeft: 12,
     textTransform: 'capitalize',
   },
   coordinatesInfo: {
     backgroundColor: '#f8f9fa',
-    padding: 16,
     borderRadius: 12,
     marginTop: 8,
+    padding: 16,
   },
   coordinatesLabel: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 4,
   },
   coordinates: {
-    fontSize: 14,
     color: '#666',
     fontFamily: 'monospace',
+    fontSize: 14,
   },
   // Loading styles
   loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+    flex: 1,
+    justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
     color: '#666',
+    fontSize: 16,
     fontWeight: '500',
+    marginTop: 16,
   },
   loadingSubText: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     marginTop: 8,
-    textAlign: 'center',
     paddingHorizontal: 20,
+    textAlign: 'center',
   },
   errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+    flex: 1,
+    justifyContent: 'center',
     padding: 20,
   },
   errorText: {
-    fontSize: 16,
     color: '#d32f2f',
-    textAlign: 'center',
+    fontSize: 16,
     marginBottom: 20,
+    textAlign: 'center',
   },
   mapLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
-    alignItems: 'center',
   },
   mapLoadingText: {
-    marginTop: 16,
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
     fontWeight: '500',
+    marginTop: 16,
   },
   // Callout styles
   calloutContainer: {
-    minWidth: 200,
     maxWidth: 280,
+    minWidth: 200,
   },
   calloutContent: {
-    padding: 12,
     backgroundColor: '#fff',
     borderRadius: 8,
+    padding: 12,
   },
   calloutLoading: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'center',
     padding: 8,
   },
   calloutLoadingText: {
-    marginLeft: 8,
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
+    marginLeft: 8,
   },
   calloutTitle: {
+    color: '#333',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 4,
   },
   calloutAddress: {
-    fontSize: 14,
     color: '#666',
-    marginBottom: 4,
+    fontSize: 14,
     lineHeight: 18,
+    marginBottom: 4,
   },
   calloutRating: {
-    fontSize: 14,
     color: '#333',
-    marginBottom: 4,
+    fontSize: 14,
     fontWeight: '500',
+    marginBottom: 4,
   },
   calloutCoordinates: {
-    fontSize: 12,
     color: '#999',
     fontFamily: 'monospace',
+    fontSize: 12,
     marginTop: 4,
   },
   calloutTypes: {
-    fontSize: 12,
     color: colors.primary,
-    marginTop: 4,
+    fontSize: 12,
     fontWeight: '500',
+    marginTop: 4,
   },
   // Bottom panel styles
   bottomPanel: {
@@ -3004,13 +3253,13 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   bottomPanelActions: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     flexShrink: 0, // Prevent actions from shrinking
   },
   bottomPanelAction: {
-    padding: 8,
     marginRight: 8,
+    padding: 8,
   },
   bottomPanelContent: {
     paddingHorizontal: 20,
@@ -3019,15 +3268,15 @@ const styles = StyleSheet.create({
     maxHeight: 200, // Maximum yükseklik sınırı
   },
   bottomPanelLoading: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'center',
     paddingVertical: 20,
   },
   bottomPanelLoadingText: {
-    marginLeft: 12,
-    fontSize: 16,
     color: '#666',
+    fontSize: 16,
+    marginLeft: 12,
   },
   // Yeni info container ve row stilleri
   infoContainer: {
@@ -3035,72 +3284,72 @@ const styles = StyleSheet.create({
     paddingBottom: 20, // İçerik ile navigasyon barı arası boşluk
   },
   infoRow: {
-    flexDirection: 'row',
     alignItems: 'flex-start',
+    flexDirection: 'row',
     marginBottom: 20,
     paddingVertical: 12,
   },
   infoIcon: {
-    width: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+    width: 40,
   },
   infoContent: {
     flex: 1,
     marginLeft: 12,
   },
   infoLabel: {
-    fontSize: 12,
     color: '#666',
+    fontSize: 12,
     fontWeight: '600',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   infoValue: {
-    fontSize: 16,
     color: '#333',
-    lineHeight: 24,
-    fontWeight: '500',
     flexWrap: 'wrap',
     flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 24,
   },
   infoValueMono: {
-    fontSize: 14,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 6,
     color: '#333',
     fontFamily: 'monospace',
-    backgroundColor: '#f5f5f5',
-    padding: 8,
-    borderRadius: 6,
+    fontSize: 14,
     overflow: 'hidden',
+    padding: 8,
   },
   cancelHintContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
     backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   // Modal styles
   modalContainer: {
-    flex: 1,
     backgroundColor: '#fff',
+    flex: 1,
   },
   modalHeader: {
+    alignItems: 'center',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
     color: '#333',
     flex: 1,
+    fontSize: 20,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
   modalContent: {
@@ -3109,91 +3358,91 @@ const styles = StyleSheet.create({
   },
   // List management styles
   selectedPlaceInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
+    flexDirection: 'row',
     marginBottom: 20,
+    padding: 16,
   },
   selectedPlaceText: {
     flex: 1,
     marginLeft: 12,
   },
   selectedPlaceName: {
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 4,
   },
   selectedPlaceAddress: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
   },
   newListButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     backgroundColor: colors.primary,
     borderRadius: 12,
+    flexDirection: 'row',
     marginBottom: 20,
+    padding: 16,
   },
   newListIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
     marginRight: 12,
+    width: 40,
   },
   newListText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   sectionTitle: {
+    color: '#333',
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 16,
   },
   listsContainer: {
-    paddingHorizontal: 0,
     marginTop: 8,
+    paddingHorizontal: 0,
   },
   emptyListsContainer: {
-    width: '100%',
     alignItems: 'center',
     paddingVertical: 40,
+    width: '100%',
   },
   emptyListsText: {
-    fontSize: 16,
     color: '#666',
-    marginTop: 12,
+    fontSize: 16,
     fontWeight: '500',
+    marginTop: 12,
   },
   emptyListsSubtext: {
-    fontSize: 14,
     color: '#999',
+    fontSize: 14,
     marginTop: 4,
   },
   privateIcon: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#666',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#666',
+    borderRadius: 10,
+    height: 20,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -5,
+    top: -5,
+    width: 20,
   },
   listName: {
-    fontSize: 12,
-    textAlign: 'center',
     color: '#333',
+    fontSize: 12,
     fontWeight: '500',
+    textAlign: 'center',
   },
   sectionContainer: {
     marginBottom: 24,
@@ -3204,103 +3453,103 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   emojiOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 2,
+    backgroundColor: '#f0f0f0',
     borderColor: 'transparent',
+    borderRadius: 25,
+    borderWidth: 2,
+    height: 50,
+    justifyContent: 'center',
+    marginBottom: 8,
+    width: 50,
   },
   emojiOptionSelected: {
-    borderColor: colors.primary,
     backgroundColor: 'rgba(33, 150, 243, 0.1)',
+    borderColor: colors.primary,
   },
   emojiText: {
     fontSize: 24,
   },
   modalInput: {
-    borderWidth: 1,
+    backgroundColor: '#fff',
     borderColor: '#ddd',
     borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
   },
   privacyOption: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
     backgroundColor: '#f8f9fa',
+    borderColor: 'transparent',
+    borderRadius: 12,
+    borderWidth: 2,
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   privacyOptionSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   privacyOptionText: {
-    fontSize: 16,
     color: '#333',
-    marginLeft: 12,
+    fontSize: 16,
     fontWeight: '500',
+    marginLeft: 12,
   },
   privacyOptionTextSelected: {
     color: '#fff',
   },
   collaboratorSearch: {
+    borderTopColor: '#eee',
+    borderTopWidth: 1,
     marginTop: 16,
     paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   collaboratorHint: {
-    fontSize: 12,
     color: '#666',
-    marginTop: 8,
+    fontSize: 12,
     fontStyle: 'italic',
+    marginTop: 8,
   },
   selectedCollaborators: {
-    marginTop: 12,
     marginBottom: 12,
+    marginTop: 12,
   },
   selectedCollaboratorsTitle: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   selectedCollaboratorChip: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E8F5E8',
     borderRadius: 20,
+    flexDirection: 'row',
+    gap: 6,
+    marginRight: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginRight: 8,
-    gap: 6,
   },
   selectedCollaboratorAvatar: {
     fontSize: 16,
   },
   selectedCollaboratorName: {
-    fontSize: 12,
     color: '#10B981',
+    fontSize: 12,
     fontWeight: '500',
   },
   followersList: {
     marginTop: 12,
   },
   followersListTitle: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   followersScrollView: {
@@ -3310,12 +3559,12 @@ const styles = StyleSheet.create({
     overflow: 'scroll',
   },
   followerItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   followerItemSelected: {
     backgroundColor: '#E8F5E8',
@@ -3328,13 +3577,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   followerName: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
   },
   followerUsername: {
-    fontSize: 12,
     color: '#666',
+    fontSize: 12,
     marginTop: 2,
   },
   emptyFollowers: {
@@ -3342,150 +3591,150 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyFollowersText: {
-    fontSize: 14,
     color: '#999',
+    fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
   },
   createListFooter: {
+    borderTopColor: '#eee',
+    borderTopWidth: 1,
     flexDirection: 'row',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    gap: 12,
   },
   cancelCreateButton: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderColor: '#dc3545',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#dc3545',
-    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   cancelCreateButtonText: {
-    fontSize: 12,
     color: '#dc3545',
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
   createListButton: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    alignItems: 'center',
     backgroundColor: colors.primary,
     borderRadius: 12,
-    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   createListButtonDisabled: {
     backgroundColor: '#ccc',
   },
   createListButtonText: {
-    fontSize: 16,
     color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   // Gallery and image selection styles
   galleryButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginBottom: 16,
-    justifyContent: 'center',
-    borderWidth: 1,
     borderColor: '#007AFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 16,
+    padding: 12,
   },
   galleryButtonText: {
-    marginLeft: 8,
-    fontSize: 16,
     color: '#007AFF',
+    fontSize: 16,
     fontWeight: '500',
+    marginLeft: 8,
   },
   selectedImageContainer: {
-    position: 'relative',
     alignSelf: 'center',
     marginBottom: 16,
+    position: 'relative',
   },
   selectedImage: {
-    width: 80,
-    height: 80,
     borderRadius: 40,
+    height: 80,
+    width: 80,
   },
   removeImageButton: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
+    alignItems: 'center',
     backgroundColor: '#ff3b30',
     borderRadius: 12,
-    width: 24,
     height: 24,
-    alignItems: 'center',
     justifyContent: 'center',
+    position: 'absolute',
+    right: -5,
+    top: -5,
+    width: 24,
   },
   categoryTitle: {
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
     marginBottom: 8,
+    marginTop: 16,
   },
   helperText: {
-    fontSize: 14,
     color: '#666',
-    textAlign: 'center',
+    fontSize: 14,
     fontStyle: 'italic',
     marginTop: 8,
+    textAlign: 'center',
   },
   // List marker styles
   listMarker: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
     borderColor: '#fff',
+    borderRadius: 15,
+    borderWidth: 2,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
   },
   listMarkerEmoji: {
-    fontSize: 16,
     color: '#fff',
+    fontSize: 16,
   },
   // List detail modal styles
   listDetailHeader: {
-    flexDirection: 'row',
-    padding: 20,
     backgroundColor: colors.lightBackground,
+    flexDirection: 'row',
     marginBottom: 20,
+    padding: 20,
   },
   listDetailImageContainer: {
     marginRight: 16,
   },
   listDetailImage: {
-    width: 80,
-    height: 80,
     borderRadius: 12,
+    height: 80,
+    width: 80,
   },
   listDetailIcon: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    backgroundColor: '#fff',
     borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 80,
+    justifyContent: 'center',
+    width: 80,
   },
   listDetailInfo: {
     flex: 1,
     justifyContent: 'center',
   },
   listDetailName: {
+    color: colors.text,
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
     marginBottom: 8,
   },
   listDetailMeta: {
@@ -3494,49 +3743,49 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   listDetailPlaces: {
-    fontSize: 14,
-    color: colors.textSecondary,
     backgroundColor: '#fff',
+    borderRadius: 8,
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
-    fontWeight: '500',
   },
   listDetailPrivacy: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     fontWeight: '500',
   },
   listDetailDate: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   placesSection: {
     paddingHorizontal: 20,
   },
   placeItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: 8,
+    padding: 16,
   },
   placeInfo: {
     flex: 1,
     marginLeft: 12,
   },
   placeName: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 4,
   },
   placeAddress: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     lineHeight: 18,
   },
   emptyState: {
@@ -3544,60 +3793,60 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyTitle: {
+    color: colors.text,
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
     marginBottom: 8,
+    marginTop: 16,
   },
   emptySubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
   },
-  
+
   // Edit Panel Styles
   editBottomPanel: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    bottom: 0,
+    elevation: 5,
+    left: 0,
+    maxHeight: height * 0.4,
+    position: 'absolute',
+    right: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 5,
-    maxHeight: height * 0.4,
   },
   editHeader: {
+    alignItems: 'center',
+    borderBottomColor: '#E5E7EB',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   editTitle: {
-    fontSize: 18,
-    fontWeight: '700',
     color: colors.textPrimary,
     flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
   },
   editHeaderButtons: {
     flexDirection: 'row',
     gap: 8,
   },
   editButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    gap: 4,
   },
   cancelButton: {
     backgroundColor: '#6B7280',
@@ -3615,101 +3864,101 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emptyEditPlaces: {
-    padding: 20,
     alignItems: 'center',
+    padding: 20,
   },
   emptyEditText: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     textAlign: 'center',
   },
   editPlaceCard: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
     borderColor: '#E5E7EB',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: 8,
+    padding: 12,
   },
   editPlaceInfo: {
     flex: 1,
   },
   editPlaceName: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
     marginBottom: 4,
   },
   editPlaceAddress: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
   },
   editRemoveButton: {
-    padding: 8,
-    borderRadius: 8,
     backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 8,
   },
   listCardStyle: {
-    marginHorizontal: 0,
     backgroundColor: colors.white,
     marginBottom: 16,
+    marginHorizontal: 0,
   },
-  
+
   // Place details styles - NEW
   placeDetailsSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     backgroundColor: '#F8F9FA',
+    borderRadius: 12,
     marginHorizontal: 16,
     marginVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
     marginBottom: 8,
   },
   noteInput: {
-    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    padding: 12,
+    borderWidth: 1,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
     minHeight: 80,
+    padding: 12,
     textAlignVertical: 'top',
   },
   characterCount: {
-    fontSize: 12,
     color: colors.textSecondary,
-    textAlign: 'right',
+    fontSize: 12,
     marginTop: 4,
+    textAlign: 'right',
   },
   ratingContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     flexWrap: 'wrap',
   },
   starButton: {
-    padding: 4,
     marginRight: 8,
+    padding: 4,
   },
   clearRatingButton: {
+    backgroundColor: '#F0F0F0',
+    borderRadius: 6,
     marginLeft: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 6,
   },
   clearRatingText: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   photoContainer: {
     marginTop: 8,
@@ -3719,113 +3968,113 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   photoThumbnail: {
-    width: 80,
-    height: 80,
     borderRadius: 8,
+    height: 80,
+    width: 80,
   },
   removePhotoButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
+    alignItems: 'center',
     backgroundColor: '#FF4444',
     borderRadius: 12,
-    width: 24,
     height: 24,
     justifyContent: 'center',
-    alignItems: 'center',
+    position: 'absolute',
+    right: -8,
+    top: -8,
+    width: 24,
   },
   addPhotoButton: {
-    width: 80,
-    height: 80,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F8F9FA',
+    borderColor: colors.primary,
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    height: 80,
+    justifyContent: 'center',
+    width: 80,
   },
   addPhotoText: {
-    fontSize: 12,
     color: colors.primary,
-    marginTop: 4,
+    fontSize: 12,
     fontWeight: '500',
+    marginTop: 4,
   },
   divider: {
-    height: 1,
     backgroundColor: '#E0E0E0',
+    height: 1,
     marginHorizontal: 16,
     marginVertical: 12,
   },
-  
+
   // Photo preview modal styles
   photoPreviewContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    flex: 1,
+    justifyContent: 'center',
   },
   photoPreviewOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   photoPreviewContent: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    width: '100%',
   },
   photoPreviewHeader: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    left: 0,
     paddingHorizontal: 20,
+    position: 'absolute',
+    right: 0,
+    top: 50,
     zIndex: 1,
   },
   photoPreviewButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   photoPreviewImage: {
-    width: '90%',
     height: '70%',
+    width: '90%',
   },
   photoCounter: {
-    position: 'absolute',
-    bottom: 50,
     alignSelf: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    bottom: 50,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    position: 'absolute',
   },
   photoCounterText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
   },
-  
+
   // Sub Privacy Options Styles
   subPrivacyOptions: {
+    borderTopColor: '#E5E7EB',
+    borderTopWidth: 1,
     marginTop: 16,
     paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
   },
   subPrivacyTitle: {
+    color: '#374151',
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
     marginBottom: 12,
   },
   subPrivacyContainer: {
@@ -3833,70 +4082,70 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   subPrivacyOption: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    flex: 1,
+    flexDirection: 'row',
     gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   subPrivacyOptionSelected: {
     backgroundColor: '#F0F9FF',
     borderColor: '#3B82F6',
   },
   subPrivacyOptionText: {
+    color: '#374151',
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
   },
   loadingFollowers: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
     justifyContent: 'center',
     paddingVertical: 30,
-    gap: 10,
   },
   loadingFollowersText: {
-    fontSize: 14,
     color: '#6B7280',
+    fontSize: 14,
     fontStyle: 'italic',
   },
   filterScrollView: {
-    borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    borderBottomWidth: 1,
   },
   filterContainer: {
     flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
     minWidth: 80,
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   filterButtonActive: {
     backgroundColor: '#3B82F6',
     borderColor: '#3B82F6',
   },
   filterText: {
+    color: '#6B7280',
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
   },
   filterTextActive: {
     color: '#FFFFFF',
   },
-}); 
+});
 
 export default MapScreen;

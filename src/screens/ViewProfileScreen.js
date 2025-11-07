@@ -10,12 +10,28 @@ import {
   Modal,
   TextInput,
   FlatList,
-  Image
+  Image,
 } from 'react-native';
 import { Text, Avatar, Button } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { doc, getDoc, getDocs, updateDoc, arrayUnion, arrayRemove, increment, collection, query, where, serverTimestamp, orderBy, addDoc, deleteDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  increment,
+  collection,
+  query,
+  where,
+  serverTimestamp,
+  orderBy,
+  addDoc,
+  deleteDoc,
+} from 'firebase/firestore';
+
 import { auth, db } from '../config/firebase';
 import { colors } from '../theme/theme';
 import { ListCard } from '../components/CommonComponents';
@@ -24,9 +40,9 @@ import ViewListModal from '../components/ViewListModal';
 import SoRitaHeader from '../components/SoRitaHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
 import { sendFollowNotification, sendUnfollowNotification } from '../services/notificationService';
-import { 
-  sendFollowPushNotification, 
-  sendUnfollowPushNotification 
+import {
+  sendFollowPushNotification,
+  sendUnfollowPushNotification,
 } from '../services/pushNotificationService';
 import { usePlaceCardSync } from '../hooks/useRealtimeSync';
 import ImageModal from '../components/ImageModal';
@@ -40,7 +56,7 @@ export default function ViewProfileScreen({ route, navigation }) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [stats, setStats] = useState({
     followers: 0,
-    following: 0
+    following: 0,
   });
 
   // List modal states
@@ -49,7 +65,7 @@ export default function ViewProfileScreen({ route, navigation }) {
   const [listData, setListData] = useState([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Error handling states
   const [error, setError] = useState(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -68,26 +84,26 @@ export default function ViewProfileScreen({ route, navigation }) {
 
   // Tab system for lists/places
   const [activeTab, setActiveTab] = useState('listeler'); // 'listeler' or 'mekanlar'
-  
+
   // Liste filtreleme sistemi
   const [listFilterVisible, setListFilterVisible] = useState(false);
   const [selectedListFilter, setSelectedListFilter] = useState('all'); // 'all', 'public', 'private', 'collaborative'
-  
+
   // Image modal states
   const [showImageModal, setShowImageModal] = useState(false);
   const [currentImageUri, setCurrentImageUri] = useState('');
-  
+
   const listFilterOptions = [
     { key: 'all', label: '🗂️ Tümü', description: 'Tüm listeler' },
     { key: 'public', label: '🌍 Herkese Açık', description: 'Herkese açık listeler' },
-    { key: 'collaborative', label: '👥 Ortak', description: 'Ortak listeler' }
+    { key: 'collaborative', label: '👥 Ortak', description: 'Ortak listeler' },
   ];
-  
+
   // Global state synchronization for PlaceCard components
   const placeCardSync = usePlaceCardSync();
 
   const { userId } = route.params;
-  const currentUser = auth.currentUser;
+  const { currentUser } = auth;
 
   // Don't let users view their own profile - redirect to ProfileScreen
   useEffect(() => {
@@ -96,7 +112,7 @@ export default function ViewProfileScreen({ route, navigation }) {
       navigation.getParent()?.navigate('Profile');
       return;
     }
-    
+
     if (userId && currentUser) {
       loadData();
     }
@@ -107,16 +123,16 @@ export default function ViewProfileScreen({ route, navigation }) {
       setLoading(true);
       setError(null);
       setIsOffline(false);
-      
+
       await Promise.all([
         loadUserProfile(),
         loadCurrentUserData(),
         loadUserListsData(),
-        loadUserPlaces()
+        loadUserPlaces(),
       ]);
     } catch (error) {
       console.error('❌ [ViewProfile] Error loading data:', error);
-      
+
       // Check if it's a Firebase offline error
       if (error.message?.includes('offline') || error.code === 'unavailable') {
         setIsOffline(true);
@@ -137,13 +153,12 @@ export default function ViewProfileScreen({ route, navigation }) {
   const loadUserStats = async (profileData) => {
     try {
       // Initialize stats with profile data
-      let newStats = {
+      const newStats = {
         followers: profileData.followersCount || 0,
-        following: profileData.followingCount || 0
+        following: profileData.followingCount || 0,
       };
-      
+
       setStats(newStats);
-      
     } catch (error) {
       console.error('❌ [ViewProfile] Error loading stats:', error);
       // Don't throw - stats loading failure shouldn't block profile loading
@@ -167,10 +182,9 @@ export default function ViewProfileScreen({ route, navigation }) {
 
       const profileData = userDoc.data();
       setUserData(profileData);
-      
+
       // Load user stats (posts, lists, etc.)
       await loadUserStats(profileData);
-
     } catch (error) {
       console.error('❌ [ViewProfile] Error loading profile:', error);
       throw error; // Re-throw to be handled by loadData
@@ -180,14 +194,14 @@ export default function ViewProfileScreen({ route, navigation }) {
   const loadCurrentUserData = async () => {
     try {
       if (!currentUser) return;
-      
+
       const currentUserDocRef = doc(db, 'users', currentUser.uid);
       const currentUserDoc = await getDoc(currentUserDocRef);
 
       if (currentUserDoc.exists()) {
         const currentData = currentUserDoc.data();
         setCurrentUserData(currentData);
-        
+
         // Check if already following
         const following = currentData.following || [];
         setIsFollowing(following.includes(userId));
@@ -209,7 +223,7 @@ export default function ViewProfileScreen({ route, navigation }) {
       if (isFollowing) {
         // Unfollow
         console.log('👋 [ViewProfile] Unfollowing user:', userData.displayName);
-        
+
         // Remove from follows collection
         const followsQuery = query(
           collection(db, 'follows'),
@@ -217,25 +231,25 @@ export default function ViewProfileScreen({ route, navigation }) {
           where('followedUserId', '==', userId)
         );
         const followsSnap = await getDocs(followsQuery);
-        
-        const deletePromises = followsSnap.docs.map(doc => deleteDoc(doc.ref));
-        
+
+        const deletePromises = followsSnap.docs.map((doc) => deleteDoc(doc.ref));
+
         await Promise.all([
           ...deletePromises,
           updateDoc(currentUserRef, {
             following: arrayRemove(userId),
-            followingCount: increment(-1)
+            followingCount: increment(-1),
           }),
           updateDoc(targetUserRef, {
             followers: arrayRemove(currentUser.uid),
-            followersCount: increment(-1)
-          })
+            followersCount: increment(-1),
+          }),
         ]);
         setIsFollowing(false);
-        
+
         // Start background operations (don't wait for them to complete)
         const backgroundOperations = [];
-        
+
         // Delete original follow notifications when unfollowing
         backgroundOperations.push(
           (async () => {
@@ -246,28 +260,34 @@ export default function ViewProfileScreen({ route, navigation }) {
                 where('fromUserId', '==', currentUser.uid),
                 where('toUserId', '==', userId)
               );
-              
+
               const followNotificationsSnapshot = await getDocs(followNotificationsQuery);
-              const deleteNotificationPromises = followNotificationsSnapshot.docs.map(notificationDoc => 
-                deleteDoc(doc(db, 'notifications', notificationDoc.id))
+              const deleteNotificationPromises = followNotificationsSnapshot.docs.map(
+                (notificationDoc) => deleteDoc(doc(db, 'notifications', notificationDoc.id))
               );
-              
+
               await Promise.all(deleteNotificationPromises);
-              
+
               // Update notification count for target user
               if (followNotificationsSnapshot.docs.length > 0) {
                 await updateDoc(doc(db, 'users', userId), {
-                  unreadNotifications: increment(-followNotificationsSnapshot.docs.length)
+                  unreadNotifications: increment(-followNotificationsSnapshot.docs.length),
                 });
               }
-              
-              console.log('🗑️ [ViewProfile] Follow notifications deleted:', followNotificationsSnapshot.docs.length);
+
+              console.log(
+                '🗑️ [ViewProfile] Follow notifications deleted:',
+                followNotificationsSnapshot.docs.length
+              );
             } catch (deleteNotifError) {
-              console.warn('❌ [ViewProfile] Non-critical: Error deleting follow notifications:', deleteNotifError);
+              console.warn(
+                '❌ [ViewProfile] Non-critical: Error deleting follow notifications:',
+                deleteNotifError
+              );
             }
           })()
         );
-        
+
         // Send unfollow notification
         backgroundOperations.push(
           (async () => {
@@ -278,52 +298,52 @@ export default function ViewProfileScreen({ route, navigation }) {
                   fromUserName: currentUserData?.displayName || 'Bir kullanıcı',
                   fromUserAvatar: currentUserData?.avatar || '👤',
                   toUserId: userId,
-                  toUserName: userData.displayName
+                  toUserName: userData.displayName,
                 }),
-                sendUnfollowPushNotification(currentUserData, userId)
+                sendUnfollowPushNotification(currentUserData, userId),
               ]);
               console.log('� [ViewProfile] Unfollow notifications sent');
             } catch (notifError) {
-              console.warn('❌ [ViewProfile] Non-critical: Error sending unfollow notification:', notifError);
+              console.warn(
+                '❌ [ViewProfile] Non-critical: Error sending unfollow notification:',
+                notifError
+              );
             }
           })()
         );
-        
+
         // Start background operations but don't wait
         Promise.allSettled(backgroundOperations);
-        
+
         // Güncel istatistikleri yükle (hem kendi hem karşı taraf için)
-        await Promise.all([
-          updateRealFollowerCount(),
-          updateRealFollowingCount(currentUser.uid)
-        ]);
+        await Promise.all([updateRealFollowerCount(), updateRealFollowingCount(currentUser.uid)]);
         console.log('✅ [ViewProfile] Successfully unfollowed');
       } else {
         // Follow
         console.log('👍 [ViewProfile] Following user:', userData.displayName);
-        
+
         await Promise.all([
           // Add to follows collection
           addDoc(collection(db, 'follows'), {
             followerId: currentUser.uid,
             followedUserId: userId,
             createdAt: serverTimestamp(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
           }),
           updateDoc(currentUserRef, {
             following: arrayUnion(userId),
-            followingCount: increment(1)
+            followingCount: increment(1),
           }),
           updateDoc(targetUserRef, {
             followers: arrayUnion(currentUser.uid),
-            followersCount: increment(1)
-          })
+            followersCount: increment(1),
+          }),
         ]);
         setIsFollowing(true);
-        
+
         // Start background notification operations (don't wait for them)
         const followOperations = [];
-        
+
         followOperations.push(
           (async () => {
             try {
@@ -333,25 +353,25 @@ export default function ViewProfileScreen({ route, navigation }) {
                   fromUserName: currentUserData?.displayName || 'Bir kullanıcı',
                   fromUserAvatar: currentUserData?.avatar || '👤',
                   toUserId: userId,
-                  toUserName: userData.displayName
+                  toUserName: userData.displayName,
                 }),
-                sendFollowPushNotification(currentUserData, userId)
+                sendFollowPushNotification(currentUserData, userId),
               ]);
               console.log('📬 [ViewProfile] Follow notifications sent');
             } catch (notifError) {
-              console.warn('❌ [ViewProfile] Non-critical: Error sending follow notification:', notifError);
+              console.warn(
+                '❌ [ViewProfile] Non-critical: Error sending follow notification:',
+                notifError
+              );
             }
           })()
         );
-        
+
         // Start background operations
         Promise.allSettled(followOperations);
-        
+
         // Güncel istatistikleri yükle (hem kendi hem karşı taraf için)
-        await Promise.all([
-          updateRealFollowerCount(),
-          updateRealFollowingCount(currentUser.uid)
-        ]);
+        await Promise.all([updateRealFollowerCount(), updateRealFollowingCount(currentUser.uid)]);
         console.log('✅ [ViewProfile] Successfully followed');
       }
     } catch (error) {
@@ -371,10 +391,10 @@ export default function ViewProfileScreen({ route, navigation }) {
       );
       const followersSnap = await getDocs(followersQuery);
       const realFollowerCount = followersSnap.size;
-      
-      setStats(prev => ({
+
+      setStats((prev) => ({
         ...prev,
-        followers: Math.max(0, realFollowerCount)
+        followers: Math.max(0, realFollowerCount),
       }));
     } catch (error) {
       console.warn('Could not update real follower count:', error);
@@ -386,9 +406,12 @@ export default function ViewProfileScreen({ route, navigation }) {
     try {
       const userDocRef = doc(db, 'users', userId);
       const userDocSnap = await getDoc(userDocRef);
-      const currentCount = userDocSnap.exists() && userDocSnap.data().unreadNotifications ? userDocSnap.data().unreadNotifications : 0;
+      const currentCount =
+        userDocSnap.exists() && userDocSnap.data().unreadNotifications
+          ? userDocSnap.data().unreadNotifications
+          : 0;
       await updateDoc(userDocRef, {
-        unreadNotifications: Math.max(0, currentCount + 1)
+        unreadNotifications: Math.max(0, currentCount + 1),
       });
     } catch (error) {
       console.warn('Bildirim sayısı güncellenemedi:', error);
@@ -398,14 +421,11 @@ export default function ViewProfileScreen({ route, navigation }) {
   // Kendi following sayısını güncelle
   const updateRealFollowingCount = async (uid) => {
     try {
-      const followingQuery = query(
-        collection(db, 'follows'),
-        where('followerId', '==', uid)
-      );
+      const followingQuery = query(collection(db, 'follows'), where('followerId', '==', uid));
       const followingSnap = await getDocs(followingQuery);
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
-        following: Math.max(0, followingSnap.size)
+        following: Math.max(0, followingSnap.size),
       }));
     } catch (error) {
       console.warn('Could not update real following count:', error);
@@ -419,11 +439,11 @@ export default function ViewProfileScreen({ route, navigation }) {
 
   const showStatsList = async (type) => {
     if (!userId) return;
-    
+
     setListLoading(true);
     setListData([]);
     setSearchQuery('');
-    
+
     let modalType = '';
     switch (type) {
       case 'followers':
@@ -439,29 +459,33 @@ export default function ViewProfileScreen({ route, navigation }) {
         modalType = 'lists';
         break;
     }
-    
+
     setListModalType(modalType);
     setListModalVisible(true);
-    
+
     try {
       await loadListData(modalType, userId);
     } catch (error) {
       console.error('❌ [ViewProfile] Error loading list data:', {
         type: modalType,
-        userId: userId,
-        error: error,
+        userId,
+        error,
         code: error.code,
-        message: error.message
+        message: error.message,
       });
-      
+
       if (error.code === 'failed-precondition' || error.message?.includes('index')) {
         Alert.alert(
-          'Yükleniyor', 
+          'Yükleniyor',
           'Veriler hazırlanıyor. Lütfen birkaç dakika sonra tekrar deneyin.'
         );
-      } else if (error.code === 'permission-denied' || error.message?.includes('permissions') || error.message?.includes('Missing or insufficient permissions')) {
+      } else if (
+        error.code === 'permission-denied' ||
+        error.message?.includes('permissions') ||
+        error.message?.includes('Missing or insufficient permissions')
+      ) {
         Alert.alert(
-          'Erişim Hatası', 
+          'Erişim Hatası',
           `Bu ${modalType} listesine erişim izniniz bulunmuyor. Error: ${error.code || 'unknown'}`
         );
       } else {
@@ -474,10 +498,10 @@ export default function ViewProfileScreen({ route, navigation }) {
 
   const loadListData = async (type, targetUserId) => {
     console.log(`🔄 [ViewProfile] Loading ${type} for user:`, targetUserId);
-    
+
     try {
       let data = [];
-      
+
       switch (type) {
         case 'followers':
           // Get followers
@@ -486,8 +510,8 @@ export default function ViewProfileScreen({ route, navigation }) {
             where('followedUserId', '==', targetUserId)
           );
           const followersSnap = await getDocs(followersQuery);
-          
-          const followerIds = followersSnap.docs.map(doc => doc.data().followerId);
+
+          const followerIds = followersSnap.docs.map((doc) => doc.data().followerId);
           if (followerIds.length > 0) {
             // Get user details for followers
             for (const followerId of followerIds) {
@@ -497,7 +521,7 @@ export default function ViewProfileScreen({ route, navigation }) {
                   data.push({
                     id: followerId,
                     ...userDoc.data(),
-                    type: 'user'
+                    type: 'user',
                   });
                 }
               } catch (error) {
@@ -506,7 +530,7 @@ export default function ViewProfileScreen({ route, navigation }) {
             }
           }
           break;
-          
+
         case 'following':
           // Get following
           const followingQuery = query(
@@ -514,8 +538,8 @@ export default function ViewProfileScreen({ route, navigation }) {
             where('followerId', '==', targetUserId)
           );
           const followingSnap = await getDocs(followingQuery);
-          
-          const followingIds = followingSnap.docs.map(doc => doc.data().followedUserId);
+
+          const followingIds = followingSnap.docs.map((doc) => doc.data().followedUserId);
           if (followingIds.length > 0) {
             // Get user details for following
             for (const followedId of followingIds) {
@@ -525,7 +549,7 @@ export default function ViewProfileScreen({ route, navigation }) {
                   data.push({
                     id: followedId,
                     ...userDoc.data(),
-                    type: 'user'
+                    type: 'user',
                   });
                 }
               } catch (error) {
@@ -534,81 +558,93 @@ export default function ViewProfileScreen({ route, navigation }) {
             }
           }
           break;
-          
+
         case 'posts':
           // Get posts
-          const postsQuery = query(
-            collection(db, 'posts'),
-            where('userId', '==', targetUserId)
-          );
+          const postsQuery = query(collection(db, 'posts'), where('userId', '==', targetUserId));
           const postsSnap = await getDocs(postsQuery);
-          data = postsSnap.docs.map(doc => ({
+          data = postsSnap.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-            type: 'post'
+            type: 'post',
           }));
           break;
-          
+
         case 'lists':
           // Get lists
           console.log('🔍 [ViewProfile] Querying lists for userId:', targetUserId);
-          const listsQuery = query(
-            collection(db, 'lists'),
-            where('userId', '==', targetUserId)
-          );
+          const listsQuery = query(collection(db, 'lists'), where('userId', '==', targetUserId));
           const listsSnap = await getDocs(listsQuery);
-          console.log('📋 [ViewProfile] Lists query result - document count:', listsSnap.docs.length);
-          
+          console.log(
+            '📋 [ViewProfile] Lists query result - document count:',
+            listsSnap.docs.length
+          );
+
           data = listsSnap.docs
-            .map(doc => {
+            .map((doc) => {
               const docData = doc.data();
               const listData = {
                 id: doc.id,
                 ...docData,
                 type: 'list',
-                placesCount: docData.places?.length || 0 // ListCard component için
+                placesCount: docData.places?.length || 0, // ListCard component için
               };
-              console.log('📋 [ViewProfile] Processing list:', docData.name || 'Unnamed list', 'Privacy:', docData.privacy || 'undefined');
+              console.log(
+                '📋 [ViewProfile] Processing list:',
+                docData.name || 'Unnamed list',
+                'Privacy:',
+                docData.privacy || 'undefined'
+              );
               return listData;
             })
-            .filter(list => {
-              // Show public lists or lists from current user  
-              const isPublic = !list['isPrivate'] && (list['privacy'] === 'public' || !list['privacy']);
+            .filter((list) => {
+              // Show public lists or lists from current user
+              const isPublic =
+                !list['isPrivate'] && (list['privacy'] === 'public' || !list['privacy']);
               const isOwnList = currentUser && list['userId'] === currentUser.uid;
               const shouldShow = isPublic || isOwnList;
-              console.log('📋 [ViewProfile] List filter:', list['name'], 'isPublic:', isPublic, 'isOwnList:', isOwnList, 'shouldShow:', shouldShow);
+              console.log(
+                '📋 [ViewProfile] List filter:',
+                list['name'],
+                'isPublic:',
+                isPublic,
+                'isOwnList:',
+                isOwnList,
+                'shouldShow:',
+                shouldShow
+              );
               return shouldShow;
             });
           console.log('✅ [ViewProfile] Final lists data after filtering:', data.length, 'lists');
           break;
       }
-      
+
       console.log(`✅ [ViewProfile] Loaded ${data.length} ${type}`);
       setListData(data);
-      
+
       // Update stats to match actual list count (ensure non-negative)
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
-        [type]: Math.max(0, data.length)
+        [type]: Math.max(0, data.length),
       }));
     } catch (error) {
       console.error('❌ [ViewProfile] Error loading list data:', {
         type,
         targetUserId,
         code: error.code,
-        message: error.message
+        message: error.message,
       });
       throw error;
     }
   };
-  
+
   // Liste filtreleme fonksiyonu
   const getFilteredLists = () => {
     if (selectedListFilter === 'all') {
       return userLists;
     }
-    
-    return userLists.filter(list => {
+
+    return userLists.filter((list) => {
       switch (selectedListFilter) {
         case 'public':
           // Herkese açık listeler: tamamen public olanlar veya özel ama herkese açık olanlar
@@ -626,46 +662,60 @@ export default function ViewProfileScreen({ route, navigation }) {
     try {
       setUserListsLoading(true);
       console.log('🔍 [ViewProfile] Loading user lists for main display, userId:', userId);
-      
-      const listsQuery = query(
-        collection(db, 'lists'),
-        where('userId', '==', userId)
-      );
-      
+
+      const listsQuery = query(collection(db, 'lists'), where('userId', '==', userId));
+
       const listsSnap = await getDocs(listsQuery);
-      console.log('📋 [ViewProfile] User lists query result - document count:', listsSnap.docs.length);
-      
+      console.log(
+        '📋 [ViewProfile] User lists query result - document count:',
+        listsSnap.docs.length
+      );
+
       const lists = listsSnap.docs
-        .map(doc => {
+        .map((doc) => {
           const docData = doc.data();
           const listData = {
             id: doc.id,
             ...docData,
-            placesCount: docData.places?.length || 0 // ListCard component için
+            placesCount: docData.places?.length || 0, // ListCard component için
           };
-          console.log('📋 [ViewProfile] Processing user list:', docData.name || 'Unnamed list', 'Privacy:', docData.privacy || 'undefined');
+          console.log(
+            '📋 [ViewProfile] Processing user list:',
+            docData.name || 'Unnamed list',
+            'Privacy:',
+            docData.privacy || 'undefined'
+          );
           console.log('📸 [ViewProfile] List image info:', {
             listName: docData.name,
             hasImage: !!docData.image,
             imagePath: docData.image,
             isCacheFile: docData.image?.includes('cache/ImagePicker'),
-            isFirebaseURL: docData.image?.includes('firebase')
+            isFirebaseURL: docData.image?.includes('firebase'),
           });
           return listData;
         })
-        .filter(list => {
+        .filter((list) => {
           // Show public lists and private but publicly visible lists
           // Hide only completely private lists (isPrivate=true and privacy='private')
-          const isPublic = list['privacy'] === 'public' || (!list['isPrivate'] && list['privacy'] !== 'private');
+          const isPublic =
+            list['privacy'] === 'public' || (!list['isPrivate'] && list['privacy'] !== 'private');
           const isOwnList = currentUser && list['userId'] === currentUser.uid;
           const shouldShow = isPublic || isOwnList;
-          console.log('📋 [ViewProfile] User list filter:', list['name'], 'isPublic:', isPublic, 'isOwnList:', isOwnList, 'shouldShow:', shouldShow);
+          console.log(
+            '📋 [ViewProfile] User list filter:',
+            list['name'],
+            'isPublic:',
+            isPublic,
+            'isOwnList:',
+            isOwnList,
+            'shouldShow:',
+            shouldShow
+          );
           return shouldShow;
         });
-      
+
       console.log('✅ [ViewProfile] Final user lists after filtering:', lists.length, 'lists');
       setUserLists(lists);
-      
     } catch (error) {
       console.error('❌ [ViewProfile] Error loading user lists:', error);
       // Don't throw - list loading failure shouldn't block profile loading
@@ -679,33 +729,32 @@ export default function ViewProfileScreen({ route, navigation }) {
     try {
       setPlacesLoading(true);
       console.log('🏠 [ViewProfile] Loading user places for userId:', userId);
-      
+
       // Get all user lists
-      const userListsQuery = query(
-        collection(db, 'lists'),
-        where('userId', '==', userId)
-      );
-      
+      const userListsQuery = query(collection(db, 'lists'), where('userId', '==', userId));
+
       const userListsSnapshot = await getDocs(userListsQuery);
       const allPlaces = [];
-      
+
       // Extract places from all lists
-      userListsSnapshot.docs.forEach(doc => {
+      userListsSnapshot.docs.forEach((doc) => {
         const listData = doc.data();
         // Show public lists and private but publicly visible lists
         // Hide only completely private lists (isPrivate=true and privacy='private')
-        const isPublic = listData['privacy'] === 'public' || (!listData['isPrivate'] && listData['privacy'] !== 'private');
+        const isPublic =
+          listData['privacy'] === 'public' ||
+          (!listData['isPrivate'] && listData['privacy'] !== 'private');
         const isOwnList = currentUser && listData['userId'] === currentUser.uid;
-        
+
         if ((isPublic || isOwnList) && listData.places && listData.places.length > 0) {
-          listData.places.forEach(place => {
+          listData.places.forEach((place) => {
             // Add list info to place
             const placeWithListInfo = {
               ...place,
               listId: doc.id,
               listName: listData.name,
               userId: listData.userId, // PlaceCard için gerekli
-              id: place.id || `${place.name}_${place.address}`.replace(/[^a-zA-Z0-9]/g, '_')
+              id: place.id || `${place.name}_${place.address}`.replace(/[^a-zA-Z0-9]/g, '_'),
             };
             allPlaces.push(placeWithListInfo);
           });
@@ -713,12 +762,15 @@ export default function ViewProfileScreen({ route, navigation }) {
       });
 
       // Remove duplicates based on place coordinates
-      const uniquePlaces = allPlaces.filter((place, index, self) => 
-        index === self.findIndex(p => 
-          p.coordinate?.latitude === place.coordinate?.latitude && 
-          p.coordinate?.longitude === place.coordinate?.longitude &&
-          p.name === place.name
-        )
+      const uniquePlaces = allPlaces.filter(
+        (place, index, self) =>
+          index ===
+          self.findIndex(
+            (p) =>
+              p.coordinate?.latitude === place.coordinate?.latitude &&
+              p.coordinate?.longitude === place.coordinate?.longitude &&
+              p.name === place.name
+          )
       );
 
       setUserPlaces(uniquePlaces);
@@ -733,26 +785,26 @@ export default function ViewProfileScreen({ route, navigation }) {
 
   const getFilteredData = () => {
     if (!searchQuery || !searchQuery.trim()) return listData;
-    
-    return listData.filter(item => {
+
+    return listData.filter((item) => {
       const query = String(searchQuery || '').toLowerCase();
-      
+
       switch (item.type) {
         case 'user':
           const fullName = `${item.firstName || ''} ${item.lastName || ''}`.toLowerCase();
           const username = (item.username || '').toLowerCase();
           return fullName.includes(query) || username.includes(query);
-          
+
         case 'post':
           const content = (item.content || '').toLowerCase();
           const title = (item.title || '').toLowerCase();
           return content.includes(query) || title.includes(query);
-          
+
         case 'list':
           const listName = (item.name || '').toLowerCase();
           const description = (item.description || '').toLowerCase();
           return listName.includes(query) || description.includes(query);
-          
+
         default:
           return false;
       }
@@ -783,13 +835,15 @@ export default function ViewProfileScreen({ route, navigation }) {
                 )}
               </View>
               <View style={styles.userInfo}>
-                <Text style={styles.userName}>{item.firstName} {item.lastName}</Text>
+                <Text style={styles.userName}>
+                  {item.firstName} {item.lastName}
+                </Text>
                 <Text style={styles.userUsername}>@{item.username}</Text>
               </View>
             </View>
           </TouchableOpacity>
         );
-        
+
       case 'post':
         return (
           <TouchableOpacity style={styles.listItem}>
@@ -798,12 +852,14 @@ export default function ViewProfileScreen({ route, navigation }) {
                 {item.content || 'İçerik yok'}
               </Text>
               <Text style={styles.postDate}>
-                {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString('tr-TR') : 'Tarih yok'}
+                {item.createdAt
+                  ? new Date(item.createdAt.toDate()).toLocaleDateString('tr-TR')
+                  : 'Tarih yok'}
               </Text>
             </View>
           </TouchableOpacity>
         );
-        
+
       case 'list':
         return (
           <ListCard
@@ -819,7 +875,7 @@ export default function ViewProfileScreen({ route, navigation }) {
             style={styles.listCardStyle}
           />
         );
-        
+
       default:
         return null;
     }
@@ -856,7 +912,7 @@ export default function ViewProfileScreen({ route, navigation }) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <AppStatusBar />
-        <SoRitaHeader 
+        <SoRitaHeader
           showBackButton={true}
           onBackPress={() => {
             if (navigation.canGoBack()) {
@@ -869,26 +925,24 @@ export default function ViewProfileScreen({ route, navigation }) {
         <View style={styles.centered}>
           {error ? (
             <>
-              <MaterialIcons 
-                name={isOffline ? "wifi-off" : "error-outline"} 
-                size={64} 
-                color={colors.textSecondary} 
+              <MaterialIcons
+                name={isOffline ? 'wifi-off' : 'error-outline'}
+                size={64}
+                color={colors.textSecondary}
               />
               <Text style={styles.errorText}>{error}</Text>
-              <Button 
-                mode="contained" 
-                onPress={retryLoading}
-                style={{ marginTop: 16 }}
-              >
+              <Button mode="contained" onPress={retryLoading} style={{ marginTop: 16 }}>
                 {isOffline ? 'Tekrar Dene' : 'Yeniden Yükle'}
               </Button>
-              <Button onPress={() => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                } else {
-                  navigation.navigate('Home');
-                }
-              }}>
+              <Button
+                onPress={() => {
+                  if (navigation.canGoBack()) {
+                    navigation.goBack();
+                  } else {
+                    navigation.navigate('Home');
+                  }
+                }}
+              >
                 Geri Dön
               </Button>
             </>
@@ -896,13 +950,15 @@ export default function ViewProfileScreen({ route, navigation }) {
             <>
               <MaterialIcons name="error-outline" size={64} color={colors.textSecondary} />
               <Text style={styles.errorText}>Profil bulunamadı</Text>
-              <Button onPress={() => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                } else {
-                  navigation.navigate('Home');
-                }
-              }}>
+              <Button
+                onPress={() => {
+                  if (navigation.canGoBack()) {
+                    navigation.goBack();
+                  } else {
+                    navigation.navigate('Home');
+                  }
+                }}
+              >
                 Geri Dön
               </Button>
             </>
@@ -915,9 +971,9 @@ export default function ViewProfileScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <AppStatusBar />
-      
+
       {/* Header */}
-      <SoRitaHeader 
+      <SoRitaHeader
         showBackButton={true}
         onBackPress={() => {
           if (navigation.canGoBack()) {
@@ -928,7 +984,7 @@ export default function ViewProfileScreen({ route, navigation }) {
         }}
       />
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl
@@ -942,26 +998,23 @@ export default function ViewProfileScreen({ route, navigation }) {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           {/* Avatar */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.avatarContainer}
             onPress={() => {
-              if (userData.avatar && (userData.avatar.startsWith('http') || userData.avatar.startsWith('data:image'))) {
+              if (
+                userData.avatar &&
+                (userData.avatar.startsWith('http') || userData.avatar.startsWith('data:image'))
+              ) {
                 setCurrentImageUri(userData.avatar);
                 setShowImageModal(true);
               }
             }}
           >
             {userData.avatar && userData.avatar.startsWith('http') ? (
-              <Avatar.Image 
-                size={120} 
-                source={{ uri: userData.avatar }} 
-                style={styles.avatar}
-              />
+              <Avatar.Image size={120} source={{ uri: userData.avatar }} style={styles.avatar} />
             ) : (
               <View style={styles.emojiAvatar}>
-                <Text style={styles.emojiText}>
-                  {userData.avatar || '👤'}
-                </Text>
+                <Text style={styles.emojiText}>{userData.avatar || '👤'}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -971,9 +1024,7 @@ export default function ViewProfileScreen({ route, navigation }) {
             <Text style={styles.displayName}>
               {userData.firstName} {userData.lastName}
             </Text>
-            <Text style={styles.username}>
-              @{userData.username}
-            </Text>
+            <Text style={styles.username}>@{userData.username}</Text>
           </View>
 
           {/* Stats */}
@@ -1001,25 +1052,20 @@ export default function ViewProfileScreen({ route, navigation }) {
           {currentUser && currentUser.uid !== userId && (
             <View style={styles.followButtonContainer}>
               <Button
-                mode={isFollowing ? "outlined" : "contained"}
+                mode={isFollowing ? 'outlined' : 'contained'}
                 onPress={handleFollow}
                 loading={followLoading}
                 disabled={followLoading}
                 style={[
                   styles.followButton,
-                  isFollowing ? styles.unfollowButton : styles.followButtonFilled
+                  isFollowing ? styles.unfollowButton : styles.followButtonFilled,
                 ]}
                 labelStyle={[
                   styles.followButtonText,
-                  isFollowing ? styles.unfollowButtonText : styles.followButtonTextFilled
+                  isFollowing ? styles.unfollowButtonText : styles.followButtonTextFilled,
                 ]}
               >
-                {followLoading 
-                  ? 'İşleniyor...' 
-                  : isFollowing 
-                    ? 'Takipten Çık' 
-                    : 'Takip Et'
-                }
+                {followLoading ? 'İşleniyor...' : isFollowing ? 'Takipten Çık' : 'Takip Et'}
               </Button>
             </View>
           )}
@@ -1031,30 +1077,40 @@ export default function ViewProfileScreen({ route, navigation }) {
           <View style={styles.section}>
             {/* Tab Buttons */}
             <View style={styles.tabContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.tabButton, activeTab === 'listeler' && styles.activeTabButton]}
                 onPress={() => setActiveTab('listeler')}
               >
-                <MaterialIcons 
-                  name="list" 
-                  size={20} 
-                  color={activeTab === 'listeler' ? colors.primary : colors.textSecondary} 
+                <MaterialIcons
+                  name="list"
+                  size={20}
+                  color={activeTab === 'listeler' ? colors.primary : colors.textSecondary}
                 />
-                <Text style={[styles.tabButtonText, activeTab === 'listeler' && styles.activeTabButtonText]}>
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeTab === 'listeler' && styles.activeTabButtonText,
+                  ]}
+                >
                   Listeler ({userLists.length})
                 </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.tabButton, activeTab === 'mekanlar' && styles.activeTabButton]}
                 onPress={() => setActiveTab('mekanlar')}
               >
-                <MaterialIcons 
-                  name="location-on" 
-                  size={20} 
-                  color={activeTab === 'mekanlar' ? colors.primary : colors.textSecondary} 
+                <MaterialIcons
+                  name="location-on"
+                  size={20}
+                  color={activeTab === 'mekanlar' ? colors.primary : colors.textSecondary}
                 />
-                <Text style={[styles.tabButtonText, activeTab === 'mekanlar' && styles.activeTabButtonText]}>
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeTab === 'mekanlar' && styles.activeTabButtonText,
+                  ]}
+                >
                   Mekanlar ({userPlaces.length})
                 </Text>
               </TouchableOpacity>
@@ -1068,7 +1124,7 @@ export default function ViewProfileScreen({ route, navigation }) {
                   <View style={styles.filterContainer}>
                     <View style={styles.filterHeader}>
                       <Text style={styles.filterTitle}>Liste Türü Seçin</Text>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.filterCloseButton}
                         onPress={() => {
                           setListFilterVisible(false);
@@ -1078,190 +1134,188 @@ export default function ViewProfileScreen({ route, navigation }) {
                         <MaterialIcons name="close" size={20} color={colors.textSecondary} />
                       </TouchableOpacity>
                     </View>
-                    
+
                     {listFilterOptions.map((option) => (
                       <TouchableOpacity
                         key={option.key}
                         style={[
                           styles.filterOption,
-                          selectedListFilter === option.key && styles.selectedFilterOption
+                          selectedListFilter === option.key && styles.selectedFilterOption,
                         ]}
                         onPress={() => {
                           setSelectedListFilter(option.key);
                           setListFilterVisible(false);
                         }}
                       >
-                        <Text style={[
-                          styles.filterOptionLabel,
-                          selectedListFilter === option.key && styles.selectedFilterOptionLabel
-                        ]}>
+                        <Text
+                          style={[
+                            styles.filterOptionLabel,
+                            selectedListFilter === option.key && styles.selectedFilterOptionLabel,
+                          ]}
+                        >
                           {option.label}
                         </Text>
-                        <Text style={styles.filterOptionDescription}>
-                          {option.description}
-                        </Text>
+                        <Text style={styles.filterOptionDescription}>{option.description}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
-                
+
                 {/* Filtreleme Butonu */}
                 <View style={styles.filterButtonContainer}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.filterButton}
                     onPress={() => setListFilterVisible(!listFilterVisible)}
                   >
                     <MaterialIcons name="filter-list" size={20} color={colors.primary} />
                     <Text style={styles.filterButtonText}>
-                      {listFilterOptions.find(opt => opt.key === selectedListFilter)?.label || 'Filtrele'}
+                      {listFilterOptions.find((opt) => opt.key === selectedListFilter)?.label ||
+                        'Filtrele'}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Lists Content */}
                 {userListsLoading ? (
-                <View style={styles.loadingState}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.loadingText}>Listeler yükleniyor...</Text>
-                </View>
-              ) : getFilteredLists().length === 0 ? (
-                <View style={styles.emptyState}>
-                  <MaterialIcons name="list" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyTitle}>Henüz liste yok</Text>
-                  <Text style={styles.emptySubtitle}>
-                    {selectedListFilter === 'all' 
-                      ? 'Bu kullanıcı henüz hiç liste oluşturmamış.'
-                      : `${listFilterOptions.find(opt => opt.key === selectedListFilter)?.description} bulunamadı.`
-                    }
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.listsContainer}>
-                  {getFilteredLists().map((list, index) => {
-                    console.log('🎨 [ViewProfileScreen] Mapping list:', list.name, 'at index:', index);
-                    return (
-                      <ListCard
-                        key={list.id || index}
-                        list={list}
-                        onPress={() => {
-                          setSelectedListData(list);
-                          setViewListModalVisible(true);
-                        }}
-                        showPrivacyIcon={true}
-                        showArrow={true}
-                        showDates={true}
-                        showActions={false}
-                        showUserInfo={true}
-                        userInfo={userData} // Liste sahibi bilgilerini geç
-                        style={styles.enhancedListCard}
-                      />
-                    );
-                  })}
-                </View>
-              )}
+                  <View style={styles.loadingState}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.loadingText}>Listeler yükleniyor...</Text>
+                  </View>
+                ) : getFilteredLists().length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <MaterialIcons name="list" size={48} color={colors.textSecondary} />
+                    <Text style={styles.emptyTitle}>Henüz liste yok</Text>
+                    <Text style={styles.emptySubtitle}>
+                      {selectedListFilter === 'all'
+                        ? 'Bu kullanıcı henüz hiç liste oluşturmamış.'
+                        : `${listFilterOptions.find((opt) => opt.key === selectedListFilter)?.description} bulunamadı.`}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.listsContainer}>
+                    {getFilteredLists().map((list, index) => {
+                      console.log(
+                        '🎨 [ViewProfileScreen] Mapping list:',
+                        list.name,
+                        'at index:',
+                        index
+                      );
+                      return (
+                        <ListCard
+                          key={list.id || index}
+                          list={list}
+                          onPress={() => {
+                            setSelectedListData(list);
+                            setViewListModalVisible(true);
+                          }}
+                          showPrivacyIcon={true}
+                          showArrow={true}
+                          showDates={true}
+                          showActions={false}
+                          showUserInfo={true}
+                          userInfo={userData} // Liste sahibi bilgilerini geç
+                          style={styles.enhancedListCard}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            ) : // Places Content
+            placesLoading ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Mekanlar yükleniyor...</Text>
+              </View>
+            ) : userPlaces.length === 0 ? (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="location-on" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyTitle}>Henüz mekan yok</Text>
+                <Text style={styles.emptySubtitle}>Bu kullanıcı henüz hiç mekan kaydetmemiş.</Text>
               </View>
             ) : (
-              // Places Content
-              placesLoading ? (
-                <View style={styles.loadingState}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.loadingText}>Mekanlar yükleniyor...</Text>
-                </View>
-              ) : userPlaces.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <MaterialIcons name="location-on" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyTitle}>Henüz mekan yok</Text>
-                  <Text style={styles.emptySubtitle}>
-                    Bu kullanıcı henüz hiç mekan kaydetmemiş.
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.placesContainer}>
-                  {userPlaces.map((place, index) => {
-                    console.log('🏠 [ViewProfileScreen] Place object:', index, place);
-                    
-                    // PlaceCard için veri formatını düzelt
-                    const formattedPlace = {
-                      ...place,
-                      note: place.userContent?.note || '',
-                      photos: place.userContent?.photos || [],
-                      rating: place.userContent?.rating || 0,
-                      latitude: place.coordinate?.latitude || place.latitude,
-                      longitude: place.coordinate?.longitude || place.longitude,
-                      // Tutarlı ID oluştur - PlaceCard ile aynı mantık
-                      id: place.id || 
-                        `${String(place.name || 'unknown').replace(/[^a-zA-Z0-9]/g, '_')}_${place.coordinate?.latitude || place.latitude || 0}_${place.coordinate?.longitude || place.longitude || 0}_${place.userId || userData?.id || 'no-user'}`
-                    };
-                    
-                    return (
-                      <PlaceCard
-                        key={place.id || `place_${index}`}
-                        place={formattedPlace}
-                        refreshTrigger={placeCardSync.refreshTrigger}
-                        showUserInfo={true}
-                        onFocus={() => {
-                          // Navigate to map with place focus
-                          navigation.navigate('MapScreen', {
-                            focusedPlace: place,
-                            cameFromViewProfile: true
-                          });
-                        }}
-                        showFocusButton={true}
-                        showMap={true}
-                        isEvent={false}
-                        onAddToList={(place) => {
-                          // Yıldız butonu - listeye ekle
-                          Alert.alert(
-                            'Listeye Ekle',
-                            `"${place.name}" mekanını kendi listelerinizden birine eklemek ister misiniz?`,
-                            [
-                              { text: 'İptal', style: 'cancel' },
-                              { 
-                                text: 'Listeye Ekle', 
-                                onPress: () => {
-                                  // TODO: Liste seçme modal'ı aç
-                                  Alert.alert('Bilgi', 'Liste seçme özelliği yakında eklenecek.');
-                                }
-                              }
-                            ]
-                          );
-                        }}
-                        onViewList={(place) => {
-                          // Navigate to the list that contains this place
-                          if (place.listId && place.listName) {
-                            // Find the list in userLists and switch to lists tab
-                            const targetList = userLists.find(list => list.id === place.listId);
-                            if (targetList) {
-                              // Switch to lists tab and show list details
-                              setActiveTab('listeler');
-                              setTimeout(() => {
-                                setSelectedListData(targetList);
-                                setViewListModalVisible(true);
-                              }, 200);
-                            } else {
-                              Alert.alert('Hata', 'Liste bulunamadı.');
-                            }
+              <View style={styles.placesContainer}>
+                {userPlaces.map((place, index) => {
+                  console.log('🏠 [ViewProfileScreen] Place object:', index, place);
+
+                  // PlaceCard için veri formatını düzelt
+                  const formattedPlace = {
+                    ...place,
+                    note: place.userContent?.note || '',
+                    photos: place.userContent?.photos || [],
+                    rating: place.userContent?.rating || 0,
+                    latitude: place.coordinate?.latitude || place.latitude,
+                    longitude: place.coordinate?.longitude || place.longitude,
+                    // Tutarlı ID oluştur - PlaceCard ile aynı mantık
+                    id:
+                      place.id ||
+                      `${String(place.name || 'unknown').replace(/[^a-zA-Z0-9]/g, '_')}_${place.coordinate?.latitude || place.latitude || 0}_${place.coordinate?.longitude || place.longitude || 0}_${place.userId || userData?.id || 'no-user'}`,
+                  };
+
+                  return (
+                    <PlaceCard
+                      key={place.id || `place_${index}`}
+                      place={formattedPlace}
+                      refreshTrigger={placeCardSync.refreshTrigger}
+                      showUserInfo={true}
+                      onFocus={() => {
+                        // Navigate to map with place focus
+                        navigation.navigate('MapScreen', {
+                          focusedPlace: place,
+                          cameFromViewProfile: true,
+                        });
+                      }}
+                      showFocusButton={true}
+                      showMap={true}
+                      isEvent={false}
+                      onAddToList={(place) => {
+                        // Yıldız butonu - listeye ekle
+                        Alert.alert(
+                          'Listeye Ekle',
+                          `"${place.name}" mekanını kendi listelerinizden birine eklemek ister misiniz?`,
+                          [
+                            { text: 'İptal', style: 'cancel' },
+                            {
+                              text: 'Listeye Ekle',
+                              onPress: () => {
+                                // TODO: Liste seçme modal'ı aç
+                                Alert.alert('Bilgi', 'Liste seçme özelliği yakında eklenecek.');
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      onViewList={(place) => {
+                        // Navigate to the list that contains this place
+                        if (place.listId && place.listName) {
+                          // Find the list in userLists and switch to lists tab
+                          const targetList = userLists.find((list) => list.id === place.listId);
+                          if (targetList) {
+                            // Switch to lists tab and show list details
+                            setActiveTab('listeler');
+                            setTimeout(() => {
+                              setSelectedListData(targetList);
+                              setViewListModalVisible(true);
+                            }, 200);
                           } else {
-                            Alert.alert('Hata', 'Bu mekanın liste bilgisi bulunamadı.');
+                            Alert.alert('Hata', 'Liste bulunamadı.');
                           }
-                        }}
-                        navigation={navigation}
-                      />
-                    );
-                  })}
-                </View>
-              )
+                        } else {
+                          Alert.alert('Hata', 'Bu mekanın liste bilgisi bulunamadı.');
+                        }
+                      }}
+                      navigation={navigation}
+                    />
+                  );
+                })}
+              </View>
             )}
           </View>
         </View>
       </ScrollView>
 
       {/* List Modal */}
-      <Modal
-        visible={listModalVisible}
-        transparent={true}
-        animationType="slide"
-      >
+      <Modal visible={listModalVisible} transparent={true} animationType="slide">
         <View style={styles.listModalOverlay}>
           <View style={styles.listModalContent}>
             <View style={styles.listModalHeader}>
@@ -1270,7 +1324,7 @@ export default function ViewProfileScreen({ route, navigation }) {
                 <MaterialIcons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
-            
+
             {/* Search Input */}
             <TextInput
               style={styles.searchInput}
@@ -1279,7 +1333,7 @@ export default function ViewProfileScreen({ route, navigation }) {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            
+
             {/* List Content */}
             {listLoading ? (
               <View style={styles.listEmptyState}>
@@ -1288,17 +1342,23 @@ export default function ViewProfileScreen({ route, navigation }) {
               </View>
             ) : getFilteredData().length === 0 ? (
               <View style={styles.listEmptyState}>
-                <MaterialIcons 
+                <MaterialIcons
                   name={
-                    listModalType === 'followers' ? 'people' :
-                    listModalType === 'following' ? 'person-add' :
-                    listModalType === 'posts' ? 'article' : 'list'
-                  } 
-                  size={48} 
-                  color={colors.textSecondary} 
+                    listModalType === 'followers'
+                      ? 'people'
+                      : listModalType === 'following'
+                        ? 'person-add'
+                        : listModalType === 'posts'
+                          ? 'article'
+                          : 'list'
+                  }
+                  size={48}
+                  color={colors.textSecondary}
                 />
                 <Text style={styles.listEmptyText}>
-                  {searchQuery.trim() ? 'Arama sonucu bulunamadı' : `Henüz ${(getModalTitle() || 'öğe').toLowerCase()} yok`}
+                  {searchQuery.trim()
+                    ? 'Arama sonucu bulunamadı'
+                    : `Henüz ${(getModalTitle() || 'öğe').toLowerCase()} yok`}
                 </Text>
               </View>
             ) : (
@@ -1324,7 +1384,7 @@ export default function ViewProfileScreen({ route, navigation }) {
         listData={selectedListData}
         navigation={navigation}
       />
-      
+
       {/* Image Modal */}
       <ImageModal
         visible={showImageModal}
@@ -1338,23 +1398,23 @@ export default function ViewProfileScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
+    flex: 1,
   },
   centered: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 10,
   },
   errorText: {
-    marginTop: 10,
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 10,
     textAlign: 'center',
   },
   content: {
@@ -1362,10 +1422,10 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: 30,
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingVertical: 30,
   },
   avatarContainer: {
     marginBottom: 15,
@@ -1374,14 +1434,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   emojiAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    backgroundColor: colors.surface,
     borderColor: colors.primary,
+    borderRadius: 60,
+    borderWidth: 3,
+    height: 120,
+    justifyContent: 'center',
+    width: 120,
   },
   emojiText: {
     fontSize: 48,
@@ -1391,14 +1451,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   displayName: {
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textPrimary,
     marginBottom: 5,
   },
   username: {
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -1409,30 +1469,30 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   statNumber: {
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   statLabel: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     marginTop: 2,
   },
   bioContainer: {
-    paddingHorizontal: 30,
     marginBottom: 20,
+    paddingHorizontal: 30,
   },
   bio: {
-    fontSize: 16,
     color: colors.textPrimary,
-    textAlign: 'center',
+    fontSize: 16,
     lineHeight: 22,
+    textAlign: 'center',
   },
   noBio: {
-    fontSize: 16,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 16,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   followButtonContainer: {
     paddingHorizontal: 30,
@@ -1466,9 +1526,9 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   sectionTitle: {
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
     marginBottom: 15,
   },
   emptyState: {
@@ -1476,80 +1536,80 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
   },
   emptyTitle: {
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textSecondary,
     marginTop: 10,
   },
   emptySubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 14,
     marginTop: 5,
     paddingHorizontal: 20,
+    textAlign: 'center',
   },
 
   // List Modal Styles
   listModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
   },
   listModalContent: {
     backgroundColor: colors.surface,
     borderRadius: 15,
+    maxHeight: '80%',
+    maxWidth: 400,
     padding: 20,
     width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
   },
   listModalHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 15,
   },
   listModalTitle: {
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   searchInput: {
-    borderWidth: 1,
+    backgroundColor: colors.background,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderWidth: 1,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
+    fontSize: 16,
     marginBottom: 15,
+    padding: 12,
   },
   listItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   userItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    borderWidth: 2,
+    backgroundColor: colors.surface,
     borderColor: colors.primary,
+    borderRadius: 20,
+    borderWidth: 2,
+    height: 40,
+    justifyContent: 'center',
+    marginRight: 12,
+    width: 40,
   },
   userAvatarImage: {
-    width: 40,
-    height: 40,
     borderRadius: 20,
+    height: 40,
+    width: 40,
   },
   userAvatarText: {
     fontSize: 16,
@@ -1558,65 +1618,66 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   userUsername: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
   },
   postItem: {
     paddingVertical: 8,
   },
   postContent: {
-    fontSize: 14,
     color: colors.textPrimary,
+    fontSize: 14,
     lineHeight: 20,
     marginBottom: 8,
   },
   postDate: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   listItemContent: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   listItemInfo: {
     flex: 1,
     marginLeft: 12,
   },
   listItemName: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
     marginBottom: 4,
   },
   listItemDescription: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     lineHeight: 18,
     marginBottom: 4,
   },
   listItemDate: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   listEmptyState: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   listEmptyText: {
-    fontSize: 16,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 16,
     marginTop: 10,
+    textAlign: 'center',
   },
   listCardStyle: {
-    marginBottom: 12,
     backgroundColor: colors.white,
     borderRadius: 12,
+    elevation: 3,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1624,12 +1685,14 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
   },
   enhancedListCard: {
-    marginBottom: 16,
     backgroundColor: colors.white,
+    borderColor: colors.lightBackground,
     borderRadius: 16,
+    borderWidth: 1,
+    elevation: 4,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1637,11 +1700,8 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: colors.lightBackground,
   },
-  
+
   // User Lists Display Styles
   loadingState: {
     alignItems: 'center',
@@ -1657,9 +1717,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   enhancedPlaceCard: {
-    marginBottom: 16,
     backgroundColor: colors.white,
+    borderColor: colors.lightBackground,
     borderRadius: 16,
+    borderWidth: 1,
+    elevation: 4,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1667,29 +1730,27 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: colors.lightBackground,
   },
   // Tab System Styles
   tabContainer: {
-    flexDirection: 'row',
     backgroundColor: colors.lightBackground,
     borderRadius: 12,
-    padding: 4,
+    flexDirection: 'row',
     marginBottom: 16,
+    padding: 4,
   },
   tabButton: {
+    alignItems: 'center',
+    borderRadius: 8,
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 12,
   },
   activeTabButton: {
     backgroundColor: colors.white,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1697,93 +1758,92 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
   },
   tabButtonText: {
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
     marginLeft: 6,
   },
   activeTabButtonText: {
     color: colors.primary,
     fontWeight: '600',
   },
-  
+
   // Filter Styles
   filterButtonContainer: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   filterButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
     backgroundColor: colors.surface,
+    borderColor: colors.primary,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   filterButtonText: {
-    fontSize: 14,
     color: colors.primary,
+    fontSize: 14,
     fontWeight: '500',
     marginLeft: 6,
   },
   filterContainer: {
     backgroundColor: colors.white,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    elevation: 3,
+    marginHorizontal: 16,
+    marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
   },
   filterHeader: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   filterTitle: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   filterCloseButton: {
     padding: 4,
   },
   filterOption: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   selectedFilterOption: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   filterOptionLabel: {
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '500',
-    color: colors.textPrimary,
     marginBottom: 2,
   },
   selectedFilterOptionLabel: {
     color: colors.primary,
   },
   filterOptionDescription: {
-    fontSize: 13,
     color: colors.textSecondary,
+    fontSize: 13,
   },
 });

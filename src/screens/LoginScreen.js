@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+
 import { colors } from '../theme/theme';
 import { AuthService } from '../services/authService';
 import AppHeader from '../components/AppHeader';
@@ -26,10 +27,10 @@ if (__DEV__) {
   // Add quick access to dev helpers
   global.quickLogin = async (email = 'cayankuzu.0@gmail.com', passwordIndex = 0) => {
     console.log('🚀 [QuickLogin] Attempting login with:', email);
-    
+
     const testPasswords = ['12345678', '123456789', 'password123', 'cayan123', 'test1234'];
     const password = testPasswords[passwordIndex];
-    
+
     try {
       const result = await AuthService.loginUser(email, password);
       console.log('✅ [QuickLogin] Success!');
@@ -40,7 +41,7 @@ if (__DEV__) {
       throw error;
     }
   };
-  
+
   // Test SecureStore
   global.testSecureStore = async () => {
     try {
@@ -55,7 +56,7 @@ if (__DEV__) {
       return false;
     }
   };
-  
+
   console.log('🔧 [LoginScreen] Development helpers loaded');
   console.log('💡 [LoginScreen] Try: quickLogin() for quick test login');
   console.log('🔧 [LoginScreen] Try: testSecureStore() to test storage');
@@ -89,7 +90,7 @@ const LoginScreen = ({ navigation, route }) => {
       { wrong: '@gmai.com', correct: '@gmail.com' },
       { wrong: '@hotmial.com', correct: '@hotmail.com' },
       { wrong: '@yahooo.com', correct: '@yahoo.com' },
-      { wrong: '@outlok.com', correct: '@outlook.com' }
+      { wrong: '@outlok.com', correct: '@outlook.com' },
     ];
 
     for (const mistake of commonMistakes) {
@@ -102,9 +103,9 @@ const LoginScreen = ({ navigation, route }) => {
 
   // Handle input changes
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
+      setErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
@@ -125,10 +126,10 @@ const LoginScreen = ({ navigation, route }) => {
           `"${formData.email}" yerine "${correctedEmail}" mi demek istediniz?`,
           [
             { text: 'Hayır', style: 'cancel' },
-            { 
-              text: 'Evet, Düzelt', 
-              onPress: () => setFormData(prev => ({ ...prev, email: correctedEmail }))
-            }
+            {
+              text: 'Evet, Düzelt',
+              onPress: () => setFormData((prev) => ({ ...prev, email: correctedEmail })),
+            },
           ]
         );
       }
@@ -145,31 +146,37 @@ const LoginScreen = ({ navigation, route }) => {
   // Handle login
   const handleLogin = async () => {
     console.log('🎯 [LoginScreen] handleLogin button pressed!');
-    console.log('🎯 [LoginScreen] Form data:', { email: formData.email, passwordLength: formData.password.length });
-    
+    console.log('🎯 [LoginScreen] Form data:', {
+      email: formData.email,
+      passwordLength: formData.password.length,
+    });
+
     if (!validateForm()) {
       console.log('❌ [LoginScreen] Form validation failed');
       return;
     }
-    
+
     console.log('✅ [LoginScreen] Form validation passed');
     setLoading(true);
     console.log('🚀 [LoginScreen] Starting login process...');
-    
+
     try {
       console.log('📞 [LoginScreen] Calling AuthService.loginUser with timeout...');
-      
+
       // Add timeout to prevent hanging login
       const loginWithTimeout = Promise.race([
         AuthService.loginUser(formData.email, formData.password),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Giriş işlemi zaman aşımına uğradı. Tekrar deneyin.')), 15000)
-        )
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Giriş işlemi zaman aşımına uğradı. Tekrar deneyin.')),
+            15000
+          )
+        ),
       ]);
-      
+
       const result = await loginWithTimeout;
       console.log('✅ [LoginScreen] AuthService.loginUser result:', result);
-      
+
       if (result.success) {
         if (result.requiresVerification) {
           // Show email verification warning - STRONGER WARNING
@@ -188,22 +195,30 @@ const LoginScreen = ({ navigation, route }) => {
                       [
                         {
                           text: 'Tamam',
-                          onPress: () => console.log('✅ Email verification sent, auth state will handle navigation')
-                        }
+                          onPress: () =>
+                            console.log(
+                              '✅ Email verification sent, auth state will handle navigation'
+                            ),
+                        },
                       ]
                     );
                   } catch (emailError) {
-                    Alert.alert('❌ Hata', 'E-posta gönderilemedi. İnternet bağlantınızı kontrol edin.');
+                    Alert.alert(
+                      '❌ Hata',
+                      'E-posta gönderilemedi. İnternet bağlantınızı kontrol edin.'
+                    );
                   }
-                }
+                },
               },
               {
                 text: 'Daha Sonra',
                 style: 'cancel',
                 onPress: () => {
-                  console.log('✅ User will continue with unverified email, auth state will handle navigation');
-                }
-              }
+                  console.log(
+                    '✅ User will continue with unverified email, auth state will handle navigation'
+                  );
+                },
+              },
             ]
           );
         } else {
@@ -215,7 +230,7 @@ const LoginScreen = ({ navigation, route }) => {
       console.log('🚨 [LoginScreen] Entering catch block');
       console.error('❌ [LoginScreen] Login error:', error);
       console.error('❌ [LoginScreen] Error message:', error.message);
-      
+
       // Check specific error types and show appropriate messages
       if (error.message.includes('doğrulanmamış') || error.message.includes('verified')) {
         // Email not verified error
@@ -234,11 +249,14 @@ const LoginScreen = ({ navigation, route }) => {
                     `${formData.email} adresinize yeni doğrulama e-postası gönderildi.\n\nE-posta kutunuzu kontrol edin ve doğrulama bağlantısına tıklayın.`
                   );
                 } catch (emailError) {
-                  Alert.alert('❌ Hata', 'Doğrulama e-postası gönderilemedi. İnternet bağlantınızı kontrol edin.');
+                  Alert.alert(
+                    '❌ Hata',
+                    'Doğrulama e-postası gönderilemedi. İnternet bağlantınızı kontrol edin.'
+                  );
                 }
-              }
+              },
             },
-            { text: 'Tamam', style: 'cancel' }
+            { text: 'Tamam', style: 'cancel' },
           ]
         );
       } else if (error.message.includes('wrong-password') || error.message.includes('şifre')) {
@@ -248,23 +266,26 @@ const LoginScreen = ({ navigation, route }) => {
           'Girdiğiniz şifre yanlış. Lütfen şifrenizi kontrol edin veya şifre sıfırlama seçeneğini kullanın.',
           [
             { text: 'Tekrar Dene', style: 'cancel' },
-            { 
-              text: 'Şifremi Unuttum', 
-              onPress: () => handleForgotPassword()
-            }
+            {
+              text: 'Şifremi Unuttum',
+              onPress: () => handleForgotPassword(),
+            },
           ]
         );
-      } else if (error.message.includes('user-not-found') || error.message.includes('kullanıcı bulunamadı')) {
+      } else if (
+        error.message.includes('user-not-found') ||
+        error.message.includes('kullanıcı bulunamadı')
+      ) {
         // User not found error
         Alert.alert(
           '👤 Kullanıcı Bulunamadı',
           'Bu e-posta adresi ile kayıtlı bir hesap bulunamadı. E-posta adresinizi kontrol edin veya yeni hesap oluşturun.',
           [
             { text: 'Tekrar Dene', style: 'cancel' },
-            { 
-              text: 'Hesap Oluştur', 
-              onPress: () => navigation.navigate('Register')
-            }
+            {
+              text: 'Hesap Oluştur',
+              onPress: () => navigation.navigate('Register'),
+            },
           ]
         );
       } else if (error.message.includes('too-many-requests')) {
@@ -274,40 +295,38 @@ const LoginScreen = ({ navigation, route }) => {
           'Çok fazla başarısız giriş denemesi yapıldı. Lütfen bir süre bekleyin veya şifrenizi sıfırlayın.',
           [
             { text: 'Tamam', style: 'cancel' },
-            { 
-              text: 'Şifre Sıfırla', 
-              onPress: () => handleForgotPassword()
-            }
+            {
+              text: 'Şifre Sıfırla',
+              onPress: () => handleForgotPassword(),
+            },
           ]
         );
       } else if (error.message.includes('network') || error.message.includes('ağ')) {
         // Network error
-        Alert.alert(
-          '🌐 Bağlantı Hatası',
-          'İnternet bağlantınızı kontrol edin ve tekrar deneyin.',
-          [{ text: 'Tamam' }]
-        );
+        Alert.alert('🌐 Bağlantı Hatası', 'İnternet bağlantınızı kontrol edin ve tekrar deneyin.', [
+          { text: 'Tamam' },
+        ]);
       } else {
         // Generic error - check if it's development mode for better error messages
-        if (__DEV__ && (error.message.includes('E-posta veya şifre hatalı') || error.message.includes('invalid-login-credentials'))) {
+        if (
+          __DEV__ &&
+          (error.message.includes('E-posta veya şifre hatalı') ||
+            error.message.includes('invalid-login-credentials'))
+        ) {
           // In development, show more helpful error with test accounts
-          Alert.alert(
-            '❌ Giriş Hatası',
-            error.message,
-            [
-              { text: 'Tamam', style: 'cancel' },
-              { 
-                text: 'Test Hesapları', 
-                onPress: () => {
-                  Alert.alert(
-                    '🔧 Test Hesapları',
-                    'Kullanılabilir test hesapları:\n\n• finduk513@gmail.com\n• cayankuzu.0@gmail.com\n\nE-posta adresini doğru yazdığınızdan emin olun.',
-                    [{ text: 'Tamam' }]
-                  );
-                }
-              }
-            ]
-          );
+          Alert.alert('❌ Giriş Hatası', error.message, [
+            { text: 'Tamam', style: 'cancel' },
+            {
+              text: 'Test Hesapları',
+              onPress: () => {
+                Alert.alert(
+                  '🔧 Test Hesapları',
+                  'Kullanılabilir test hesapları:\n\n• finduk513@gmail.com\n• cayankuzu.0@gmail.com\n\nE-posta adresini doğru yazdığınızdan emin olun.',
+                  [{ text: 'Tamam' }]
+                );
+              },
+            },
+          ]);
         } else {
           // Production mode or other errors
           Alert.alert(
@@ -342,12 +361,12 @@ const LoginScreen = ({ navigation, route }) => {
                   setLoading(true);
                   await AuthService.sendPasswordResetEmail(formData.email.trim());
                   Alert.alert(
-                    '✅ Şifre Sıfırlama E-postası Gönderildi', 
+                    '✅ Şifre Sıfırlama E-postası Gönderildi',
                     `Şifre sıfırlama bağlantısı ${formData.email} adresine gönderildi.\n\n` +
-                    `📧 E-posta kutunuzu kontrol edin\n` +
-                    `📂 Spam/Junk klasörünü de kontrol edin\n` +
-                    `🔗 E-postadaki bağlantıya tıklayarak yeni şifre belirleyin\n` +
-                    `🔑 Yeni şifrenizle bu ekrandan giriş yapabilirsiniz`,
+                      `📧 E-posta kutunuzu kontrol edin\n` +
+                      `📂 Spam/Junk klasörünü de kontrol edin\n` +
+                      `🔗 E-postadaki bağlantıya tıklayarak yeni şifre belirleyin\n` +
+                      `🔑 Yeni şifrenizle bu ekrandan giriş yapabilirsiniz`,
                     [{ text: 'Anladım' }]
                   );
                 } catch (error) {
@@ -356,18 +375,18 @@ const LoginScreen = ({ navigation, route }) => {
                 } finally {
                   setLoading(false);
                 }
-              }
+              },
             },
             {
               text: 'Farklı E-posta',
-              onPress: () => promptForEmail()
-            }
+              onPress: () => promptForEmail(),
+            },
           ]
         );
         return;
       }
     }
-    
+
     // Form'da e-posta yok veya geçersiz, kullanıcıdan iste
     promptForEmail();
   };
@@ -393,48 +412,51 @@ const LoginScreen = ({ navigation, route }) => {
                       Alert.alert('Hata', 'Lütfen geçerli bir e-posta adresi girin.');
                       return;
                     }
-                    
+
                     // E-posta formatını kontrol et
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (!emailRegex.test(email.trim())) {
                       Alert.alert('Hata', 'Lütfen geçerli bir e-posta adresi formatı girin.');
                       return;
                     }
-                    
+
                     try {
                       setLoading(true);
                       await AuthService.sendPasswordResetEmail(email.trim());
                       Alert.alert(
-                        '✅ Şifre Sıfırlama E-postası Gönderildi', 
+                        '✅ Şifre Sıfırlama E-postası Gönderildi',
                         `Şifre sıfırlama bağlantısı ${email} adresine gönderildi.\n\n` +
-                        `📧 E-posta kutunuzu kontrol edin\n` +
-                        `📂 Spam/Junk klasörünü de kontrol edin\n` +
-                        `🔗 E-postadaki bağlantıya tıklayarak yeni şifre belirleyin\n` +
-                        `🔑 Yeni şifrenizle bu ekrandan giriş yapabilirsiniz`,
+                          `📧 E-posta kutunuzu kontrol edin\n` +
+                          `📂 Spam/Junk klasörünü de kontrol edin\n` +
+                          `🔗 E-postadaki bağlantıya tıklayarak yeni şifre belirleyin\n` +
+                          `🔑 Yeni şifrenizle bu ekrandan giriş yapabilirsiniz`,
                         [
                           {
                             text: 'Anladım',
                             onPress: () => {
                               // Kullanıcının girdiği e-posta adresini form'a otomatik doldur
-                              setFormData(prev => ({ ...prev, email: email.trim() }));
-                            }
-                          }
+                              setFormData((prev) => ({ ...prev, email: email.trim() }));
+                            },
+                          },
                         ]
                       );
                     } catch (error) {
                       console.error('❌ [LoginScreen] Password reset error:', error);
-                      Alert.alert('Hata', error.message || 'Şifre sıfırlama e-postası gönderilemedi.');
+                      Alert.alert(
+                        'Hata',
+                        error.message || 'Şifre sıfırlama e-postası gönderilemedi.'
+                      );
                     } finally {
                       setLoading(false);
                     }
-                  }
-                }
+                  },
+                },
               ],
               'plain-text',
               formData.email || ''
             );
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -444,7 +466,7 @@ const LoginScreen = ({ navigation, route }) => {
       <AppStatusBar />
       {/* Header */}
       <AppHeader />
-      
+
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -475,7 +497,9 @@ const LoginScreen = ({ navigation, route }) => {
 
             {/* Password */}
             <View style={styles.inputContainer}>
-              <View style={[styles.input, styles.inputWithIcon, errors.password && styles.inputError]}>
+              <View
+                style={[styles.input, styles.inputWithIcon, errors.password && styles.inputError]}
+              >
                 <TextInput
                   style={styles.inputField}
                   placeholder="Şifre"
@@ -487,10 +511,10 @@ const LoginScreen = ({ navigation, route }) => {
                   autoComplete="password"
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <MaterialIcons 
-                    name={showPassword ? 'visibility-off' : 'visibility'} 
-                    size={20} 
-                    color={colors.textSecondary} 
+                  <MaterialIcons
+                    name={showPassword ? 'visibility-off' : 'visibility'}
+                    size={20}
+                    color={colors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -498,10 +522,7 @@ const LoginScreen = ({ navigation, route }) => {
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={handleForgotPassword}
-            >
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
               <Text style={styles.forgotPasswordText}>Şifrenizi mi unuttunuz?</Text>
             </TouchableOpacity>
 
@@ -542,67 +563,30 @@ const LoginScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
-    paddingTop: 0, // StatusBar için yer
-  },
-  keyboardAvoid: {
     flex: 1,
+    paddingTop: 0, // StatusBar için yer
   },
   content: {
     flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 24,
-    justifyContent: 'center',
   },
-  header: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
+  copyright: {
     color: colors.textSecondary,
-  },
-  form: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inputWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputField: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-    padding: 0,
-  },
-  inputError: {
-    borderColor: colors.error,
+    fontSize: 12,
+    marginBottom: 4,
   },
   errorText: {
     color: colors.error,
     fontSize: 12,
-    marginTop: 4,
     marginLeft: 4,
+    marginTop: 4,
+  },
+  footer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 30,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -613,12 +597,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  form: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  input: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  inputField: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  inputWithIcon: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
   loginButton: {
+    alignItems: 'center',
     backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
     marginBottom: 20,
+    paddingVertical: 16,
   },
   loginButtonDisabled: {
     opacity: 0.7,
@@ -626,6 +647,11 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: colors.white,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  poweredBy: {
+    color: colors.textSecondary,
+    fontSize: 12,
     fontWeight: '600',
   },
   registerLink: {
@@ -640,20 +666,15 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  footer: {
-    alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 20,
-  },
-  copyright: {
-    fontSize: 12,
+  subtitle: {
     color: colors.textSecondary,
-    marginBottom: 4,
+    fontSize: 16,
   },
-  poweredBy: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
+  title: {
+    color: colors.text,
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
 });
 

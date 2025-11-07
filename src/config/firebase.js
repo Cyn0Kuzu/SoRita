@@ -1,23 +1,27 @@
 // Firebase configuration with crash protection
+import Constants from 'expo-constants';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator, enableNetwork, disableNetwork, initializeFirestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  connectFirestoreEmulator,
+  enableNetwork,
+  disableNetwork,
+  initializeFirestore,
+} from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCqV8fgC6485ZKTb2pg5-gVXbL9-E45g34",
-  authDomain: "sorita-6d27e.firebaseapp.com",
-  projectId: "sorita-6d27e",
-  storageBucket: "sorita-6d27e.firebasestorage.app",
-  messagingSenderId: "1062599764816",
-  appId: "1:1062599764816:web:6c413021894e9a4a719a55",
-  measurementId: "G-3KQNJLF17H"
-};
+// Get Firebase config from app.json
+const firebaseConfig = Constants.expoConfig.extra.firebase;
 
 let app, db, auth, storage;
 
 try {
+  // Check if all firebase config values are present
+  if (!firebaseConfig || Object.values(firebaseConfig).some(value => value.startsWith('${'))) {
+    throw new Error('Firebase config is missing or not replaced by environment variables. Check your .env file and eas.json configuration.');
+  }
+
   // Initialize Firebase
   app = initializeApp(firebaseConfig);
 
@@ -28,16 +32,17 @@ try {
       experimentalForceLongPolling: false,
     });
   } catch (e) {
-    console.log('Firestore init fallback');
+    console.warn('Firestore init fallback to getFirestore()');
     db = getFirestore(app);
   }
 
   // Initialize other Firebase services
   auth = getAuth(app);
   storage = getStorage(app);
+
 } catch (error) {
-  console.error('Firebase initialization error:', error);
-  // Create dummy objects to prevent crashes
+  console.error('Firebase initialization error:', error.message);
+  // Create dummy objects to prevent crashes in development
   auth = {
     currentUser: null,
     signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase not initialized')),
@@ -48,9 +53,9 @@ try {
   storage = null;
 }
 
-// Null check fonksiyonları ekle
+// Helper functions to check Firebase readiness
 export const isFirebaseReady = () => {
-  return app && db && auth && storage;
+  return !!(app && db && auth && storage);
 };
 
 export const getFirebaseError = () => {
@@ -63,10 +68,10 @@ export const getFirebaseError = () => {
 
 export { db, auth, storage };
 
-// Firebase emulators devre dışı - gerçek Firebase kullanıyoruz
+// Note: Firebase emulators are disabled for production.
+// To enable them for development, uncomment the following block.
 /*
-if (typeof __DEV__ !== 'undefined' && __DEV__) {
-  // Firebase emulators kullanarak test yapıyoruz
+if (__DEV__) {
   try {
     connectFirestoreEmulator(db, 'localhost', 8080);
     connectAuthEmulator(auth, 'http://localhost:9099');

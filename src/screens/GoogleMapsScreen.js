@@ -1,10 +1,6 @@
 import React from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Text, 
-  TouchableOpacity
-} from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+
 import { colors } from '../theme/theme';
 import { AppStatusBar } from '../components/AppStatusBar';
 
@@ -16,7 +12,7 @@ export default function GoogleMapsScreen() {
         <Text style={styles.title}>🗺️ Harita</Text>
         <Text style={styles.subtitle}>Development build bekleniyor...</Text>
       </View>
-      
+
       <View style={styles.placeholder}>
         <Text style={styles.placeholderText}>🏗️</Text>
         <Text style={styles.placeholderDesc}>
@@ -24,7 +20,7 @@ export default function GoogleMapsScreen() {
           APK hazır olunca aktif olacak
         </Text>
       </View>
-      
+
       <TouchableOpacity style={styles.button}>
         <Text style={styles.buttonText}>📍 Check-in Hazırla</Text>
       </TouchableOpacity>
@@ -33,53 +29,53 @@ export default function GoogleMapsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background || '#F8F9FA',
-    padding: 20
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary || '#FF6B6B'
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary || '#666',
-    marginTop: 5
-  },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 40
-  },
-  placeholderText: {
-    fontSize: 64,
-    marginBottom: 20
-  },
-  placeholderDesc: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#666',
-    lineHeight: 24
-  },
   button: {
-    backgroundColor: colors.primary || '#FF6B6B',
-    padding: 15,
-    borderRadius: 10,
     alignItems: 'center',
-    marginTop: 20
+    backgroundColor: colors.primary || '#FF6B6B',
+    borderRadius: 10,
+    marginTop: 20,
+    padding: 15,
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold'
-  }
+    fontWeight: 'bold',
+  },
+  container: {
+    backgroundColor: colors.background || '#F8F9FA',
+    flex: 1,
+    padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  placeholder: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    flex: 1,
+    justifyContent: 'center',
+    padding: 40,
+  },
+  placeholderDesc: {
+    color: '#666',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  placeholderText: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  subtitle: {
+    color: colors.textSecondary || '#666',
+    fontSize: 14,
+    marginTop: 5,
+  },
+  title: {
+    color: colors.primary || '#FF6B6B',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
 });

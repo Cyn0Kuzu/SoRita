@@ -2,9 +2,10 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
+
 import { colors } from '../theme/theme';
 
-export default function SoRitaHeader({ 
+export default function SoRitaHeader({
   rightComponent = null,
   onRightPress = () => {},
   rightIcon = null,
@@ -12,7 +13,7 @@ export default function SoRitaHeader({
   onBackPress = () => {},
   // Map screen specific props
   onSearchPress = () => {},
-  showMapControls = false
+  showMapControls = false,
 }) {
   return (
     <View style={styles.header}>
@@ -27,7 +28,7 @@ export default function SoRitaHeader({
           <Text style={styles.appTitleRita}>Rita</Text>
         </View>
       )}
-      
+
       {/* Right side - Search button or custom component */}
       {showMapControls ? (
         <TouchableOpacity onPress={onSearchPress} style={styles.searchButton}>
@@ -47,40 +48,40 @@ export default function SoRitaHeader({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  appTitleRita: {
+    color: '#2E7D32',
+    fontSize: 24,
+    fontWeight: 'bold', // Koyu yeşil
   },
   appTitleSo: {
+    color: '#1565C0',
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1565C0', // Koyu mavi
-  },
-  appTitleRita: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2E7D32', // Koyu yeşil
+    fontWeight: 'bold', // Koyu mavi
   },
   backButton: {
     padding: 8,
   },
-  rightButton: {
-    padding: 8,
+  header: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
   placeholder: {
     width: 40,
   },
+  rightButton: {
+    padding: 8,
+  },
   searchButton: {
     padding: 8,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
   },
 });

@@ -16,15 +16,15 @@ import hooksDefault from './hooks';
 
 // Import all utility modules
 export * from './constants';
-export * from './dateUtils';
-export * from './validationUtils';
+// export * from './dateUtils'; // Removed due to empty export
+// export * from './validationUtils'; // Removed due to empty export
 export * from './errorHandler';
 export * from './performanceUtils';
-export * from './storageUtils';
+// export * from './storageUtils'; // Removed due to empty export
 export * from './hooks';
 export * from './collaboratorColors';
 export * from './imagePicker';
-export * from './logger';
+// export * from './logger'; // Removed due to empty export
 
 // Utility helper functions
 export const formatCurrency = (amount, currency = 'TRY') => {
@@ -50,7 +50,7 @@ export const capitalizeWords = (string) => {
   if (!string) return '';
   return string
     .split(' ')
-    .map(word => capitalizeFirstLetter(word))
+    .map((word) => capitalizeFirstLetter(word))
     .join(' ');
 };
 
@@ -64,15 +64,15 @@ export const generateId = () => {
 };
 
 export const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 };
 
 export const sleep = (ms) => {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 export const randomBetween = (min, max) => {
@@ -101,7 +101,7 @@ export const isEmptyArray = (arr) => {
 
 export const removeEmptyValues = (obj) => {
   const cleaned = {};
-  Object.keys(obj).forEach(key => {
+  Object.keys(obj).forEach((key) => {
     const value = obj[key];
     if (!isNullOrUndefined(value) && !isEmptyString(value)) {
       cleaned[key] = value;
@@ -113,10 +113,10 @@ export const removeEmptyValues = (obj) => {
 export const deepClone = (obj) => {
   if (obj === null || typeof obj !== 'object') return obj;
   if (obj instanceof Date) return new Date(obj.getTime());
-  if (obj instanceof Array) return obj.map(item => deepClone(item));
+  if (obj instanceof Array) return obj.map((item) => deepClone(item));
   if (typeof obj === 'object') {
     const clonedObj = {};
-    Object.keys(obj).forEach(key => {
+    Object.keys(obj).forEach((key) => {
       clonedObj[key] = deepClone(obj[key]);
     });
     return clonedObj;
@@ -125,18 +125,18 @@ export const deepClone = (obj) => {
 
 export const flattenObject = (obj, prefix = '') => {
   const flattened = {};
-  
-  Object.keys(obj).forEach(key => {
+
+  Object.keys(obj).forEach((key) => {
     const value = obj[key];
     const newKey = prefix ? `${prefix}.${key}` : key;
-    
+
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       Object.assign(flattened, flattenObject(value, newKey));
     } else {
       flattened[newKey] = value;
     }
   });
-  
+
   return flattened;
 };
 
@@ -153,21 +153,21 @@ export const sortBy = (array, key, direction = 'asc') => {
   return [...array].sort((a, b) => {
     let aVal = a[key];
     let bVal = b[key];
-    
+
     if (typeof aVal === 'string') aVal = aVal.toLowerCase();
     if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-    
+
     if (direction === 'desc') {
       return bVal > aVal ? 1 : -1;
     }
-    
+
     return aVal > bVal ? 1 : -1;
   });
 };
 
 export const uniqueBy = (array, key) => {
   const seen = new Set();
-  return array.filter(item => {
+  return array.filter((item) => {
     const value = item[key];
     if (seen.has(value)) {
       return false;
@@ -188,14 +188,14 @@ export const chunk = (array, size) => {
 export const parseQueryString = (queryString) => {
   const params = {};
   const pairs = queryString.slice(1).split('&');
-  
-  pairs.forEach(pair => {
+
+  pairs.forEach((pair) => {
     const [key, value] = pair.split('=');
     if (key) {
       params[decodeURIComponent(key)] = decodeURIComponent(value || '');
     }
   });
-  
+
   return params;
 };
 
@@ -203,7 +203,7 @@ export const buildQueryString = (params) => {
   const pairs = Object.entries(params)
     .filter(([key, value]) => !isNullOrUndefined(value))
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-  
+
   return pairs.length > 0 ? `?${pairs.join('&')}` : '';
 };
 
@@ -231,11 +231,13 @@ export const getDeviceType = (dimensions) => {
 // Color utilities
 export const hexToRgb = (hex) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null;
 };
 
 export const rgbToHex = (r, g, b) => {
@@ -245,7 +247,7 @@ export const rgbToHex = (r, g, b) => {
 export const getColorLuminance = (hex) => {
   const rgb = hexToRgb(hex);
   if (!rgb) return 0;
-  
+
   const { r, g, b } = rgb;
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 };
@@ -258,25 +260,25 @@ export const isLightColor = (hex) => {
 export default {
   // Constants
   constants: constantsDefault,
-  
+
   // Date utilities
   dateUtils: dateUtilsDefault,
-  
+
   // Validation utilities
   validationUtils: validationUtilsDefault,
-  
+
   // Error handling
   errorHandler: errorHandlerDefault,
-  
+
   // Performance utilities
   performanceUtils: performanceUtilsDefault,
-  
+
   // Storage utilities
   storageUtils: storageUtilsDefault,
-  
+
   // React hooks
   hooks: hooksDefault,
-  
+
   // Helper functions
   formatCurrency,
   formatNumber,

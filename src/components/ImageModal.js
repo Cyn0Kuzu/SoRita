@@ -9,7 +9,7 @@ import {
   Text,
   ScrollView,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -34,12 +34,7 @@ const ImageModal = ({ visible, imageUri, onClose, title }) => {
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
       <StatusBar backgroundColor="rgba(0,0,0,0.9)" barStyle="light-content" />
       <View style={styles.modalContainer}>
         {/* Header */}
@@ -72,7 +67,7 @@ const ImageModal = ({ visible, imageUri, onClose, title }) => {
               <Text style={styles.loadingText}>Yükleniyor...</Text>
             </View>
           )}
-          
+
           {error && (
             <View style={styles.errorContainer}>
               <MaterialIcons name="broken-image" size={64} color="#666" />
@@ -106,84 +101,84 @@ const ImageModal = ({ visible, imageUri, onClose, title }) => {
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    zIndex: 10,
-  },
   closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 22,
+    height: 44,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 16,
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-    width: screenWidth,
-    height: screenHeight,
-  },
-  scrollContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: screenWidth,
-    minHeight: screenHeight,
-  },
-  image: {
-    width: screenWidth,
-    height: screenHeight * 0.8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#fff',
-    marginTop: 12,
-    fontSize: 16,
+    width: 44,
   },
   errorContainer: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   errorText: {
     color: '#999',
-    marginTop: 12,
     fontSize: 16,
+    marginTop: 12,
   },
   footer: {
-    position: 'absolute',
+    alignItems: 'center',
     bottom: 50,
     left: 0,
-    right: 0,
-    alignItems: 'center',
     paddingHorizontal: 20,
+    position: 'absolute',
+    right: 0,
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    left: 0,
+    paddingHorizontal: 20,
+    position: 'absolute',
+    right: 0,
+    top: 50,
+    zIndex: 10,
+  },
+  image: {
+    height: screenHeight * 0.8,
+    width: screenWidth,
   },
   instructionText: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
+  },
+  modalContainer: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: screenHeight,
+    minWidth: screenWidth,
+  },
+  scrollView: {
+    flex: 1,
+    height: screenHeight,
+    width: screenWidth,
+  },
+  title: {
+    color: '#fff',
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 16,
   },
 });
 

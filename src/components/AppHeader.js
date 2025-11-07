@@ -2,14 +2,16 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from 'react-native-paper';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
 import { colors } from '../theme/theme';
+
 import { AppStatusBar } from './AppStatusBar';
 
-export default function AppHeader({ 
-  showSearchButton = false, 
+export default function AppHeader({
+  showSearchButton = false,
   showNotificationButton = false,
   onSearchPress = () => {},
-  onNotificationPress = () => {}
+  onNotificationPress = () => {},
 }) {
   return (
     <>
@@ -21,18 +23,12 @@ export default function AppHeader({
         </View>
         <View style={styles.headerActions}>
           {showSearchButton && (
-            <TouchableOpacity 
-              style={styles.headerButton} 
-              onPress={onSearchPress}
-            >
+            <TouchableOpacity style={styles.headerButton} onPress={onSearchPress}>
               <MaterialIcons name="search" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
           )}
           {showNotificationButton && (
-            <TouchableOpacity 
-              style={styles.headerButton} 
-              onPress={onNotificationPress}
-            >
+            <TouchableOpacity style={styles.headerButton} onPress={onNotificationPress}>
               <MaterialIcons name="notifications-none" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
           )}
@@ -43,28 +39,25 @@ export default function AppHeader({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  titleContainer: {
-    flexDirection: 'row',
+  appTitleRita: {
+    color: '#2E7D32',
+    fontSize: 24,
+    fontWeight: 'bold', // Koyu yeşil
   },
   appTitleSo: {
+    color: '#1565C0',
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1565C0', // Koyu mavi
+    fontWeight: 'bold', // Koyu mavi
   },
-  appTitleRita: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2E7D32', // Koyu yeşil
+  header: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
   headerActions: {
     flexDirection: 'row',
@@ -72,5 +65,8 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 5,
+  },
+  titleContainer: {
+    flexDirection: 'row',
   },
 });

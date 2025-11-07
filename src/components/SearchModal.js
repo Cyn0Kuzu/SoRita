@@ -1,20 +1,23 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { 
-  View, 
-  StyleSheet, 
+import {
+  View,
+  StyleSheet,
   TouchableOpacity,
   TextInput,
   FlatList,
   Modal,
   ActivityIndicator,
   Alert,
-  Image
+  Image,
 } from 'react-native';
 import { Text, Avatar } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
+
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+
 import { colors } from '../theme/theme';
 import { db } from '../config/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+
 import { AppStatusBar } from './AppStatusBar';
 
 // Avatar render component for Search
@@ -22,40 +25,76 @@ const UserAvatar = ({ user, size = 55 }) => {
   // Case 1: Base64 encoded image (starts with data:image)
   if (user?.avatar && user.avatar.startsWith('data:image')) {
     return (
-      <View style={[{ 
-        width: size, 
-        height: size, 
-        borderRadius: size/2, 
-        overflow: 'hidden', 
-        marginRight: 15,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 2,
-        borderColor: '#E5E5E5',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
-      }]}>
-        <Image 
-          source={{ uri: user.avatar }} 
-          style={{ width: size, height: size, borderRadius: size/2 }}
+      <View
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: 'hidden',
+            marginRight: 15,
+            backgroundColor: '#FFFFFF',
+            borderWidth: 2,
+            borderColor: '#E5E5E5',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+            elevation: 2,
+          },
+        ]}
+      >
+        <Image
+          source={{ uri: user.avatar }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
           resizeMode="cover"
         />
       </View>
     );
   }
-  
+
   // Case 2: HTTP URL (Firebase Storage URL)
   if (user?.avatar && user.avatar.startsWith('http')) {
     return (
-      <View style={[{ 
-        width: size, 
-        height: size, 
-        borderRadius: size/2, 
-        overflow: 'hidden', 
-        marginRight: 15,
+      <View
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: 'hidden',
+            marginRight: 15,
+            backgroundColor: '#FFFFFF',
+            borderWidth: 2,
+            borderColor: '#E5E5E5',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+            elevation: 2,
+          },
+        ]}
+      >
+        <Image
+          source={{ uri: user.avatar }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          resizeMode="cover"
+        />
+      </View>
+    );
+  }
+
+  // Case 3: Emoji avatar or default fallback
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
         backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
         borderWidth: 2,
         borderColor: '#E5E5E5',
         shadowColor: '#000',
@@ -63,39 +102,15 @@ const UserAvatar = ({ user, size = 55 }) => {
         shadowOpacity: 0.1,
         shadowRadius: 2,
         elevation: 2,
-      }]}>
-        <Image 
-          source={{ uri: user.avatar }} 
-          style={{ width: size, height: size, borderRadius: size/2 }}
-          resizeMode="cover"
-        />
-      </View>
-    );
-  }
-  
-  // Case 3: Emoji avatar or default fallback
-  return (
-    <View style={{
-      width: size,
-      height: size,
-      borderRadius: size/2,
-      backgroundColor: '#FFFFFF',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 15,
-      borderWidth: 2,
-      borderColor: '#E5E5E5',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    }}>
-      <Text style={{ 
-        color: colors.primary, 
-        fontSize: size/2.5, 
-        fontWeight: 'bold' 
-      }}>
+      }}
+    >
+      <Text
+        style={{
+          color: colors.primary,
+          fontSize: size / 2.5,
+          fontWeight: 'bold',
+        }}
+      >
         {user?.avatar || user?.firstName?.charAt(0)?.toUpperCase() || '👤'}
       </Text>
     </View>
@@ -107,7 +122,7 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
   const [searchType, setSearchType] = useState('users'); // 'users' or 'lists'
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Debounce için timeout ref
   const searchTimeoutRef = useRef(null);
 
@@ -129,53 +144,52 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
     try {
       setLoading(true);
       console.log('🔍 [SearchModal] Searching users:', searchText);
-      
+
       // Search by firstName (case insensitive)
       const firstNameQuery = query(
         collection(db, 'users'),
         where('firstName', '>=', searchText),
-        where('firstName', '<=', searchText + '\uf8ff'),
+        where('firstName', '<=', `${searchText}\uf8ff`),
         limit(5)
       );
       const firstNameResults = await getDocs(firstNameQuery);
-      
-      // Search by lastName (case insensitive)  
+
+      // Search by lastName (case insensitive)
       const lastNameQuery = query(
         collection(db, 'users'),
         where('lastName', '>=', searchText),
-        where('lastName', '<=', searchText + '\uf8ff'),
+        where('lastName', '<=', `${searchText}\uf8ff`),
         limit(5)
       );
       const lastNameResults = await getDocs(lastNameQuery);
-      
+
       // Search by username (case insensitive)
       const usernameQuery = query(
         collection(db, 'users'),
         where('username', '>=', searchText.toLowerCase()),
-        where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
+        where('username', '<=', `${searchText.toLowerCase()}\uf8ff`),
         limit(5)
       );
       const usernameResults = await getDocs(usernameQuery);
-      
+
       // Combine and deduplicate results
       const allResults = [];
       const seenIds = new Set();
-      
-      [firstNameResults, lastNameResults, usernameResults].forEach(snapshot => {
-        snapshot.docs.forEach(doc => {
+
+      [firstNameResults, lastNameResults, usernameResults].forEach((snapshot) => {
+        snapshot.docs.forEach((doc) => {
           if (!seenIds.has(doc.id)) {
             seenIds.add(doc.id);
             allResults.push({
               id: doc.id,
-              ...doc.data()
+              ...doc.data(),
             });
           }
         });
       });
-      
+
       setResults(allResults);
       console.log('✅ [SearchModal] Users found:', allResults.length);
-      
     } catch (error) {
       console.error('❌ [SearchModal] Error searching users:', error);
       Alert.alert('Hata', 'Arama yapılırken bir hata oluştu');
@@ -194,26 +208,32 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
     try {
       setLoading(true);
       console.log('🔍 [SearchModal] Searching lists:', searchText);
-      
+
       // Get all lists and filter in memory to avoid index issues
-      const listsQuery = query(
-        collection(db, 'lists'),
-        limit(20)
-      );
+      const listsQuery = query(collection(db, 'lists'), limit(20));
       const listsResults = await getDocs(listsQuery);
       console.log('🔍 [SearchModal] Total lists in database:', listsResults.docs.length);
-      
+
       // Filter by name and privacy in memory
-      const filteredLists = listsResults.docs.filter(doc => {
-        const listData = doc.data();
-        const isPublic = !listData.isPrivate; // Convert isPrivate to isPublic logic
-        const matchesName = listData.name?.toLowerCase().includes(searchText.toLowerCase());
-        console.log('🔍 [SearchModal] List:', listData.name, 'isPublic:', isPublic, 'matchesName:', matchesName);
-        return isPublic && matchesName;
-      }).slice(0, 10);
-      
+      const filteredLists = listsResults.docs
+        .filter((doc) => {
+          const listData = doc.data();
+          const isPublic = !listData.isPrivate; // Convert isPrivate to isPublic logic
+          const matchesName = listData.name?.toLowerCase().includes(searchText.toLowerCase());
+          console.log(
+            '🔍 [SearchModal] List:',
+            listData.name,
+            'isPublic:',
+            isPublic,
+            'matchesName:',
+            matchesName
+          );
+          return isPublic && matchesName;
+        })
+        .slice(0, 10);
+
       console.log('🔍 [SearchModal] Filtered lists count:', filteredLists.length);
-      
+
       // Get user data for each list
       const listsWithUserData = await Promise.all(
         filteredLists.map(async (doc) => {
@@ -221,31 +241,27 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
           try {
             // Get list creator info
             const creatorId = listData.userId || listData.createdBy;
-            const userQuery = query(
-              collection(db, 'users'),
-              where('__name__', '==', creatorId)
-            );
+            const userQuery = query(collection(db, 'users'), where('__name__', '==', creatorId));
             const userSnap = await getDocs(userQuery);
             const userData = userSnap.docs[0]?.data() || {};
-            
+
             return {
               id: doc.id,
               ...listData,
-              creator: userData
+              creator: userData,
             };
           } catch (error) {
             return {
               id: doc.id,
               ...listData,
-              creator: { firstName: 'Kullanıcı', lastName: '', avatar: '👤' }
+              creator: { firstName: 'Kullanıcı', lastName: '', avatar: '👤' },
             };
           }
         })
       );
-      
+
       setResults(listsWithUserData);
       console.log('✅ [SearchModal] Lists found:', listsWithUserData.length);
-      
     } catch (error) {
       console.error('❌ [SearchModal] Error searching lists:', error);
       Alert.alert('Hata', 'Liste araması yapılırken bir hata oluştu');
@@ -255,29 +271,32 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
     }
   }, []);
 
-  const handleSearch = useCallback((text) => {
-    setSearchQuery(text);
-    
-    // Önceki timeout'u temizle
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    
-    // Eğer metin boşsa hemen temizle
-    if (!text.trim()) {
-      setResults([]);
-      return;
-    }
-    
-    // 300ms debounce ile arama yap
-    searchTimeoutRef.current = setTimeout(() => {
-      if (searchType === 'users') {
-        searchUsers(text);
-      } else {
-        searchLists(text);
+  const handleSearch = useCallback(
+    (text) => {
+      setSearchQuery(text);
+
+      // Önceki timeout'u temizle
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
-    }, 300);
-  }, [searchType, searchUsers, searchLists]);
+
+      // Eğer metin boşsa hemen temizle
+      if (!text.trim()) {
+        setResults([]);
+        return;
+      }
+
+      // 300ms debounce ile arama yap
+      searchTimeoutRef.current = setTimeout(() => {
+        if (searchType === 'users') {
+          searchUsers(text);
+        } else {
+          searchLists(text);
+        }
+      }, 300);
+    },
+    [searchType, searchUsers, searchLists]
+  );
 
   const handleTypeChange = (type) => {
     setSearchType(type);
@@ -301,12 +320,9 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
   };
 
   const renderUserItem = ({ item: user }) => (
-    <TouchableOpacity 
-      style={styles.resultItem}
-      onPress={() => handleUserPress(user)}
-    >
+    <TouchableOpacity style={styles.resultItem} onPress={() => handleUserPress(user)}>
       <UserAvatar user={user} size={65} />
-      
+
       <View style={styles.userInfo}>
         <Text style={styles.userName}>
           {user.firstName} {user.lastName}
@@ -322,19 +338,12 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
   );
 
   const renderListItem = ({ item: list }) => (
-    <TouchableOpacity 
-      style={styles.listCard}
-      onPress={() => handleListPress(list)}
-    >
+    <TouchableOpacity style={styles.listCard} onPress={() => handleListPress(list)}>
       <View style={styles.listCardHeader}>
         {/* Liste Fotoğrafı */}
         <View style={styles.listImageContainer}>
           {list.image ? (
-            <Image 
-              source={{ uri: list.image }} 
-              style={styles.listImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: list.image }} style={styles.listImage} resizeMode="cover" />
           ) : (
             <View style={styles.listImagePlaceholder}>
               <MaterialIcons name="location-on" size={28} color={colors.primary} />
@@ -345,13 +354,13 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
         {/* Liste Bilgileri */}
         <View style={styles.listCardInfo}>
           {/* Liste İsmi */}
-          <Text style={styles.listCardName} numberOfLines={2}>{list.name}</Text>
-          
+          <Text style={styles.listCardName} numberOfLines={2}>
+            {list.name}
+          </Text>
+
           {/* Oluşturan Kişi */}
           <View style={styles.listCreatorRow}>
-            <Text style={styles.listCreatorAvatar}>
-              {list.creator?.avatar || '👤'}
-            </Text>
+            <Text style={styles.listCreatorAvatar}>{list.creator?.avatar || '👤'}</Text>
             <Text style={styles.listCardCreator}>
               {list.creator?.firstName || 'Kullanıcı'} {list.creator?.lastName || ''}
             </Text>
@@ -360,9 +369,7 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
           {/* Mekan Sayısı */}
           <View style={styles.listMetaItem}>
             <MaterialIcons name="place" size={16} color={colors.textSecondary} />
-            <Text style={styles.listMetaText}>
-              {list.places?.length || 0} mekan
-            </Text>
+            <Text style={styles.listMetaText}>{list.places?.length || 0} mekan</Text>
           </View>
         </View>
 
@@ -376,21 +383,20 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <MaterialIcons 
-        name={searchType === 'users' ? 'person-search' : 'search'} 
-        size={64} 
-        color={colors.textSecondary} 
+      <MaterialIcons
+        name={searchType === 'users' ? 'person-search' : 'search'}
+        size={64}
+        color={colors.textSecondary}
       />
       <Text style={styles.emptyTitle}>
         {searchQuery.trim() ? 'Sonuç bulunamadı' : 'Arama yapın'}
       </Text>
       <Text style={styles.emptySubtitle}>
-        {searchQuery.trim() 
+        {searchQuery.trim()
           ? `"${searchQuery}" için sonuç bulunamadı`
-          : searchType === 'users' 
+          : searchType === 'users'
             ? 'Kullanıcı aramak için isim veya kullanıcı adı yazın'
-            : 'Liste aramak için liste adı yazın'
-        }
+            : 'Liste aramak için liste adı yazın'}
       </Text>
     </View>
   );
@@ -403,16 +409,16 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
       onRequestClose={onClose}
     >
       <AppStatusBar />
-      
+
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <MaterialIcons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
-          
+
           <Text style={styles.title}>Ara</Text>
-          
+
           <View style={styles.headerSpacer} />
         </View>
 
@@ -432,31 +438,19 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
         {/* Search Type Toggle */}
         <View style={styles.toggleContainer}>
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              searchType === 'users' && styles.toggleButtonActive
-            ]}
+            style={[styles.toggleButton, searchType === 'users' && styles.toggleButtonActive]}
             onPress={() => handleTypeChange('users')}
           >
-            <Text style={[
-              styles.toggleText,
-              searchType === 'users' && styles.toggleTextActive
-            ]}>
+            <Text style={[styles.toggleText, searchType === 'users' && styles.toggleTextActive]}>
               Kullanıcılar
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              searchType === 'lists' && styles.toggleButtonActive
-            ]}
+            style={[styles.toggleButton, searchType === 'lists' && styles.toggleButtonActive]}
             onPress={() => handleTypeChange('lists')}
           >
-            <Text style={[
-              styles.toggleText,
-              searchType === 'lists' && styles.toggleTextActive
-            ]}>
+            <Text style={[styles.toggleText, searchType === 'lists' && styles.toggleTextActive]}>
               Listeler
             </Text>
           </TouchableOpacity>
@@ -487,68 +481,68 @@ export default function SearchModal({ visible, onClose, navigation, onListSelect
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
+    flex: 1,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   closeButton: {
     padding: 8,
   },
   title: {
+    color: colors.text,
     flex: 1,
-    textAlign: 'center',
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    textAlign: 'center',
   },
   headerSpacer: {
     width: 40,
   },
   searchContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    margin: 16,
-    padding: 12,
     backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    flexDirection: 'row',
+    margin: 16,
+    padding: 12,
   },
   searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
     color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    marginLeft: 8,
   },
   toggleContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 16,
     backgroundColor: colors.surface,
     borderRadius: 12,
+    flexDirection: 'row',
+    marginBottom: 16,
+    marginHorizontal: 16,
     padding: 4,
   },
   toggleButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
     alignItems: 'center',
+    borderRadius: 8,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   toggleButtonActive: {
     backgroundColor: colors.primary,
   },
   toggleText: {
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
   },
   toggleTextActive: {
     color: 'white',
@@ -560,126 +554,126 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   resultItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingVertical: 12,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 2,
   },
   userUsername: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     marginBottom: 4,
   },
   userBio: {
-    fontSize: 14,
     color: colors.text,
+    fontSize: 14,
     lineHeight: 18,
   },
   listIcon: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
-    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
     borderColor: '#E5E5E5',
+    borderRadius: 27.5,
+    borderWidth: 2,
+    elevation: 2,
+    height: 55,
+    justifyContent: 'center',
+    marginRight: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    width: 55,
   },
   listInfo: {
     flex: 1,
   },
   listName: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 2,
   },
   listCreator: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     marginBottom: 4,
   },
   listDescription: {
-    fontSize: 14,
     color: colors.text,
+    fontSize: 14,
     lineHeight: 18,
     marginBottom: 4,
   },
   listMeta: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   // Enhanced List Card Styles
   listCard: {
     backgroundColor: '#FFFFFF',
+    borderColor: '#F0F0F0',
+    borderRadius: 12,
+    borderWidth: 1,
+    elevation: 3,
     marginHorizontal: 16,
     marginVertical: 6,
-    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
   },
   listCardHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     padding: 16,
   },
   listImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginRight: 16,
     backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+    height: 60,
+    marginRight: 16,
+    overflow: 'hidden',
+    width: 60,
   },
   listImage: {
-    width: 60,
-    height: 60,
     borderRadius: 10,
+    height: 60,
+    width: 60,
   },
   listImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    backgroundColor: '#F8F9FA',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    backgroundColor: '#F8F9FA',
     borderColor: '#E5E7EB',
+    borderRadius: 10,
+    borderWidth: 1,
+    height: 60,
+    justifyContent: 'center',
+    width: 60,
   },
   listCardInfo: {
     flex: 1,
   },
   listCardName: {
+    color: '#1F2937',
     fontSize: 17,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 6,
     lineHeight: 22,
+    marginBottom: 6,
   },
   listCreatorRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     marginBottom: 8,
   },
   listCreatorAvatar: {
@@ -687,55 +681,55 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   listCardCreator: {
-    fontSize: 14,
     color: '#6B7280',
+    fontSize: 14,
     fontWeight: '500',
   },
   listMetaItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   listMetaText: {
-    fontSize: 13,
     color: '#6B7280',
-    marginLeft: 6,
+    fontSize: 13,
     fontWeight: '600',
+    marginLeft: 6,
   },
   listCardAction: {
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingLeft: 8,
   },
   loadingContainer: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     paddingTop: 100,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 16,
   },
   emptyState: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
     paddingHorizontal: 32,
+    paddingTop: 100,
   },
   emptyTitle: {
+    color: colors.text,
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
     marginBottom: 8,
+    marginTop: 16,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
   },
 });

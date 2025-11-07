@@ -3,10 +3,13 @@
  * Real-time performance tracking and optimization for SoRita
  */
 
-import { logger } from '../utils/logger';
-import { analyticsService } from './analyticsService';
-import { ENV, ENVIRONMENTS } from '../config/environment';
 import { Platform } from 'react-native';
+
+import { logger } from '../utils/logger';
+
+import { ENV, ENVIRONMENTS } from '../config/environment';
+
+import { analyticsService } from './analyticsService';
 
 const performanceLogger = logger.createServiceLogger('PerformanceMonitor');
 
@@ -44,7 +47,6 @@ class PerformanceMonitor {
 
       this.isInitialized = true;
       performanceLogger.info('Performance monitor initialized successfully');
-
     } catch (error) {
       performanceLogger.error('Failed to initialize performance monitor:', error);
     }
@@ -53,18 +55,18 @@ class PerformanceMonitor {
   // Track app startup time
   trackAppStartup() {
     const startTime = Date.now();
-    
+
     // Track different startup phases
     this.markStart('app_startup');
     this.markStart('js_bundle_load');
-    
+
     // Monitor when app becomes interactive
     setTimeout(() => {
       this.markEnd('app_startup');
       const startupTime = this.getMetric('app_startup');
-      
+
       performanceLogger.info(`App startup completed in ${startupTime}ms`);
-      
+
       // Track startup performance only in production
       if (ENV !== ENVIRONMENTS.DEVELOPMENT) {
         analyticsService.trackPerformance('app_startup_time', startupTime, {
@@ -102,10 +104,10 @@ class PerformanceMonitor {
       // On React Native, memory monitoring is limited
       // This would use native modules for accurate memory tracking
       const memoryInfo = this.getMemoryInfo();
-      
+
       if (memoryInfo.used > this.thresholds.memoryWarning) {
         performanceLogger.warn('High memory usage detected:', memoryInfo);
-        
+
         // Track memory warning
         analyticsService.trackEvent('performance_warning', {
           type: 'high_memory',
@@ -116,7 +118,6 @@ class PerformanceMonitor {
         // Suggest garbage collection
         this.suggestGarbageCollection();
       }
-
     } catch (error) {
       performanceLogger.error('Error checking memory usage:', error);
     }
@@ -142,20 +143,20 @@ class PerformanceMonitor {
   interceptNetworkRequests() {
     // This would wrap fetch or XMLHttpRequest to monitor network performance
     const originalFetch = global.fetch;
-    
+
     global.fetch = async (url, options) => {
       const startTime = Date.now();
       const requestId = `request_${Date.now()}_${Math.random()}`;
-      
+
       this.markStart(requestId);
-      
+
       try {
         const response = await originalFetch(url, options);
         const duration = Date.now() - startTime;
-        
+
         // Track network performance
         this.trackNetworkRequest(url, duration, response.status, response.ok);
-        
+
         return response;
       } catch (error) {
         const duration = Date.now() - startTime;
@@ -170,14 +171,17 @@ class PerformanceMonitor {
   // Track network request performance
   trackNetworkRequest(url, duration, status, success, error = null) {
     const isSlowRequest = duration > this.thresholds.httpTimeout;
-    
+
     // Only warn for actual performance issues (longer requests or real errors)
     // Don't warn for development server logs or expected long-running requests
     const urlString = url?.toString() || '';
     const isDevServerLog = urlString.includes('/logs') || urlString.includes('expo.dev');
     const isExpectedSlowRequest = duration > 3000 && duration < 10000; // 3-10 seconds might be normal for some operations
-    
-    if ((isSlowRequest && !isDevServerLog && !isExpectedSlowRequest) || (!success && !isDevServerLog)) {
+
+    if (
+      (isSlowRequest && !isDevServerLog && !isExpectedSlowRequest) ||
+      (!success && !isDevServerLog)
+    ) {
       performanceLogger.warn('Network performance issue:', {
         url: this.sanitizeUrl(url),
         duration,
@@ -224,15 +228,15 @@ class PerformanceMonitor {
   // Setup error interception
   setupErrorInterception() {
     const originalError = console.error;
-    
+
     console.error = (...args) => {
       // Track errors that might affect performance
       const errorMessage = args[0]?.toString() || '';
-      
+
       if (this.isPerformanceRelatedError(errorMessage)) {
         this.trackPerformanceError(errorMessage, args);
       }
-      
+
       originalError.apply(console, args);
     };
   }
@@ -249,16 +253,14 @@ class PerformanceMonitor {
       'ANR',
       'OOM',
     ];
-    
-    return performanceKeywords.some(keyword => 
-      message.toLowerCase().includes(keyword)
-    );
+
+    return performanceKeywords.some((keyword) => message.toLowerCase().includes(keyword));
   }
 
   // Track performance related errors
   trackPerformanceError(message, args) {
     performanceLogger.warn('Performance error detected:', message);
-    
+
     // Only track errors in production to avoid noise
     if (ENV !== ENVIRONMENTS.DEVELOPMENT) {
       analyticsService.trackEvent('performance_error', {
@@ -272,7 +274,7 @@ class PerformanceMonitor {
   markStart(label) {
     const timestamp = Date.now();
     this.metrics.set(`${label}_start`, timestamp);
-    
+
     // Only log in development and reduce frequency even more
     if (ENV === ENVIRONMENTS.DEVELOPMENT && Math.random() < 0.02) {
       performanceLogger.debug(`Performance mark start: ${label}`);
@@ -283,19 +285,19 @@ class PerformanceMonitor {
   markEnd(label) {
     const timestamp = Date.now();
     const startTime = this.metrics.get(`${label}_start`);
-    
+
     if (startTime) {
       const duration = timestamp - startTime;
       this.metrics.set(label, duration);
-      
+
       // Only log slow operations or occasionally in development
       if (ENV === ENVIRONMENTS.DEVELOPMENT && (duration > 2000 || Math.random() < 0.05)) {
         performanceLogger.debug(`Performance mark end: ${label} - ${duration}ms`);
       }
-      
+
       return duration;
     }
-    
+
     return null;
   }
 
@@ -318,7 +320,7 @@ class PerformanceMonitor {
   // Report slow performance
   reportSlowPerformance(operation, duration) {
     performanceLogger.warn(`Slow performance detected: ${operation} took ${duration}ms`);
-    
+
     analyticsService.trackEvent('slow_performance', {
       operation,
       duration,
@@ -338,18 +340,17 @@ class PerformanceMonitor {
   async optimizePerformance() {
     try {
       performanceLogger.info('Running performance optimization...');
-      
+
       // Clear old metrics
       this.clearOldMetrics();
-      
+
       // Suggest garbage collection
       this.suggestGarbageCollection();
-      
+
       // Clear caches if needed
       await this.clearCachesIfNeeded();
-      
-      performanceLogger.info('Performance optimization completed');
 
+      performanceLogger.info('Performance optimization completed');
     } catch (error) {
       performanceLogger.error('Error during performance optimization:', error);
     }
@@ -357,8 +358,8 @@ class PerformanceMonitor {
 
   // Clear old metrics
   clearOldMetrics() {
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
     for (const [key, value] of this.metrics.entries()) {
       if (typeof value === 'number' && value < oneHourAgo) {
         this.metrics.delete(key);
@@ -369,11 +370,11 @@ class PerformanceMonitor {
   // Clear caches if needed
   async clearCachesIfNeeded() {
     const memoryInfo = this.getMemoryInfo();
-    
+
     if (memoryInfo.used > this.thresholds.memoryWarning * 0.8) {
       // Clear some caches to free memory
       performanceLogger.info('Clearing caches to free memory...');
-      
+
       // This would clear various app caches
       // Implementation depends on your caching strategy
     }
@@ -383,7 +384,7 @@ class PerformanceMonitor {
   getPerformanceReport() {
     const metrics = this.getAllMetrics();
     const memoryInfo = this.getMemoryInfo();
-    
+
     return {
       metrics,
       memory: memoryInfo,
@@ -396,15 +397,15 @@ class PerformanceMonitor {
   // Check if performance is healthy
   isPerformanceHealthy() {
     const metrics = this.getAllMetrics();
-    
+
     // Check for performance issues
-    const hasSlowOperations = Object.values(metrics).some(duration => 
-      duration > this.thresholds.slowNavigation
+    const hasSlowOperations = Object.values(metrics).some(
+      (duration) => duration > this.thresholds.slowNavigation
     );
-    
+
     const memoryInfo = this.getMemoryInfo();
     const hasMemoryIssues = memoryInfo.used > this.thresholds.memoryWarning;
-    
+
     return !hasSlowOperations && !hasMemoryIssues;
   }
 
@@ -413,7 +414,7 @@ class PerformanceMonitor {
     // Restore original functions
     // Clear intervals
     // Remove observers
-    
+
     performanceLogger.debug('Performance monitor cleaned up');
   }
 }

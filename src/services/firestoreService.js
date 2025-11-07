@@ -1,18 +1,19 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
   setDoc,
-  query, 
-  where, 
-  orderBy, 
+  query,
+  where,
+  orderBy,
   limit,
-  onSnapshot 
+  onSnapshot,
 } from 'firebase/firestore';
+
 import { db } from '../config/firebase';
 
 export class FirestoreService {
@@ -22,7 +23,7 @@ export class FirestoreService {
       const docRef = await addDoc(collection(db, 'places'), {
         ...placeData,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       return docRef.id;
     } catch (error) {
@@ -35,7 +36,7 @@ export class FirestoreService {
     try {
       const docRef = doc(db, 'places', placeId);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       } else {
@@ -50,12 +51,12 @@ export class FirestoreService {
   static async getPlaces(filters = {}) {
     try {
       const placesCollection = collection(db, 'places');
-      let queries = [];
-      
+      const queries = [];
+
       if (filters.category) {
         queries.push(where('category', '==', filters.category));
       }
-      
+
       if (filters.city) {
         queries.push(where('city', '==', filters.city));
       }
@@ -68,9 +69,9 @@ export class FirestoreService {
 
       const q = query(placesCollection, ...queries);
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
       console.error('Error getting places:', error);
@@ -85,7 +86,7 @@ export class FirestoreService {
         ...listData,
         userId,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       return docRef.id;
     } catch (error) {
@@ -101,11 +102,11 @@ export class FirestoreService {
         where('userId', '==', userId),
         orderBy('createdAt', 'desc')
       );
-      
+
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
       console.error('Error getting user lists:', error);
@@ -118,7 +119,7 @@ export class FirestoreService {
       const listRef = doc(db, 'lists', listId);
       await updateDoc(listRef, {
         ...listData,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
       console.log('✅ [FirestoreService] List updated successfully:', listId);
     } catch (error) {
@@ -144,7 +145,7 @@ export class FirestoreService {
       const docRef = await addDoc(collection(db, 'reviews'), {
         ...reviewData,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       return docRef.id;
     } catch (error) {
@@ -160,11 +161,11 @@ export class FirestoreService {
         where('placeId', '==', placeId),
         orderBy('createdAt', 'desc')
       );
-      
+
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
       console.error('Error getting place reviews:', error);
@@ -178,7 +179,7 @@ export class FirestoreService {
       await setDoc(doc(db, 'users', userId), {
         ...userData,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
     } catch (error) {
       console.error('Error creating user profile:', error);
@@ -190,7 +191,7 @@ export class FirestoreService {
     try {
       const docRef = doc(db, 'users', userId);
       const docSnap = await getDoc(docRef);
-      
+
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       } else {
@@ -205,20 +206,20 @@ export class FirestoreService {
   // Real-time listeners
   static listenToPlaces(callback, filters = {}) {
     const placesCollection = collection(db, 'places');
-    let queries = [];
-    
+    const queries = [];
+
     if (filters.category) {
       queries.push(where('category', '==', filters.category));
     }
-    
+
     queries.push(orderBy('createdAt', 'desc'));
 
     const q = query(placesCollection, ...queries);
 
     return onSnapshot(q, (querySnapshot) => {
-      const places = querySnapshot.docs.map(doc => ({
+      const places = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
       callback(places);
     });
@@ -230,11 +231,11 @@ export class FirestoreService {
       where('userId', '==', userId),
       orderBy('createdAt', 'desc')
     );
-    
+
     return onSnapshot(q, (querySnapshot) => {
-      const lists = querySnapshot.docs.map(doc => ({
+      const lists = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
       callback(lists);
     });

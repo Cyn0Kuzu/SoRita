@@ -9,7 +9,7 @@ export const setupGlobalErrorHandler = () => {
 
   ErrorUtils.setGlobalHandler((error, isFatal) => {
     console.error('Global error caught:', error);
-    
+
     // Log to console in production
     logError(error, { isFatal });
 
@@ -29,7 +29,7 @@ export const setupGlobalErrorHandler = () => {
 export const logError = (error, context = {}) => {
   try {
     console.error('🔥 [Error]', error.message || error, context);
-    
+
     // In production, send to your logging service
     const errorData = {
       message: error.message || String(error),
@@ -37,7 +37,7 @@ export const logError = (error, context = {}) => {
       timestamp: new Date().toISOString(),
       context,
     };
-    
+
     if (!__DEV__) {
       console.error('🔥 [Error Data]', JSON.stringify(errorData, null, 2));
     }

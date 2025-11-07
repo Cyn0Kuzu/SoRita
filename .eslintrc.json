@@ -1,6 +1,6 @@
 {
   "extends": [
-    "@expo/eslint-config",
+    "expo",
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:react-hooks/recommended",
@@ -30,6 +30,9 @@
   "settings": {
     "react": {
       "version": "detect"
+    },
+    "import/resolver": {
+      "typescript": {}
     }
   },
   "rules": {

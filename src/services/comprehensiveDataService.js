@@ -1,26 +1,28 @@
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from 'firebase/firestore';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { auth, db } from '../config/firebase';
+
 import UserDataService from './userDataService';
 import PlacesDataService from './placesDataService';
 import ListsDataService from './listsDataService';
 import ActivityService from './activityService';
-import { auth, db } from '../config/firebase';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy, 
-  limit,
-  serverTimestamp 
-} from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export class ComprehensiveDataService {
-
   // Backup throttling to prevent multiple simultaneous backups
   static lastBackupTime = 0;
   static isBackupInProgress = false;
@@ -29,53 +31,59 @@ export class ComprehensiveDataService {
   // Complete app data initialization after login (fast mode)
   static async initializeUserData(userData = {}, fastMode = true) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
 
-      console.log('🚀 [ComprehensiveDataService] Initializing user data', fastMode ? '(fast mode)' : '(full mode)');
+      console.log(
+        '🚀 [ComprehensiveDataService] Initializing user data',
+        fastMode ? '(fast mode)' : '(full mode)'
+      );
 
       // Fast mode: Only get user profile, skip other operations
       if (fastMode) {
         console.log('⚡ [ComprehensiveDataService] Fast mode: Getting user profile only...');
         const userProfile = await UserDataService.getUserProfile();
-        
+
         if (userProfile) {
           console.log('✅ [ComprehensiveDataService] Fast initialization complete');
           return {
             success: true,
-            userProfile: userProfile,
-            isNewUser: false
+            userProfile,
+            isNewUser: false,
           };
         } else {
           console.log('👤 [ComprehensiveDataService] New user detected in fast mode');
           return {
             success: true,
             userProfile: null,
-            isNewUser: true
+            isNewUser: true,
           };
         }
       }
 
       // Full mode: Complete initialization (for background tasks)
       console.log('👤 [ComprehensiveDataService] Fetching user profile with timeout...');
-      
+
       let userProfile;
       try {
         const profileWithTimeout = Promise.race([
           UserDataService.getUserProfile(),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
-          )
+          ),
         ]);
-        
+
         userProfile = await profileWithTimeout;
       } catch (profileError) {
-        console.log('⚠️ [ComprehensiveDataService] Profile fetch failed/timeout:', profileError.message);
+        console.log(
+          '⚠️ [ComprehensiveDataService] Profile fetch failed/timeout:',
+          profileError.message
+        );
         userProfile = null; // Will be created below
       }
-      
+
       if (!userProfile) {
         console.log('👤 [ComprehensiveDataService] Creating new user profile');
         userProfile = await UserDataService.createUserProfile(userData);
@@ -84,19 +92,20 @@ export class ComprehensiveDataService {
         try {
           const updateWithTimeout = Promise.race([
             UserDataService.updateLastActivity(),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Update timeout')), 5000)
-            )
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Update timeout')), 5000)),
           ]);
           await updateWithTimeout;
         } catch (updateError) {
-          console.log('⚠️ [ComprehensiveDataService] Could not update last activity:', updateError.message);
+          console.log(
+            '⚠️ [ComprehensiveDataService] Could not update last activity:',
+            updateError.message
+          );
         }
       }
 
       // Initialize data collections if they don't exist (background)
       setTimeout(() => {
-        this.initializeUserCollections(currentUser.uid).catch(error => {
+        this.initializeUserCollections(currentUser.uid).catch((error) => {
           console.warn('⚠️ [ComprehensiveDataService] Background collection init failed:', error);
         });
       }, 300);
@@ -106,14 +115,14 @@ export class ComprehensiveDataService {
         try {
           console.log('🔄 [ComprehensiveDataService] Running background backup...');
           await this.createCompleteBackup();
-          
+
           await ActivityService.recordActivity({
             action: 'app_data_initialized',
             data: {
               hasExistingProfile: !!userProfile,
               userId: currentUser.uid,
-              timestamp: new Date().toISOString()
-            }
+              timestamp: new Date().toISOString(),
+            },
           });
         } catch (bgError) {
           console.warn('⚠️ [ComprehensiveDataService] Background task failed:', bgError);
@@ -123,10 +132,9 @@ export class ComprehensiveDataService {
       console.log('✅ [ComprehensiveDataService] User data initialization complete');
       return {
         success: true,
-        userProfile: userProfile,
-        isNewUser: !userProfile
+        userProfile,
+        isNewUser: !userProfile,
       };
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error initializing user data:', error);
       await ActivityService.recordError(error, 'initializeUserData');
@@ -143,25 +151,24 @@ export class ComprehensiveDataService {
         'userSettings',
         'userPreferences',
         'userStats',
-        'socialConnections'
+        'socialConnections',
       ];
 
       for (const collectionName of collectionsToInit) {
         const docRef = doc(db, collectionName, userId);
         const docSnap = await getDoc(docRef);
-        
+
         if (!docSnap.exists()) {
           const defaultData = this.getDefaultCollectionData(collectionName);
           await setDoc(docRef, {
             ...defaultData,
-            userId: userId,
+            userId,
             createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
           });
           console.log(`✅ Initialized ${collectionName} for user`);
         }
       }
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error initializing collections:', error);
     }
@@ -176,20 +183,20 @@ export class ComprehensiveDataService {
         notifications: {
           push: true,
           email: false,
-          inApp: true
+          inApp: true,
         },
         privacy: {
           profileVisible: true,
           locationSharing: true,
-          activityVisible: true
-        }
+          activityVisible: true,
+        },
       },
       userPreferences: {
         mapStyle: 'standard',
         units: 'metric',
         autoBackup: true,
         offlineMode: false,
-        dataUsage: 'wifi'
+        dataUsage: 'wifi',
       },
       userStats: {
         totalPlaces: 0,
@@ -198,15 +205,15 @@ export class ComprehensiveDataService {
         totalComments: 0,
         totalShares: 0,
         joinDate: new Date().toISOString(),
-        lastActive: new Date().toISOString()
+        lastActive: new Date().toISOString(),
       },
       socialConnections: {
         following: [],
         followers: [],
         blocked: [],
         muted: [],
-        closeFriends: []
-      }
+        closeFriends: [],
+      },
     };
 
     return defaults[collectionName] || {};
@@ -219,19 +226,19 @@ export class ComprehensiveDataService {
       if (!targetUserId) return null;
 
       const now = Date.now();
-      
+
       // Check if backup is already in progress
       if (this.isBackupInProgress) {
         console.log('⏸️ [ComprehensiveDataService] Backup already in progress, skipping');
         return null;
       }
-      
+
       // Check if we're within throttle time
       if (now - this.lastBackupTime < this.BACKUP_THROTTLE_TIME) {
         console.log('⏸️ [ComprehensiveDataService] Backup throttled, last backup too recent');
         return null;
       }
-      
+
       // Set backup in progress flag
       this.isBackupInProgress = true;
       this.lastBackupTime = now;
@@ -245,27 +252,27 @@ export class ComprehensiveDataService {
       const backupData = {
         // Core user data
         userProfile: await UserDataService.getUserProfile(targetUserId),
-        
+
         // User content
         places: await PlacesDataService.getUserPlaces(targetUserId, null, 1000),
         lists: await ListsDataService.getUserLists(targetUserId, null, 1000),
-        
+
         // Social data
         socialConnections: await this.getUserSocialData(targetUserId),
-        
+
         // Settings and preferences
         settings: await this.getUserSettings(targetUserId),
         preferences: await this.getUserPreferences(targetUserId),
         stats: await this.getUserStats(targetUserId),
-        
+
         // Activity data (last 30 days)
         recentActivity: await this.getRecentActivity(targetUserId, 30),
-        
+
         // Metadata
         backupDate: new Date().toISOString(),
         backupVersion: '2.0',
         appVersion: '1.0.0',
-        platform: 'mobile'
+        platform: 'mobile',
       };
 
       // Convert Firestore data to JSON-safe format
@@ -277,58 +284,63 @@ export class ComprehensiveDataService {
         placesCount: jsonSafeData.places?.length || 0,
         listsCount: jsonSafeData.lists?.length || 0,
         photosCount: this.countPhotosInData(jsonSafeData),
-        activitiesCount: jsonSafeData.recentActivity?.length || 0
+        activitiesCount: jsonSafeData.recentActivity?.length || 0,
       };
 
       // Save main backup with unique ID to prevent conflicts
       const backupRef = await setDoc(doc(db, 'completeBackups', uniqueBackupId), {
         userId: targetUserId,
         backupData: jsonSafeData,
-        backupStats: backupStats,
-        createdAt: serverTimestamp()
+        backupStats,
+        createdAt: serverTimestamp(),
       });
 
       // Return the unique ID for reference
       const backupDocRef = { id: uniqueBackupId };
 
       // Save backup metadata for quick reference (merge to avoid conflicts)
-      await setDoc(doc(db, 'backupMetadata', targetUserId), {
-        latestBackupId: backupDocRef.id,
-        latestBackupDate: new Date().toISOString(),
-        backupStats: backupStats,
-        backupHistory: [{
-          backupId: backupDocRef.id,
-          date: new Date().toISOString(),
-          stats: backupStats
-        }],
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      await setDoc(
+        doc(db, 'backupMetadata', targetUserId),
+        {
+          latestBackupId: backupDocRef.id,
+          latestBackupDate: new Date().toISOString(),
+          backupStats,
+          backupHistory: [
+            {
+              backupId: backupDocRef.id,
+              date: new Date().toISOString(),
+              stats: backupStats,
+            },
+          ],
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
 
       // Record activity
       await ActivityService.recordActivity({
         action: 'complete_backup_created',
         data: {
           backupId: backupDocRef.id,
-          backupStats: backupStats
-        }
+          backupStats,
+        },
       });
 
       console.log('✅ [ComprehensiveDataService] Complete backup created:', backupDocRef.id);
-      
+
       // Clear backup in progress flag
       this.isBackupInProgress = false;
-      
+
       return {
         backupId: backupDocRef.id,
-        stats: backupStats
+        stats: backupStats,
       };
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error creating complete backup:', error);
-      
+
       // Clear backup in progress flag on error
       this.isBackupInProgress = false;
-      
+
       await ActivityService.recordError(error, 'createCompleteBackup');
       return null;
     }
@@ -361,11 +373,11 @@ export class ComprehensiveDataService {
           orderBy('createdAt', 'desc')
         );
         const backupSnapshot = await getDocs(backupQuery);
-        
+
         if (backupSnapshot.empty) {
           throw new Error('No backup found for user');
         }
-        
+
         backupData = backupSnapshot.docs[0].data().backupData;
         backupId = backupSnapshot.docs[0].id;
       }
@@ -378,7 +390,7 @@ export class ComprehensiveDataService {
         lists: false,
         social: false,
         settings: false,
-        errors: []
+        errors: [],
       };
 
       // Restore user profile
@@ -387,7 +399,7 @@ export class ComprehensiveDataService {
           await setDoc(doc(db, 'users', targetUserId), {
             ...backupData.userProfile,
             restoredAt: serverTimestamp(),
-            restoredFrom: backupId
+            restoredFrom: backupId,
           });
           restoreResults.profile = true;
           console.log('✅ Profile restored');
@@ -404,7 +416,7 @@ export class ComprehensiveDataService {
             await setDoc(doc(db, 'posts', place.id), {
               ...place,
               restoredAt: serverTimestamp(),
-              restoredFrom: backupId
+              restoredFrom: backupId,
             });
           }
           restoreResults.places = true;
@@ -422,7 +434,7 @@ export class ComprehensiveDataService {
             await setDoc(doc(db, 'lists', list.id), {
               ...list,
               restoredAt: serverTimestamp(),
-              restoredFrom: backupId
+              restoredFrom: backupId,
             });
           }
           restoreResults.lists = true;
@@ -439,7 +451,7 @@ export class ComprehensiveDataService {
           await setDoc(doc(db, 'socialConnections', targetUserId), {
             ...backupData.socialConnections,
             restoredAt: serverTimestamp(),
-            restoredFrom: backupId
+            restoredFrom: backupId,
           });
           restoreResults.social = true;
           console.log('✅ Social connections restored');
@@ -455,14 +467,14 @@ export class ComprehensiveDataService {
           await setDoc(doc(db, 'userSettings', targetUserId), {
             ...backupData.settings,
             restoredAt: serverTimestamp(),
-            restoredFrom: backupId
+            restoredFrom: backupId,
           });
         }
         if (backupData.preferences) {
           await setDoc(doc(db, 'userPreferences', targetUserId), {
             ...backupData.preferences,
             restoredAt: serverTimestamp(),
-            restoredFrom: backupId
+            restoredFrom: backupId,
           });
         }
         restoreResults.settings = true;
@@ -479,21 +491,22 @@ export class ComprehensiveDataService {
       await ActivityService.recordActivity({
         action: 'complete_data_restored',
         data: {
-          backupId: backupId,
-          restoreResults: restoreResults,
-          timestamp: new Date().toISOString()
-        }
+          backupId,
+          restoreResults,
+          timestamp: new Date().toISOString(),
+        },
       });
 
-      const successCount = Object.values(restoreResults).filter(result => result === true).length;
-      console.log(`✅ [ComprehensiveDataService] Data restore complete: ${successCount}/5 components restored`);
+      const successCount = Object.values(restoreResults).filter((result) => result === true).length;
+      console.log(
+        `✅ [ComprehensiveDataService] Data restore complete: ${successCount}/5 components restored`
+      );
 
       return {
         success: restoreResults.errors.length === 0,
         results: restoreResults,
-        backupId: backupId
+        backupId,
       };
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error restoring complete data:', error);
       await ActivityService.recordError(error, 'restoreCompleteData');
@@ -550,7 +563,7 @@ export class ComprehensiveDataService {
     try {
       const since = new Date();
       since.setDate(since.getDate() - days);
-      
+
       // Query from user-specific activities subcollection (consistent with ActivityService)
       const activityQuery = query(
         collection(db, 'users', userId, 'activities'),
@@ -558,9 +571,9 @@ export class ComprehensiveDataService {
         orderBy('timestamp', 'desc'),
         limit(50) // Limit to avoid large queries
       );
-      
+
       const activitySnapshot = await getDocs(activityQuery);
-      return activitySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return activitySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       console.error('❌ Error getting recent activity:', error);
       return [];
@@ -570,25 +583,25 @@ export class ComprehensiveDataService {
   // Count photos in backup data
   static countPhotosInData(backupData) {
     let photoCount = 0;
-    
+
     // Count photos in places
     if (backupData.places) {
-      backupData.places.forEach(place => {
+      backupData.places.forEach((place) => {
         if (place.photos && Array.isArray(place.photos)) {
           photoCount += place.photos.length;
         }
       });
     }
-    
+
     // Count photos in lists
     if (backupData.lists) {
-      backupData.lists.forEach(list => {
+      backupData.lists.forEach((list) => {
         if (list.photos && Array.isArray(list.photos)) {
           photoCount += list.photos.length;
         }
       });
     }
-    
+
     return photoCount;
   }
 
@@ -599,21 +612,19 @@ export class ComprehensiveDataService {
 
       // Clear user data cache
       await UserDataService.clearCache(userId);
-      
+
       // Clear other caches
       const allKeys = await AsyncStorage.getAllKeys();
-      const userCacheKeys = allKeys.filter(key => 
-        key.includes(`_${userId}`) || 
-        key.startsWith('placeData_') || 
-        key.startsWith('listData_')
+      const userCacheKeys = allKeys.filter(
+        (key) =>
+          key.includes(`_${userId}`) || key.startsWith('placeData_') || key.startsWith('listData_')
       );
-      
+
       if (userCacheKeys.length > 0) {
         await AsyncStorage.multiRemove(userCacheKeys);
       }
-      
+
       console.log(`🧹 [ComprehensiveDataService] Cleared ${userCacheKeys.length} cache entries`);
-      
     } catch (error) {
       console.warn('⚠️ [ComprehensiveDataService] Error clearing caches:', error);
     }
@@ -622,7 +633,7 @@ export class ComprehensiveDataService {
   // Sync all user data (manual sync)
   static async syncAllUserData() {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) return false;
 
       console.log('🔄 [ComprehensiveDataService] Starting manual data sync');
@@ -640,13 +651,12 @@ export class ComprehensiveDataService {
       await ActivityService.recordActivity({
         action: 'manual_data_sync',
         data: {
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
 
       console.log('✅ [ComprehensiveDataService] Manual sync complete');
       return true;
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error during manual sync:', error);
       await ActivityService.recordError(error, 'syncAllUserData');
@@ -662,29 +672,28 @@ export class ComprehensiveDataService {
 
       // Get backup metadata
       const backupMetaDoc = await getDoc(doc(db, 'backupMetadata', targetUserId));
-      
+
       if (!backupMetaDoc.exists()) {
         return {
           hasBackup: false,
-          message: 'No backup found for this account'
+          message: 'No backup found for this account',
         };
       }
 
       const metadata = backupMetaDoc.data();
-      
+
       return {
         hasBackup: true,
         latestBackupDate: metadata.latestBackupDate,
         backupStats: metadata.backupStats,
         canRestore: true,
-        message: `Latest backup from ${new Date(metadata.latestBackupDate).toLocaleDateString()}`
+        message: `Latest backup from ${new Date(metadata.latestBackupDate).toLocaleDateString()}`,
       };
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error checking recovery status:', error);
       return {
         hasBackup: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -692,34 +701,33 @@ export class ComprehensiveDataService {
   // Prepare for app reinstall (create final backup)
   static async prepareForReinstall() {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) return false;
 
       console.log('📱 [ComprehensiveDataService] Preparing for app reinstall');
 
       // Create final comprehensive backup
       const backupResult = await this.createCompleteBackup();
-      
+
       if (backupResult) {
         // Record reinstall preparation
         await ActivityService.recordActivity({
           action: 'app_reinstall_preparation',
           data: {
             backupId: backupResult.backupId,
-            preparationDate: new Date().toISOString()
-          }
+            preparationDate: new Date().toISOString(),
+          },
         });
 
         console.log('✅ [ComprehensiveDataService] Reinstall preparation complete');
         return {
           success: true,
           backupId: backupResult.backupId,
-          message: 'All data has been backed up. You can safely reinstall the app.'
+          message: 'All data has been backed up. You can safely reinstall the app.',
         };
       }
-      
+
       return false;
-      
     } catch (error) {
       console.error('❌ [ComprehensiveDataService] Error preparing for reinstall:', error);
       return false;
@@ -733,7 +741,7 @@ export class ComprehensiveDataService {
     }
 
     if (Array.isArray(data)) {
-      return data.map(item => this.convertToJSONSafe(item));
+      return data.map((item) => this.convertToJSONSafe(item));
     }
 
     if (typeof data === 'object') {

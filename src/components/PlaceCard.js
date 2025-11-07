@@ -1,45 +1,60 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Alert, Image, Clipboard } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  ScrollView,
+  TextInput,
+  Alert,
+  Image,
+  Clipboard,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { colors } from '../theme/theme';
-import { auth, db } from '../config/firebase';
+
 import MapView, { Marker } from 'react-native-maps';
-import ImageModal from './ImageModal';
-import { 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
+
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  doc,
   serverTimestamp,
   orderBy,
   getDoc,
   updateDoc,
   increment,
-  onSnapshot
+  onSnapshot,
 } from 'firebase/firestore';
-import { 
-  sendLikeNotification, 
+
+import { auth, db } from '../config/firebase';
+import { colors } from '../theme/theme';
+import {
+  sendLikeNotification,
   sendPlaceLikeNotification,
-  sendCommentNotification, 
-  sendCommentDeleteNotification 
+  sendCommentNotification,
+  sendCommentDeleteNotification,
 } from '../services/notificationService';
-import { 
-  sendLikePushNotification, 
-  sendCommentPushNotification, 
-  sendCommentDeletePushNotification 
+import {
+  sendLikePushNotification,
+  sendCommentPushNotification,
+  sendCommentDeletePushNotification,
 } from '../services/pushNotificationService';
 import GlobalStateService from '../services/globalStateService';
 
 // Import activity service
 import ActivityService from '../services/activityService';
 
+import ImageModal from './ImageModal';
+
 // Paylaşım zamanını formatla
 const formatShareTime = (createdAt) => {
   if (!createdAt) return '';
-  
+
   try {
     let date;
     if (createdAt.toDate) {
@@ -50,18 +65,18 @@ const formatShareTime = (createdAt) => {
     } else {
       date = new Date(createdAt);
     }
-    
+
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return 'şimdi';
     if (diffInMinutes < 60) return `${diffInMinutes}dk`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}sa`;
     if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}g`;
-    
-    return date.toLocaleDateString('tr-TR', { 
-      day: 'numeric', 
-      month: 'short' 
+
+    return date.toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'short',
     });
   } catch (error) {
     console.error('Date formatting error:', error);
@@ -69,9 +84,9 @@ const formatShareTime = (createdAt) => {
   }
 };
 
-const PlaceCard = ({ 
-  place, 
-  onFocus, 
+const PlaceCard = ({
+  place,
+  onFocus,
   showFocusButton = true,
   onPress = null,
   onEdit = null,
@@ -84,7 +99,7 @@ const PlaceCard = ({
   style = null, // Dış stil prop'u
   navigation = null, // Navigation prop'u
   showUserInfo = true, // Kullanıcı bilgilerini göster
-  userData = null // Dış kaynaktan gelen kullanıcı bilgileri
+  userData = null, // Dış kaynaktan gelen kullanıcı bilgileri
 }) => {
   const [likes, setLikes] = useState([]);
   const [comments, setComments] = useState([]);
@@ -110,17 +125,22 @@ const PlaceCard = ({
   const mapRef = useRef(null); // MapView referansı
   const debounceTimer = useRef(null); // Debounce timer'ı
 
-  const currentUser = auth.currentUser;
-  
+  const { currentUser } = auth;
+
   // Tutarlı placeId oluştur - tüm ekranlarda aynı olması için
-  const placeId = place.id || 
+  const placeId =
+    place.id ||
     `${String(place.name || 'unknown').replace(/[^a-zA-Z0-9]/g, '_')}_${place.latitude || 0}_${place.longitude || 0}_${place.userId || 'no-user'}`;
 
   // Safely extract and validate text content
-  const safePlaceName = place.name ? String(place.name).replace(/[\n\r]/g, ' ').trim() : 'İsimsiz Mekan';
+  const safePlaceName = place.name
+    ? String(place.name)
+        .replace(/[\n\r]/g, ' ')
+        .trim()
+    : 'İsimsiz Mekan';
   const safePlaceNote = place.note ? String(place.note).trim() : '';
   const safeRating = place.rating && typeof place.rating === 'number' ? place.rating : 0;
-  
+
   // Debounced load function - çok sık çağrılmasını engeller
   const debouncedLoadLikesAndComments = useCallback(() => {
     if (debounceTimer.current) {
@@ -133,19 +153,16 @@ const PlaceCard = ({
 
   useEffect(() => {
     loadLikesAndComments();
-    
+
     // Real-time listeners for likes and comments
-    const likesQuery = query(
-      collection(db, 'placeLikes'),
-      where('placeId', '==', placeId)
-    );
-    
+    const likesQuery = query(collection(db, 'placeLikes'), where('placeId', '==', placeId));
+
     const commentsQuery = query(
       collection(db, 'placeComments'),
       where('placeId', '==', placeId),
       orderBy('createdAt', 'desc')
     );
-    
+
     // Listen to likes changes in real-time
     const unsubscribeLikes = onSnapshot(likesQuery, (snapshot) => {
       const likesData = [];
@@ -156,19 +173,19 @@ const PlaceCard = ({
           userId: likeData.userId,
           userName: likeData.userName || 'Kullanıcı',
           userAvatar: likeData.userAvatar || '👤',
-          createdAt: likeData.createdAt
+          createdAt: likeData.createdAt,
         });
       });
-      
+
       setLikes(likesData);
       setLikesCount(likesData.length);
-      const isLikedByUser = likesData.some(like => like.userId === currentUser?.uid);
+      const isLikedByUser = likesData.some((like) => like.userId === currentUser?.uid);
       setIsLiked(isLikedByUser);
-      
+
       // Update cache
       GlobalStateService.updatePlaceCardLikes(placeId, likesData, likesData.length, isLikedByUser);
     });
-    
+
     // Listen to comments changes in real-time
     const unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
       const commentsData = [];
@@ -180,17 +197,17 @@ const PlaceCard = ({
           userName: commentData.userName || 'Kullanıcı',
           userAvatar: commentData.userAvatar || '👤',
           text: commentData.text,
-          createdAt: commentData.createdAt
+          createdAt: commentData.createdAt,
         });
       });
-      
+
       setComments(commentsData);
       setCommentsCount(commentsData.length);
-      
+
       // Update cache
       GlobalStateService.updatePlaceCardComments(placeId, commentsData, commentsData.length);
     });
-    
+
     // Cleanup listeners on unmount
     return () => {
       unsubscribeLikes();
@@ -274,7 +291,7 @@ const PlaceCard = ({
           fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
           username: userData.username || userData.email?.split('@')[0] || 'kullanici',
           avatar: userData.avatar || '👤',
-          email: userData.email
+          email: userData.email,
         });
       } else {
         // Kullanıcı bulunamadı, varsayılan değerler
@@ -282,7 +299,7 @@ const PlaceCard = ({
           fullName: 'Bilinmeyen Kullanıcı',
           username: 'kullanici',
           avatar: '👤',
-          email: null
+          email: null,
         });
       }
     } catch (error) {
@@ -291,7 +308,7 @@ const PlaceCard = ({
         fullName: 'Bilinmeyen Kullanıcı',
         username: 'kullanici',
         avatar: '👤',
-        email: null
+        email: null,
       });
     } finally {
       setLoadingUserInfo(false);
@@ -301,16 +318,16 @@ const PlaceCard = ({
   // Kullanıcı profilini aç
   const handleUserProfilePress = () => {
     if (!navigation || !place.userId) return;
-    
-    const currentUser = auth.currentUser;
+
+    const { currentUser } = auth;
     if (currentUser && place.userId === currentUser.uid) {
       // Kendi profilini açıyor, ProfileScreen'e git
       navigation.getParent()?.navigate('Profile');
     } else {
       // Başka birinin profilini açıyor, ViewProfileScreen'e git
-      navigation.navigate('ViewProfile', { 
+      navigation.navigate('ViewProfile', {
         userId: place.userId,
-        userInfo: userInfo // Yüklenen kullanıcı bilgilerini geçir
+        userInfo, // Yüklenen kullanıcı bilgilerini geçir
       });
     }
   };
@@ -320,10 +337,13 @@ const PlaceCard = ({
     // Eğer userData prop'u varsa onu kullan, yoksa Firebase'den çek
     if (userData) {
       setUserInfo({
-        fullName: userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Bilinmeyen Kullanıcı',
+        fullName:
+          userData.displayName ||
+          `${userData.firstName || ''} ${userData.lastName || ''}`.trim() ||
+          'Bilinmeyen Kullanıcı',
         username: userData.username || 'kullanici',
         avatar: userData.avatar || '👤',
-        email: userData.email || null
+        email: userData.email || null,
       });
     } else {
       loadUserInfo();
@@ -333,8 +353,9 @@ const PlaceCard = ({
   // Cache'den veri çek, yoksa Firestore'dan çek (backup için)
   const loadLikesAndCommentsFromCache = async () => {
     const cachedData = GlobalStateService.getPlaceCardData(placeId);
-    
-    if (cachedData && (Date.now() - cachedData.lastUpdate) < 30000) { // 30 saniye cache
+
+    if (cachedData && Date.now() - cachedData.lastUpdate < 30000) {
+      // 30 saniye cache
       // Cache'den veri kullan
       setLikes(cachedData.likes || []);
       setComments(cachedData.comments || []);
@@ -343,7 +364,7 @@ const PlaceCard = ({
       setIsLiked(cachedData.isLiked || false);
       return true; // Cache'den veri alındı
     }
-    
+
     return false; // Cache'de veri yok, Firestore'dan çek
   };
 
@@ -357,10 +378,9 @@ const PlaceCard = ({
       }
 
       // Cache'de veri yok, manuel Firestore fetch (backup)
-      
+
       // Bu artık backup olarak kullanılacak, real-time listener'lar primary
       // Sadece cache miss durumunda çalışır
-      
     } catch (error) {
       console.error('Error loading likes and comments:', error);
     }
@@ -372,24 +392,24 @@ const PlaceCard = ({
     try {
       if (isLiked) {
         // Unlike
-        const likeToDelete = likes.find(like => like.userId === currentUser.uid);
+        const likeToDelete = likes.find((like) => like.userId === currentUser.uid);
         if (likeToDelete) {
           await deleteDoc(doc(db, 'placeLikes', likeToDelete.id));
-          
+
           // Start all operations in parallel for better performance
           const operations = [];
-          
+
           // 1. Record unlike activity (non-blocking)
           operations.push(
             ActivityService.recordActivity({
               action: 'place_unliked',
               data: {
-                placeId: placeId,
+                placeId,
                 placeName: place.name,
                 placeOwnerId: place.userId,
-                timestamp: new Date().toISOString()
-              }
-            }).catch(error => console.warn('Activity recording failed:', error))
+                timestamp: new Date().toISOString(),
+              },
+            }).catch((error) => console.warn('Activity recording failed:', error))
           );
 
           // 2. Delete the corresponding like notification if exists
@@ -406,26 +426,29 @@ const PlaceCard = ({
                     where('toUserId', '==', place.userId),
                     where('placeId', '==', placeId)
                   );
-                  
+
                   const notificationSnap = await getDocs(notificationQuery);
-                  
+
                   if (!notificationSnap.empty) {
                     // Run delete and count update in parallel
                     await Promise.all([
                       deleteDoc(doc(db, 'notifications', notificationSnap.docs[0].id)),
                       updateDoc(doc(db, 'users', place.userId), {
                         unreadNotifications: increment(-1),
-                        lastNotificationUpdate: serverTimestamp()
-                      })
+                        lastNotificationUpdate: serverTimestamp(),
+                      }),
                     ]);
                   }
                 } catch (notifError) {
-                  console.warn('❌ [PlaceCard] Non-critical: Failed to delete like notification:', notifError);
+                  console.warn(
+                    '❌ [PlaceCard] Non-critical: Failed to delete like notification:',
+                    notifError
+                  );
                 }
               })()
             );
           }
-          
+
           // Wait for all operations to complete (but don't block UI)
           Promise.allSettled(operations);
         }
@@ -433,37 +456,39 @@ const PlaceCard = ({
         // Like - önce kullanıcı bilgilerini çek
         const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
         const currentUserData = currentUserDoc.data();
-        const currentUserName = `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() || 'Kullanıcı';
-        
+        const currentUserName =
+          `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() ||
+          'Kullanıcı';
+
         const likeData = {
-          placeId: placeId,
+          placeId,
           placeName: place.name,
           placeAddress: place.address,
           userId: currentUser.uid,
           userName: currentUserName,
           userAvatar: currentUserData?.avatar || '👤',
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
         };
-        
+
         await addDoc(collection(db, 'placeLikes'), likeData);
-        
+
         // Start background operations in parallel
         const operations = [];
-        
+
         // 1. Record like activity (non-blocking)
         operations.push(
           ActivityService.recordActivity({
             action: 'place_liked',
             data: {
-              placeId: placeId,
+              placeId,
               placeName: place.name,
               placeOwnerId: place.userId,
               isOwnPost: place.userId === currentUser.uid,
-              timestamp: new Date().toISOString()
-            }
-          }).catch(error => console.warn('Activity recording failed:', error))
+              timestamp: new Date().toISOString(),
+            },
+          }).catch((error) => console.warn('Activity recording failed:', error))
         );
-        
+
         // 2. Send like notification if it's not user's own post
         if (place.userId && place.userId !== currentUser.uid) {
           operations.push(
@@ -472,13 +497,17 @@ const PlaceCard = ({
                 // Get current user data
                 const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 const currentUserData = currentUserDoc.data();
-                const currentUserName = `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() || 'Bir kullanıcı';
-                
+                const currentUserName =
+                  `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() ||
+                  'Bir kullanıcı';
+
                 // Get post owner data
                 const postOwnerDoc = await getDoc(doc(db, 'users', place.userId));
                 const postOwnerData = postOwnerDoc.data();
-                const postOwnerName = `${postOwnerData?.firstName || ''} ${postOwnerData?.lastName || ''}`.trim() || 'Kullanıcı';
-                
+                const postOwnerName =
+                  `${postOwnerData?.firstName || ''} ${postOwnerData?.lastName || ''}`.trim() ||
+                  'Kullanıcı';
+
                 // Send notification and push notification in parallel
                 await Promise.all([
                   sendPlaceLikeNotification({
@@ -487,44 +516,51 @@ const PlaceCard = ({
                     fromUserAvatar: currentUserData?.avatar || '👤',
                     toUserId: place.userId,
                     toUserName: postOwnerName,
-                    placeId: placeId,
-                    placeName: place.name || 'Mekan'
+                    placeId,
+                    placeName: place.name || 'Mekan',
                   }),
-                  sendLikePushNotification(currentUserData, place.userId, place.name || 'Mekan paylaşımı')
+                  sendLikePushNotification(
+                    currentUserData,
+                    place.userId,
+                    place.name || 'Mekan paylaşımı'
+                  ),
                 ]);
               } catch (notifError) {
-                console.warn('❌ [PlaceCard] Non-critical: Failed to send like notification:', notifError);
+                console.warn(
+                  '❌ [PlaceCard] Non-critical: Failed to send like notification:',
+                  notifError
+                );
               }
             })()
           );
         }
-        
+
         // Don't wait for background operations to complete
         Promise.allSettled(operations);
       }
-      
+
       // Update UI immediately and cache
       const newIsLiked = !isLiked;
       const newLikesCount = newIsLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
-      
+
       // Update local state immediately for instant UI feedback
       setIsLiked(newIsLiked);
       setLikesCount(newLikesCount);
-      
+
       // Update cache for all PlaceCards
       GlobalStateService.updatePlaceCardLikes(placeId, likes, newLikesCount, newIsLiked);
-      
+
       // Reload data from Firestore to get accurate data and update cache
       setTimeout(() => loadLikesAndComments(), 1000); // Small delay for Firestore consistency
-      
+
       // Trigger global state refresh to update all screens
       GlobalStateService.triggerRefresh(['profile', 'home', 'maps']);
-      
+
       // Trigger specific PlaceCard refresh for this place
-      GlobalStateService.emit('placeInteraction', { 
-        placeId: placeId, 
-        type: 'like', 
-        action: isLiked ? 'unlike' : 'like' 
+      GlobalStateService.emit('placeInteraction', {
+        placeId,
+        type: 'like',
+        action: isLiked ? 'unlike' : 'like',
       });
 
       // Also refresh all PlaceCards globally
@@ -543,28 +579,30 @@ const PlaceCard = ({
       // Önce kullanıcı bilgilerini çek
       const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
       const currentUserData = currentUserDoc.data();
-      const currentUserName = `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() || 'Kullanıcı';
-      
+      const currentUserName =
+        `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() ||
+        'Kullanıcı';
+
       const commentData = {
-        placeId: placeId,
+        placeId,
         placeName: place.name,
         placeAddress: place.address,
         userId: currentUser.uid,
         userName: currentUserName,
         userAvatar: currentUserData?.avatar || '👤',
         text: newComment.trim(),
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       };
-      
+
       await addDoc(collection(db, 'placeComments'), commentData);
-      
+
       // Update UI immediately
       setNewComment('');
       setLoading(false);
-      
+
       // Start background operations (don't wait for them)
       const backgroundOperations = [];
-      
+
       // Send comment notification if it's not user's own post
       if (place.userId && place.userId !== currentUser.uid) {
         backgroundOperations.push(
@@ -573,13 +611,17 @@ const PlaceCard = ({
               // Get current user data
               const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
               const currentUserData = currentUserDoc.data();
-              const currentUserName = `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() || 'Bir kullanıcı';
-              
+              const currentUserName =
+                `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() ||
+                'Bir kullanıcı';
+
               // Get post owner data
               const postOwnerDoc = await getDoc(doc(db, 'users', place.userId));
               const postOwnerData = postOwnerDoc.data();
-              const postOwnerName = `${postOwnerData?.firstName || ''} ${postOwnerData?.lastName || ''}`.trim() || 'Kullanıcı';
-              
+              const postOwnerName =
+                `${postOwnerData?.firstName || ''} ${postOwnerData?.lastName || ''}`.trim() ||
+                'Kullanıcı';
+
               // Send notification and push notification in parallel
               await Promise.all([
                 sendCommentNotification({
@@ -590,42 +632,50 @@ const PlaceCard = ({
                   toUserName: postOwnerName,
                   postId: placeId,
                   postTitle: place.name || 'Mekan paylaşımı',
-                  commentText: commentData.text
+                  commentText: commentData.text,
                 }),
-                sendCommentPushNotification(currentUserData, place.userId, place.name || 'Mekan paylaşımı', commentData.text)
+                sendCommentPushNotification(
+                  currentUserData,
+                  place.userId,
+                  place.name || 'Mekan paylaşımı',
+                  commentData.text
+                ),
               ]);
             } catch (notifError) {
-              console.warn('❌ [PlaceCard] Non-critical: Failed to send comment notification:', notifError);
+              console.warn(
+                '❌ [PlaceCard] Non-critical: Failed to send comment notification:',
+                notifError
+              );
             }
           })()
         );
       }
-      
+
       // Update UI immediately for instant feedback
       const newCommentsCount = commentsCount + 1;
       setCommentsCount(newCommentsCount);
       setLoading(false);
-      
+
       // Update cache for all PlaceCards
       GlobalStateService.updatePlaceCardComments(placeId, comments, newCommentsCount);
-      
+
       // Start background operations and reload data in parallel
       Promise.allSettled([
         ...backgroundOperations,
         loadLikesAndComments().then(() => {
           // Trigger global state refresh to update all screens
           GlobalStateService.triggerRefresh(['profile', 'home', 'maps']);
-          
+
           // Trigger specific PlaceCard refresh for this place
-          GlobalStateService.emit('placeInteraction', { 
-            placeId: placeId, 
-            type: 'comment', 
-            action: 'add' 
+          GlobalStateService.emit('placeInteraction', {
+            placeId,
+            type: 'comment',
+            action: 'add',
           });
 
           // Also refresh all PlaceCards globally
           GlobalStateService.refreshAllPlaceCards();
-        }) // Reload data to show new comment
+        }), // Reload data to show new comment
       ]);
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -639,138 +689,150 @@ const PlaceCard = ({
 
     try {
       // Show confirmation alert
-      Alert.alert(
-        'Yorumu Sil',
-        'Bu yorumu silmek istediğinizden emin misiniz?',
-        [
-          {
-            text: 'İptal',
-            style: 'cancel'
-          },
-          {
-            text: 'Sil',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                // Delete comment from Firestore first
-                await deleteDoc(doc(db, 'placeComments', comment.id));
+      Alert.alert('Yorumu Sil', 'Bu yorumu silmek istediğinizden emin misiniz?', [
+        {
+          text: 'İptal',
+          style: 'cancel',
+        },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete comment from Firestore first
+              await deleteDoc(doc(db, 'placeComments', comment.id));
 
-                // Update UI immediately
-                setComments(prev => prev.filter(c => c.id !== comment.id));
-                setCommentsCount(prev => prev - 1);
+              // Update UI immediately
+              setComments((prev) => prev.filter((c) => c.id !== comment.id));
+              setCommentsCount((prev) => prev - 1);
 
-                // Trigger global state refresh to update all screens
-                GlobalStateService.triggerRefresh(['profile', 'home', 'maps']);
-                
-                // Trigger specific PlaceCard refresh for this place
-                GlobalStateService.emit('placeInteraction', { 
-                  placeId: placeId, 
-                  type: 'comment', 
-                  action: 'delete' 
-                });
+              // Trigger global state refresh to update all screens
+              GlobalStateService.triggerRefresh(['profile', 'home', 'maps']);
 
-                // Also refresh all PlaceCards globally
-                GlobalStateService.refreshAllPlaceCards();
+              // Trigger specific PlaceCard refresh for this place
+              GlobalStateService.emit('placeInteraction', {
+                placeId,
+                type: 'comment',
+                action: 'delete',
+              });
 
-                // Start background operations (don't wait for them)
-                const backgroundOperations = [];
-                
-                // Delete related notifications
+              // Also refresh all PlaceCards globally
+              GlobalStateService.refreshAllPlaceCards();
+
+              // Start background operations (don't wait for them)
+              const backgroundOperations = [];
+
+              // Delete related notifications
+              backgroundOperations.push(
+                (async () => {
+                  try {
+                    const notificationsQuery = query(
+                      collection(db, 'notifications'),
+                      where('type', '==', 'comment'),
+                      where('fromUserId', '==', comment.userId),
+                      where('postId', '==', placeId)
+                    );
+
+                    const notificationsSnapshot = await getDocs(notificationsQuery);
+
+                    // Delete notifications and update user notification count
+                    const deletePromises = [];
+                    let notificationCountToDecrease = 0;
+
+                    notificationsSnapshot.docs.forEach((notificationDoc) => {
+                      const notificationData = notificationDoc.data();
+                      // Check if this notification is for the same comment (by content or timestamp)
+                      if (
+                        notificationData.commentText &&
+                        comment.text &&
+                        notificationData.commentText.includes(comment.text.substring(0, 50))
+                      ) {
+                        deletePromises.push(
+                          deleteDoc(doc(db, 'notifications', notificationDoc.id))
+                        );
+                        notificationCountToDecrease++;
+                      }
+                    });
+
+                    await Promise.all(deletePromises);
+
+                    // Update notification count for place owner
+                    if (notificationCountToDecrease > 0 && place.userId !== currentUser.uid) {
+                      await updateDoc(doc(db, 'users', place.userId), {
+                        unreadNotifications: increment(-notificationCountToDecrease),
+                      });
+                    }
+                  } catch (notifError) {
+                    console.warn(
+                      '❌ [PlaceCard] Non-critical: Failed to delete comment notifications:',
+                      notifError
+                    );
+                  }
+                })()
+              );
+
+              // Send comment deletion notification if comment was deleted by place owner (not by comment author)
+              if (comment.userId !== currentUser.uid && place.userId === currentUser.uid) {
                 backgroundOperations.push(
                   (async () => {
                     try {
-                      const notificationsQuery = query(
-                        collection(db, 'notifications'),
-                        where('type', '==', 'comment'),
-                        where('fromUserId', '==', comment.userId),
-                        where('postId', '==', placeId)
-                      );
+                      const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                      const currentUserData = currentUserDoc.data();
 
-                      const notificationsSnapshot = await getDocs(notificationsQuery);
-                      
-                      // Delete notifications and update user notification count
-                      const deletePromises = [];
-                      let notificationCountToDecrease = 0;
-
-                      notificationsSnapshot.docs.forEach(notificationDoc => {
-                        const notificationData = notificationDoc.data();
-                        // Check if this notification is for the same comment (by content or timestamp)
-                        if (notificationData.commentText && comment.text && 
-                            notificationData.commentText.includes(comment.text.substring(0, 50))) {
-                          deletePromises.push(deleteDoc(doc(db, 'notifications', notificationDoc.id)));
-                          notificationCountToDecrease++;
-                        }
-                      });
-
-                      await Promise.all(deletePromises);
-
-                      // Update notification count for place owner
-                      if (notificationCountToDecrease > 0 && place.userId !== currentUser.uid) {
-                        await updateDoc(doc(db, 'users', place.userId), {
-                          unreadNotifications: increment(-notificationCountToDecrease)
-                        });
-                      }
+                      await Promise.all([
+                        sendCommentDeleteNotification({
+                          fromUserId: currentUser.uid,
+                          fromUserName:
+                            `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() ||
+                            'Kullanıcı',
+                          fromUserAvatar: currentUserData?.avatar || '👤',
+                          toUserId: comment.userId,
+                          toUserName: comment.userName,
+                          postId: placeId,
+                          postTitle: place.name || 'Mekan paylaşımı',
+                          deletedCommentText: comment.text,
+                        }),
+                        sendCommentDeletePushNotification(
+                          currentUserData,
+                          comment.userId,
+                          place.name || 'Mekan paylaşımı'
+                        ),
+                      ]);
                     } catch (notifError) {
-                      console.warn('❌ [PlaceCard] Non-critical: Failed to delete comment notifications:', notifError);
+                      console.warn(
+                        '❌ [PlaceCard] Non-critical: Failed to send comment deletion notification:',
+                        notifError
+                      );
                     }
                   })()
                 );
-
-                // Send comment deletion notification if comment was deleted by place owner (not by comment author)
-                if (comment.userId !== currentUser.uid && place.userId === currentUser.uid) {
-                  backgroundOperations.push(
-                    (async () => {
-                      try {
-                        const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                        const currentUserData = currentUserDoc.data();
-                        
-                        await Promise.all([
-                          sendCommentDeleteNotification({
-                            fromUserId: currentUser.uid,
-                            fromUserName: `${currentUserData?.firstName || ''} ${currentUserData?.lastName || ''}`.trim() || 'Kullanıcı',
-                            fromUserAvatar: currentUserData?.avatar || '👤',
-                            toUserId: comment.userId,
-                            toUserName: comment.userName,
-                            postId: placeId,
-                            postTitle: place.name || 'Mekan paylaşımı',
-                            deletedCommentText: comment.text
-                          }),
-                          sendCommentDeletePushNotification(currentUserData, comment.userId, place.name || 'Mekan paylaşımı')
-                        ]);
-                      } catch (notifError) {
-                        console.warn('❌ [PlaceCard] Non-critical: Failed to send comment deletion notification:', notifError);
-                      }
-                    })()
-                  );
-                }
-
-                // Start background operations
-                Promise.allSettled(backgroundOperations);
-
-                // Reload data and trigger global refresh
-                await loadLikesAndComments();
-                
-                // Trigger global state refresh to update all screens
-                GlobalStateService.triggerRefresh(['profile', 'home', 'maps']);
-                
-                // Trigger specific PlaceCard refresh for this place
-                GlobalStateService.emit('placeInteraction', { 
-                  placeId: placeId, 
-                  type: 'comment', 
-                  action: 'delete' 
-                });
-
-                // Also refresh all PlaceCards globally
-                GlobalStateService.refreshAllPlaceCards();
-
-              } catch (deleteError) {
-                console.error('❌ [PlaceCard] Error deleting comment:', deleteError);
-                Alert.alert('Hata', 'Yorum silinirken bir hata oluştu.');
               }
+
+              // Start background operations
+              Promise.allSettled(backgroundOperations);
+
+              // Reload data and trigger global refresh
+              await loadLikesAndComments();
+
+              // Trigger global state refresh to update all screens
+              GlobalStateService.triggerRefresh(['profile', 'home', 'maps']);
+
+              // Trigger specific PlaceCard refresh for this place
+              GlobalStateService.emit('placeInteraction', {
+                placeId,
+                type: 'comment',
+                action: 'delete',
+              });
+
+              // Also refresh all PlaceCards globally
+              GlobalStateService.refreshAllPlaceCards();
+            } catch (deleteError) {
+              console.error('❌ [PlaceCard] Error deleting comment:', deleteError);
+              Alert.alert('Hata', 'Yorum silinirken bir hata oluştu.');
             }
-          }
-        ]
-      );
+          },
+        },
+      ]);
     } catch (error) {
       console.error('❌ [PlaceCard] Error in handleDeleteComment:', error);
     }
@@ -787,13 +849,13 @@ const PlaceCard = ({
       } else {
         date = new Date(timestamp);
       }
-      
+
       return date.toLocaleDateString('tr-TR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       });
     } catch (error) {
       return null;
@@ -812,7 +874,7 @@ const PlaceCard = ({
   const openPhotoModal = (index) => {
     setSelectedPhotoIndex(index);
     // setShowPhotoModal(true); // Eski modal yerine
-    
+
     // Yeni ImageModal'ı aç
     const photos = place.photos || [];
     if (photos[index]) {
@@ -825,14 +887,17 @@ const PlaceCard = ({
   const handleFocus = () => {
     // Önce kendi haritasında odakla
     if (mapRef.current && place.latitude && place.longitude && showMap) {
-      mapRef.current.animateToRegion({
-        latitude: place.latitude,
-        longitude: place.longitude,
-        latitudeDelta: 0.001, // Daha fazla zoom
-        longitudeDelta: 0.001, // Daha fazla zoom
-      }, 1000);
+      mapRef.current.animateToRegion(
+        {
+          latitude: place.latitude,
+          longitude: place.longitude,
+          latitudeDelta: 0.001, // Daha fazla zoom
+          longitudeDelta: 0.001, // Daha fazla zoom
+        },
+        1000
+      );
     }
-    
+
     // Ana haritaya odaklama callback'ini çağır (EditMapModal için)
     if (onFocus) {
       onFocus(place);
@@ -845,7 +910,7 @@ const PlaceCard = ({
         ...place,
         note: editNote,
         rating: editRating,
-        photos: editPhotos
+        photos: editPhotos,
       });
     }
     setShowEditModal(false);
@@ -865,9 +930,9 @@ const PlaceCard = ({
     return Array.from({ length: 5 }, (_, i) => (
       <TouchableOpacity key={i} onPress={() => onPress && onPress(i + 1)}>
         <MaterialIcons
-          name={i < rating ? "star" : "star-border"}
+          name={i < rating ? 'star' : 'star-border'}
           size={30}
-          color={i < rating ? "#FFB800" : "#ddd"}
+          color={i < rating ? '#FFB800' : '#ddd'}
           style={{ marginHorizontal: 2 }}
         />
       </TouchableOpacity>
@@ -876,14 +941,10 @@ const PlaceCard = ({
 
   return (
     <>
-      <TouchableOpacity 
-        style={[styles.placeCard, style]}
-        onPress={onPress}
-        disabled={!onPress}
-      >
+      <TouchableOpacity style={[styles.placeCard, style]} onPress={onPress} disabled={!onPress}>
         {/* Kullanıcı Bilgi Bar'ı - EN ÜSTTE */}
         {showUserInfo && (userInfo || place.userId) && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.userInfoBar}
             onPress={handleUserProfilePress}
             activeOpacity={0.7}
@@ -891,11 +952,9 @@ const PlaceCard = ({
             <View style={styles.userInfoContent}>
               {/* Profil Fotoğrafı */}
               <View style={styles.userAvatarContainer}>
-                <Text style={styles.userAvatarText}>
-                  {userInfo?.avatar || '👤'}
-                </Text>
+                <Text style={styles.userAvatarText}>{userInfo?.avatar || '👤'}</Text>
               </View>
-              
+
               {/* Kullanıcı Bilgileri */}
               <View style={styles.userDetails}>
                 <Text style={styles.userFullName} numberOfLines={1}>
@@ -907,18 +966,16 @@ const PlaceCard = ({
                   </Text>
                 )}
               </View>
-              
+
               {/* Kullanıcı Marker Rengi */}
               {place.userColor && (
                 <View style={[styles.userColorIndicator, { backgroundColor: place.userColor }]} />
               )}
-              
+
               {/* Paylaşım Zamanı */}
               {place.createdAt && (
                 <View style={styles.shareTimeContainer}>
-                  <Text style={styles.shareTime}>
-                    {formatShareTime(place.createdAt)}
-                  </Text>
+                  <Text style={styles.shareTime}>{formatShareTime(place.createdAt)}</Text>
                 </View>
               )}
             </View>
@@ -959,18 +1016,13 @@ const PlaceCard = ({
             <View style={styles.placeNameRow}>
               {/* Kullanıcı renk göstergesi - sadece ortak listelerde */}
               {place.userColor && !place.showUserInfo && (
-                <View 
-                  style={[
-                    styles.userColorIndicator, 
-                    { backgroundColor: place.userColor }
-                  ]} 
-                />
+                <View style={[styles.userColorIndicator, { backgroundColor: place.userColor }]} />
               )}
               <Text style={styles.placeName} numberOfLines={2}>
                 {safePlaceName}
               </Text>
             </View>
-            
+
             {/* Liste bilgisi */}
             {place.listName && (
               <TouchableOpacity
@@ -983,14 +1035,12 @@ const PlaceCard = ({
                 style={styles.listInfoButton}
               >
                 <MaterialIcons name="list" size={14} color="#10B981" />
-                <Text style={styles.listInfoText}>
-                  "{place.listName}" listesine eklendi
-                </Text>
+                <Text style={styles.listInfoText}>"{place.listName}" listesine eklendi</Text>
                 <MaterialIcons name="chevron-right" size={14} color="#10B981" />
               </TouchableOpacity>
             )}
           </View>
-          
+
           <View style={styles.topActions}>
             {onEdit && (
               <TouchableOpacity
@@ -1006,7 +1056,7 @@ const PlaceCard = ({
                 <MaterialIcons name="edit" size={18} color="#3B82F6" />
               </TouchableOpacity>
             )}
-            
+
             {onDelete && (
               <TouchableOpacity
                 onPress={(e) => {
@@ -1018,7 +1068,7 @@ const PlaceCard = ({
                 <MaterialIcons name="delete" size={18} color="#EF4444" />
               </TouchableOpacity>
             )}
-            
+
             {onAddToList && (
               <TouchableOpacity
                 onPress={(e) => {
@@ -1030,7 +1080,7 @@ const PlaceCard = ({
                 <MaterialIcons name="star" size={18} color="#FFB800" />
               </TouchableOpacity>
             )}
-            
+
             {showFocusButton && onFocus && (
               <TouchableOpacity
                 onPress={(e) => {
@@ -1078,10 +1128,7 @@ const PlaceCard = ({
                   }}
                   style={styles.photoThumbnail}
                 >
-                  <Image
-                    source={{ uri: photo.url || photo }}
-                    style={styles.thumbnailImage}
-                  />
+                  <Image source={{ uri: photo.url || photo }} style={styles.thumbnailImage} />
                   {index === 4 && place.photos.length > 5 && (
                     <View style={styles.morePhotosOverlay}>
                       <Text style={styles.morePhotosText}>+{place.photos.length - 5}</Text>
@@ -1103,10 +1150,10 @@ const PlaceCard = ({
               }}
               style={styles.socialActionButton}
             >
-              <MaterialIcons 
-                name={isLiked ? "favorite" : "favorite-border"} 
-                size={20} 
-                color={isLiked ? "#EF4444" : "#666"} 
+              <MaterialIcons
+                name={isLiked ? 'favorite' : 'favorite-border'}
+                size={20}
+                color={isLiked ? '#EF4444' : '#666'}
               />
               <Text style={[styles.socialActionText, isLiked && styles.likedText]}>
                 {`Beğen${likesCount > 0 ? ` (${likesCount})` : ''}`}
@@ -1122,9 +1169,7 @@ const PlaceCard = ({
                 }}
                 style={styles.viewLikesButtonBelow}
               >
-                <Text style={styles.viewLikesTextBelow}>
-                  {likesCount} beğeniyi gör
-                </Text>
+                <Text style={styles.viewLikesTextBelow}>{likesCount} beğeniyi gör</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1183,14 +1228,11 @@ const PlaceCard = ({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Beğenenler</Text>
-              <TouchableOpacity
-                onPress={() => setShowLikesModal(false)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setShowLikesModal(false)} style={styles.closeButton}>
                 <MaterialIcons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalScrollView}>
               {likes.map((like) => (
                 <View key={like.id} style={styles.userItem}>
@@ -1201,9 +1243,7 @@ const PlaceCard = ({
                   </View>
                 </View>
               ))}
-              {likes.length === 0 && (
-                <Text style={styles.emptyText}>Henüz beğeni yok</Text>
-              )}
+              {likes.length === 0 && <Text style={styles.emptyText}>Henüz beğeni yok</Text>}
             </ScrollView>
           </View>
         </View>
@@ -1227,7 +1267,7 @@ const PlaceCard = ({
                 <MaterialIcons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalScrollView}>
               {comments.map((comment) => (
                 <View key={comment.id} style={styles.commentItem}>
@@ -1240,21 +1280,20 @@ const PlaceCard = ({
                     <Text style={styles.commentText}>{String(comment.text || '')}</Text>
                   </View>
                   {/* Delete button - only show for comment owner or place owner */}
-                  {(currentUser && (comment.userId === currentUser.uid || place.userId === currentUser.uid)) && (
-                    <TouchableOpacity
-                      onPress={() => handleDeleteComment(comment)}
-                      style={styles.deleteCommentButton}
-                    >
-                      <MaterialIcons name="delete" size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  )}
+                  {currentUser &&
+                    (comment.userId === currentUser.uid || place.userId === currentUser.uid) && (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteComment(comment)}
+                        style={styles.deleteCommentButton}
+                      >
+                        <MaterialIcons name="delete" size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
                 </View>
               ))}
-              {comments.length === 0 && (
-                <Text style={styles.emptyText}>Henüz yorum yok</Text>
-              )}
+              {comments.length === 0 && <Text style={styles.emptyText}>Henüz yorum yok</Text>}
             </ScrollView>
-            
+
             <View style={styles.commentInputContainer}>
               <TextInput
                 style={styles.commentInput}
@@ -1266,13 +1305,16 @@ const PlaceCard = ({
               />
               <TouchableOpacity
                 onPress={handleComment}
-                style={[styles.sendButton, (!newComment.trim() || loading) && styles.sendButtonDisabled]}
+                style={[
+                  styles.sendButton,
+                  (!newComment.trim() || loading) && styles.sendButtonDisabled,
+                ]}
                 disabled={!newComment.trim() || loading}
               >
-                <MaterialIcons 
-                  name="send" 
-                  size={20} 
-                  color={(!newComment.trim() || loading) ? "#999" : "#3B82F6"} 
+                <MaterialIcons
+                  name="send"
+                  size={20}
+                  color={!newComment.trim() || loading ? '#999' : '#3B82F6'}
                 />
               </TouchableOpacity>
             </View>
@@ -1288,13 +1330,10 @@ const PlaceCard = ({
         onRequestClose={() => setShowPhotoModal(false)}
       >
         <View style={styles.photoModalContainer}>
-          <TouchableOpacity
-            style={styles.photoModalClose}
-            onPress={() => setShowPhotoModal(false)}
-          >
+          <TouchableOpacity style={styles.photoModalClose} onPress={() => setShowPhotoModal(false)}>
             <MaterialIcons name="close" size={30} color="#fff" />
           </TouchableOpacity>
-          
+
           {place.photos && Array.isArray(place.photos) && place.photos.length > 0 && (
             <ScrollView
               horizontal
@@ -1313,7 +1352,7 @@ const PlaceCard = ({
               ))}
             </ScrollView>
           )}
-          
+
           <View style={styles.photoModalIndicator}>
             <Text style={styles.photoModalText}>
               {`${selectedPhotoIndex + 1} / ${place.photos?.length || 0}`}
@@ -1333,14 +1372,11 @@ const PlaceCard = ({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Mekanı Düzenle</Text>
-              <TouchableOpacity
-                onPress={() => setShowEditModal(false)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setShowEditModal(false)} style={styles.closeButton}>
                 <MaterialIcons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalScrollView}>
               <View style={styles.editSection}>
                 <Text style={styles.editLabel}>Mekan Adı</Text>
@@ -1361,9 +1397,7 @@ const PlaceCard = ({
 
               <View style={styles.editSection}>
                 <Text style={styles.editLabel}>Puan (1-5)</Text>
-                <View style={styles.ratingSelector}>
-                  {renderStars(editRating, setEditRating)}
-                </View>
+                <View style={styles.ratingSelector}>{renderStars(editRating, setEditRating)}</View>
               </View>
 
               <View style={styles.editSection}>
@@ -1372,10 +1406,7 @@ const PlaceCard = ({
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {editPhotos.map((photo, index) => (
                       <View key={index} style={styles.editPhotoItem}>
-                        <Image
-                          source={{ uri: photo.url || photo }}
-                          style={styles.editPhotoImage}
-                        />
+                        <Image source={{ uri: photo.url || photo }} style={styles.editPhotoImage} />
                         <TouchableOpacity
                           onPress={() => removePhoto(index)}
                           style={styles.removePhotoButton}
@@ -1384,10 +1415,7 @@ const PlaceCard = ({
                         </TouchableOpacity>
                       </View>
                     ))}
-                    <TouchableOpacity
-                      onPress={addPhoto}
-                      style={styles.addPhotoButton}
-                    >
+                    <TouchableOpacity onPress={addPhoto} style={styles.addPhotoButton}>
                       <MaterialIcons name="add-a-photo" size={24} color="#666" />
                       <Text style={styles.addPhotoText}>Fotoğraf Ekle</Text>
                     </TouchableOpacity>
@@ -1402,7 +1430,7 @@ const PlaceCard = ({
                 >
                   <Text style={styles.editButtonTextCancel}>İptal</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   onPress={handleEdit}
                   style={[styles.editButton, styles.editButtonSave]}
@@ -1414,7 +1442,7 @@ const PlaceCard = ({
           </View>
         </View>
       </Modal>
-      
+
       {/* Yeni Image Modal */}
       <ImageModal
         visible={showImageModal}
@@ -1458,23 +1486,23 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   placeName: {
+    color: '#333',
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 4, // Add margin for list info
   },
   listInfoButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f7ff',
+    borderRadius: 12,
+    flexDirection: 'row',
+    marginTop: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
   },
   listInfoText: {
-    fontSize: 12,
     color: '#10B981',
+    fontSize: 12,
     fontWeight: '500',
     marginHorizontal: 4,
   },
@@ -1483,9 +1511,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   topActionButton: {
-    padding: 8,
-    borderRadius: 20,
     backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    padding: 8,
   },
   miniMapContainer: {
     height: 180, // Biraz daha yüksek
@@ -1495,49 +1523,49 @@ const styles = StyleSheet.create({
     marginBottom: 0, // Alt boşluğu kaldır çünkü harita en üstte
   },
   miniMap: {
-    width: '100%',
     height: '100%',
+    width: '100%',
   },
   addressSection: {
     marginBottom: 12,
   },
   placeAddress: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
   },
   showAddressButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 4,
   },
   showAddressButtonText: {
-    fontSize: 14,
     color: '#3B82F6',
+    fontSize: 14,
     fontWeight: '500',
   },
   fullAddressContainer: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
   fullAddress: {
-    fontSize: 14,
     color: '#666',
     flex: 1,
+    fontSize: 14,
     marginRight: 8,
   },
   copyButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f0f7ff',
+    borderRadius: 6,
+    flexDirection: 'row',
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#f0f7ff',
-    borderRadius: 6,
   },
   copyButtonText: {
-    fontSize: 12,
     color: '#3B82F6',
+    fontSize: 12,
     fontWeight: '500',
   },
   socialSection: {
@@ -1553,53 +1581,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   socialActionButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   socialActionText: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
     fontWeight: '500',
   },
   likedText: {
     color: '#EF4444',
   },
   viewLikesButton: {
-    paddingVertical: 8,
     marginTop: 8,
-    paddingHorizontal: 16, // Kartın yan padding'i ile uyumlu
+    paddingHorizontal: 16,
+    paddingVertical: 8, // Kartın yan padding'i ile uyumlu
   },
   viewLikesText: {
-    fontSize: 13,
     color: '#666',
+    fontSize: 13,
     fontWeight: '500',
   },
   viewLikesButtonInline: {
-    paddingVertical: 4,
-    paddingHorizontal: 16,
     marginTop: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   viewLikesTextInline: {
-    fontSize: 12,
     color: '#3B82F6',
+    fontSize: 12,
     fontWeight: '500',
   },
   viewLikesButtonBelow: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
     marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   viewLikesTextBelow: {
-    fontSize: 11,
     color: '#3B82F6',
+    fontSize: 11,
     fontWeight: '500',
   },
   modalContainer: {
-    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -1609,17 +1637,17 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalHeader: {
+    alignItems: 'center',
+    borderBottomColor: '#f0f0f0',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   modalTitle: {
+    color: '#333',
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   closeButton: {
     padding: 4,
@@ -1628,11 +1656,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   userItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingVertical: 12,
   },
   userAvatar: {
     fontSize: 24,
@@ -1642,76 +1670,76 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
   },
   userDate: {
-    fontSize: 12,
     color: '#999',
+    fontSize: 12,
     marginTop: 2,
   },
   commentItem: {
+    borderBottomColor: '#f0f0f0',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   commentContent: {
     flex: 1,
     marginLeft: 12,
   },
   commentHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 4,
   },
   commentDate: {
-    fontSize: 12,
     color: '#999',
+    fontSize: 12,
   },
   commentText: {
-    fontSize: 14,
     color: '#333',
+    fontSize: 14,
   },
   deleteCommentButton: {
-    padding: 8,
-    marginLeft: 8,
-    borderRadius: 20,
-    backgroundColor: '#FEF2F2',
     alignItems: 'center',
-    justifyContent: 'center',
-    width: 32,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 20,
     height: 32,
+    justifyContent: 'center',
+    marginLeft: 8,
+    padding: 8,
+    width: 32,
   },
   emptyText: {
-    textAlign: 'center',
     color: '#999',
     fontSize: 16,
     marginTop: 20,
+    textAlign: 'center',
   },
   commentInputContainer: {
-    flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 20,
-    borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    padding: 20,
   },
   commentInput: {
-    flex: 1,
-    borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 20,
+    borderWidth: 1,
+    flex: 1,
+    marginRight: 12,
+    maxHeight: 100,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    maxHeight: 100,
-    marginRight: 12,
   },
   sendButton: {
-    padding: 12,
-    borderRadius: 20,
     backgroundColor: '#f0f7ff',
+    borderRadius: 20,
+    padding: 12,
   },
   sendButtonDisabled: {
     backgroundColor: '#f5f5f5',
@@ -1721,89 +1749,89 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, // Yan padding ekle
   },
   noteText: {
-    fontSize: 14,
     color: '#666',
+    fontSize: 14,
     fontStyle: 'italic',
   },
   metaSection: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
     paddingHorizontal: 16, // Yan padding ekle
   },
   ratingContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 4,
   },
   ratingText: {
-    fontSize: 14,
     color: '#333',
+    fontSize: 14,
     fontWeight: '600',
   },
   photosInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 4,
   },
   photoCount: {
-    fontSize: 12,
     color: '#666',
+    fontSize: 12,
   },
   addressDetailSection: {
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
-    padding: 12,
     borderRadius: 8,
-    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    marginTop: 8,
+    padding: 12,
   },
   addressDetailText: {
-    fontSize: 14,
     color: '#333',
     flex: 1,
+    fontSize: 14,
     marginRight: 8,
   },
   copyAddressButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    borderRadius: 6,
+    flexDirection: 'row',
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#e3f2fd',
-    borderRadius: 6,
   },
   copyAddressText: {
-    fontSize: 12,
     color: '#3B82F6',
+    fontSize: 12,
     fontWeight: '500',
   },
   photoGallery: {
-    marginTop: 12,
     marginBottom: 8,
+    marginTop: 12,
     paddingHorizontal: 16, // Yan padding ekle
   },
   photoThumbnail: {
-    position: 'relative',
     marginRight: 8,
+    position: 'relative',
   },
   thumbnailImage: {
-    width: 60,
-    height: 60,
     borderRadius: 8,
+    height: 60,
+    width: 60,
   },
   morePhotosOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 8,
+    bottom: 0,
     justifyContent: 'center',
-    alignItems: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   morePhotosText: {
     color: '#fff',
@@ -1811,35 +1839,35 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   photoModalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    flex: 1,
+    justifyContent: 'center',
   },
   photoModalClose: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 1,
     padding: 10,
+    position: 'absolute',
+    right: 20,
+    top: 50,
+    zIndex: 1,
   },
   photoModalImageContainer: {
-    width: 400,
+    alignItems: 'center',
     height: 400,
     justifyContent: 'center',
-    alignItems: 'center',
+    width: 400,
   },
   photoModalImage: {
-    width: '90%',
     height: '90%',
+    width: '90%',
   },
   photoModalIndicator: {
-    position: 'absolute',
-    bottom: 50,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    bottom: 50,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    position: 'absolute',
   },
   photoModalText: {
     color: '#fff',
@@ -1850,180 +1878,180 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   editLabel: {
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   editPlaceName: {
-    fontSize: 16,
     color: '#666',
+    fontSize: 16,
     fontStyle: 'italic',
   },
   editTextInput: {
-    borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderWidth: 1,
     color: '#333',
+    fontSize: 16,
     minHeight: 80,
+    padding: 12,
     textAlignVertical: 'top',
   },
   ratingSelector: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
     paddingVertical: 10,
   },
   editActions: {
     flexDirection: 'row',
+    gap: 12,
     justifyContent: 'space-between',
     marginTop: 20,
-    gap: 12,
   },
   editButton: {
+    alignItems: 'center',
+    borderRadius: 8,
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
   },
   editButtonCancel: {
     backgroundColor: '#f5f5f5',
-    borderWidth: 1,
     borderColor: '#ddd',
+    borderWidth: 1,
   },
   editButtonSave: {
     backgroundColor: '#3B82F6',
   },
   editButtonTextCancel: {
+    color: '#666',
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
   },
   editButtonTextSave: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   photoEditContainer: {
     marginTop: 8,
   },
   editPhotoItem: {
-    position: 'relative',
     marginRight: 12,
+    position: 'relative',
   },
   editPhotoImage: {
-    width: 80,
-    height: 80,
     borderRadius: 8,
+    height: 80,
+    width: 80,
   },
   removePhotoButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
+    alignItems: 'center',
     backgroundColor: '#EF4444',
     borderRadius: 12,
-    width: 24,
     height: 24,
     justifyContent: 'center',
-    alignItems: 'center',
+    position: 'absolute',
+    right: -8,
+    top: -8,
+    width: 24,
   },
   addPhotoButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
+    borderColor: '#ddd',
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    height: 80,
+    justifyContent: 'center',
+    width: 80,
   },
   addPhotoText: {
-    fontSize: 10,
     color: '#666',
+    fontSize: 10,
     marginTop: 4,
     textAlign: 'center',
   },
   userInfoContent: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'space-between',
   },
   userAvatarContainer: {
     marginRight: 10,
   },
   userAvatarText: {
-    fontSize: 24,
     color: colors.primary,
+    fontSize: 24,
   },
   userDetails: {
     flex: 1,
     marginRight: 10,
   },
   userFullName: {
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 2,
   },
   userEmail: {
-    fontSize: 12,
     color: colors.secondary,
+    fontSize: 12,
   },
   userUsername: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
     fontStyle: 'italic',
   },
   shareTimeContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
     backgroundColor: '#E9ECEF',
     borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   shareTime: {
-    fontSize: 11,
     color: colors.secondary,
+    fontSize: 11,
     fontWeight: '500',
   },
   // Ortak liste renk göstergesi stilleri
   placeNameRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 8,
   },
   userColorIndicator: {
-    width: 12,
-    height: 12,
+    borderColor: '#FFFFFF',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    elevation: 2,
+    height: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1,
-    elevation: 2,
+    width: 12,
   },
   userInfoBar: {
-    paddingBottom: 8,
-    marginBottom: 8,
-    borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    marginBottom: 8,
+    paddingBottom: 8,
   },
   userInfoLeft: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     flex: 1,
   },
   userAvatarSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
     marginRight: 8,
+    width: 32,
   },
   userAvatarSmallText: {
     fontSize: 16,
@@ -2032,16 +2060,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userDisplayName: {
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
   },
   userColorDot: {
-    width: 12,
-    height: 12,
+    borderColor: colors.white,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.white,
+    height: 12,
+    width: 12,
   },
 });
 

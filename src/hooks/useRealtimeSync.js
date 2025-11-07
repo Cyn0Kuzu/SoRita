@@ -2,6 +2,7 @@
 // Provides real-time data updates and synchronization across screens
 
 import { useEffect, useState, useCallback } from 'react';
+
 import { auth } from '../config/firebase';
 import GlobalStateService from '../services/globalStateService';
 
@@ -17,41 +18,44 @@ export const useRealtimeSync = (screenName) => {
   const forceRefresh = useCallback(() => {
     const safeName = screenName || 'unknown';
     // console.log(`🔄 [${safeName}] Force refresh triggered`); // Reduced logging
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
     GlobalStateService.triggerRefresh(safeName.toLowerCase());
   }, [screenName]);
 
   // Update specific data type
-  const updateGlobalData = useCallback(async (dataType, data) => {
-    const safeName = screenName || 'unknown';
-    try {
-      // console.log(`🔄 [${safeName}] Updating global ${dataType}:`, data); // Reduced logging
-      
-      switch (dataType) {
-        case 'userData':
-          await GlobalStateService.updateUserData(data);
-          break;
-        case 'userLists':
-          await GlobalStateService.updateUserLists(data);
-          break;
-        case 'userPlaces':
-          await GlobalStateService.updateUserPlaces(data);
-          break;
-        case 'userStats':
-          await GlobalStateService.updateUserStats(data);
-          break;
-        case 'notifications':
-          await GlobalStateService.updateNotifications(data);
-          break;
-        default:
-          console.warn(`Unknown data type: ${dataType}`);
+  const updateGlobalData = useCallback(
+    async (dataType, data) => {
+      const safeName = screenName || 'unknown';
+      try {
+        // console.log(`🔄 [${safeName}] Updating global ${dataType}:`, data); // Reduced logging
+
+        switch (dataType) {
+          case 'userData':
+            await GlobalStateService.updateUserData(data);
+            break;
+          case 'userLists':
+            await GlobalStateService.updateUserLists(data);
+            break;
+          case 'userPlaces':
+            await GlobalStateService.updateUserPlaces(data);
+            break;
+          case 'userStats':
+            await GlobalStateService.updateUserStats(data);
+            break;
+          case 'notifications':
+            await GlobalStateService.updateNotifications(data);
+            break;
+          default:
+            console.warn(`Unknown data type: ${dataType}`);
+        }
+
+        setLastUpdate(Date.now());
+      } catch (error) {
+        console.error(`❌ [${safeName}] Error updating global ${dataType}:`, error);
       }
-      
-      setLastUpdate(Date.now());
-    } catch (error) {
-      console.error(`❌ [${safeName}] Error updating global ${dataType}:`, error);
-    }
-  }, [screenName]);
+    },
+    [screenName]
+  );
 
   // Set up global state listeners
   useEffect(() => {
@@ -130,10 +134,10 @@ export const useRealtimeSync = (screenName) => {
     };
 
     checkOnlineStatus();
-    
+
     // Check every 2 minutes (less aggressive)
     const interval = setInterval(checkOnlineStatus, 120000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -145,50 +149,53 @@ export const useRealtimeSync = (screenName) => {
     userStats: globalState.userStats,
     notifications: globalState.notifications,
     unreadCount: globalState.unreadNotificationCount,
-    
+
     // Refresh controls
     refreshTrigger,
     forceRefresh,
     updateGlobalData,
-    
+
     // Status
     isOnline,
     lastUpdate,
-    
+
     // Convenience getters
-    getRefreshTrigger: () => GlobalStateService.getRefreshTrigger((screenName || 'unknown').toLowerCase()),
-    isInitialized: GlobalStateService.isInitialized
+    getRefreshTrigger: () =>
+      GlobalStateService.getRefreshTrigger((screenName || 'unknown').toLowerCase()),
+    isInitialized: GlobalStateService.isInitialized,
   };
 };
 
 // Hook for managing place card synchronization
 export const usePlaceCardSync = (screenName) => {
   const { refreshTrigger, updateGlobalData, userPlaces } = useRealtimeSync(screenName);
-  
+
   const updatePlace = useCallback(async (updatedPlace) => {
     if (!userPlaces || !Array.isArray(userPlaces)) return;
-    
-    const updatedPlaces = userPlaces.map(place => {
-      if (place.id === updatedPlace.id || 
-          (place.name === updatedPlace.name && place.address === updatedPlace.address)) {
+
+    const updatedPlaces = userPlaces.map((place) => {
+      if (
+        place.id === updatedPlace.id ||
+        (place.name === updatedPlace.name && place.address === updatedPlace.address)
+      ) {
         return { ...place, ...updatedPlace };
       }
       return place;
     });
-    
+
     await updateGlobalData('userPlaces', updatedPlaces);
   }, []); // Remove dependencies to prevent infinite loops
 
   const deletePlace = useCallback(async (placeToDelete) => {
     if (!userPlaces || !Array.isArray(userPlaces)) return;
-    
-    const filteredPlaces = userPlaces.filter(place => place.id !== placeToDelete.id);
+
+    const filteredPlaces = userPlaces.filter((place) => place.id !== placeToDelete.id);
     await updateGlobalData('userPlaces', filteredPlaces);
   }, []); // Remove dependencies to prevent infinite loops
 
   const addPlace = useCallback(async (newPlace) => {
     if (!userPlaces || !Array.isArray(userPlaces)) return;
-    
+
     const updatedPlaces = [...userPlaces, newPlace];
     await updateGlobalData('userPlaces', updatedPlaces);
   }, []); // Remove dependencies to prevent infinite loops
@@ -198,45 +205,43 @@ export const usePlaceCardSync = (screenName) => {
     userPlaces,
     updatePlace,
     deletePlace,
-    addPlace
+    addPlace,
   };
 };
 
 // Hook for managing list synchronization
 export const useListSync = (screenName) => {
   const { refreshTrigger, updateGlobalData, userLists, userStats } = useRealtimeSync(screenName);
-  
+
   const updateList = useCallback(async (updatedList) => {
     if (!userLists || !Array.isArray(userLists)) return;
-    
-    const updatedLists = userLists.map(list => 
-      list.id === updatedList.id ? updatedList : list
-    );
+
+    const updatedLists = userLists.map((list) => (list.id === updatedList.id ? updatedList : list));
     await updateGlobalData('userLists', updatedLists);
   }, []); // Remove dependencies to prevent infinite loops
 
   const deleteList = useCallback(async (listToDelete) => {
     if (!userLists || !Array.isArray(userLists) || !userStats) return;
-    
-    const filteredLists = userLists.filter(list => list.id !== listToDelete.id);
+
+    const filteredLists = userLists.filter((list) => list.id !== listToDelete.id);
     const updatedStats = {
       ...userStats,
-      lists: Math.max(0, (userStats.lists || 0) - 1)
+      lists: Math.max(0, (userStats.lists || 0) - 1),
     };
-    
+
     await updateGlobalData('userLists', filteredLists);
     await updateGlobalData('userStats', updatedStats);
   }, []); // Remove dependencies to prevent infinite loops
 
   const addList = useCallback(async (newList) => {
     if (!userLists || !Array.isArray(userLists) || !userStats) return;
-    
+
     const updatedLists = [...userLists, newList];
     const updatedStats = {
       ...userStats,
-      lists: (userStats.lists || 0) + 1
+      lists: (userStats.lists || 0) + 1,
     };
-    
+
     await updateGlobalData('userLists', updatedLists);
     await updateGlobalData('userStats', updatedStats);
   }, []); // Remove dependencies to prevent infinite loops
@@ -246,7 +251,7 @@ export const useListSync = (screenName) => {
     userLists,
     updateList,
     deleteList,
-    addList
+    addList,
   };
 };
 

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+
 import { colors } from '../theme/theme';
 import { AuthService } from '../services/authService';
 import { ValidationService } from '../services/validationService';
@@ -38,7 +39,7 @@ const RegisterScreen = ({ navigation }) => {
   const [isEmailChecking, setIsEmailChecking] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null);
   const [emailAvailable, setEmailAvailable] = useState(null);
-  
+
   // Real-time validation states
   const [validationMessages, setValidationMessages] = useState({
     firstName: null,
@@ -60,7 +61,7 @@ const RegisterScreen = ({ navigation }) => {
   // Username availability check with debouncing
   const checkUsernameAvailability = async (username) => {
     if (username.length < 3) return;
-    
+
     setIsUsernameChecking(true);
     try {
       const result = await AuthService.checkUsernameAvailability(username);
@@ -75,7 +76,7 @@ const RegisterScreen = ({ navigation }) => {
   // Email availability check with debouncing
   const checkEmailAvailability = async (email) => {
     if (!email.includes('@')) return;
-    
+
     setIsEmailChecking(true);
     try {
       const result = await AuthService.checkEmailAvailability(email);
@@ -90,19 +91,19 @@ const RegisterScreen = ({ navigation }) => {
   // Real-time validation fonksiyonları
   const validateField = (field, value) => {
     const validation = ValidationService.validateField(field, value, formData);
-    setValidationMessages(prev => ({
+    setValidationMessages((prev) => ({
       ...prev,
-      [field]: validation.message
+      [field]: validation.message,
     }));
     return validation.isValid;
   };
 
   // Handle input changes
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
 
     // Field'i touched olarak işaretle
-    setFieldTouched(prev => ({ ...prev, [field]: true }));
+    setFieldTouched((prev) => ({ ...prev, [field]: true }));
 
     // Real-time validation
     validateField(field, value);
@@ -116,14 +117,21 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const selectAvatar = (avatar) => {
-    setFormData(prev => ({ ...prev, avatar }));
+    setFormData((prev) => ({ ...prev, avatar }));
   };
 
   const handleRegister = async () => {
     console.log('🎯 [RegisterScreen] Register button pressed');
-    
+
     // Validation kontrolü
-    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.username.trim() || !formData.email.trim() || !formData.password || !formData.confirmPassword) {
+    if (
+      !formData.firstName.trim() ||
+      !formData.lastName.trim() ||
+      !formData.username.trim() ||
+      !formData.email.trim() ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
       Alert.alert('Uyarı', 'Lütfen tüm alanları doldurun.');
       return;
     }
@@ -140,7 +148,10 @@ const RegisterScreen = ({ navigation }) => {
     }
 
     if (emailAvailable === false) {
-      Alert.alert('Uyarı', 'Bu e-posta adresi kullanılamaz. Lütfen başka bir e-posta adresi seçin.');
+      Alert.alert(
+        'Uyarı',
+        'Bu e-posta adresi kullanılamaz. Lütfen başka bir e-posta adresi seçin.'
+      );
       return;
     }
 
@@ -150,14 +161,14 @@ const RegisterScreen = ({ navigation }) => {
     try {
       console.log('🚀 [RegisterScreen] Starting registration process...');
       const result = await AuthService.registerUser(formData);
-      
+
       console.log('✅ [RegisterScreen] Registration result:', JSON.stringify(result, null, 2));
-      
+
       if (result && result.success) {
         // Loading'i hemen durdur
         setLoading(false);
         console.log('📧 [RegisterScreen] Showing success alert and navigating to login');
-        
+
         Alert.alert(
           '🎉 Kayıt Başarılı!',
           `${formData.email} adresinize doğrulama e-postası gönderildi.\n\nE-posta kutunuzu (spam klasörü dahil) kontrol ederek hesabınızı doğrulayın. Doğrulama tamamlanmadan giriş yapamazsınız.`,
@@ -166,22 +177,22 @@ const RegisterScreen = ({ navigation }) => {
               text: 'E-posta Kutusunu Aç',
               onPress: () => {
                 console.log('📱 [RegisterScreen] Navigating to Login with email check message');
-                navigation.navigate('Login', { 
+                navigation.navigate('Login', {
                   email: formData.email,
-                  message: 'E-posta doğrulaması gerekli. Lütfen e-posta kutunuzu kontrol edin.' 
+                  message: 'E-posta doğrulaması gerekli. Lütfen e-posta kutunuzu kontrol edin.',
                 });
-              }
+              },
             },
             {
               text: 'Giriş Sayfasına Git',
               onPress: () => {
                 console.log('📱 [RegisterScreen] Navigating to Login page');
-                navigation.navigate('Login', { 
+                navigation.navigate('Login', {
                   email: formData.email,
-                  message: 'E-posta doğrulaması tamamlandıktan sonra giriş yapabilirsiniz.'
+                  message: 'E-posta doğrulaması tamamlandıktan sonra giriş yapabilirsiniz.',
                 });
-              }
-            }
+              },
+            },
           ],
           { cancelable: false }
         );
@@ -195,16 +206,18 @@ const RegisterScreen = ({ navigation }) => {
       console.error('❌ [RegisterScreen] Error details:', error.message);
       console.error('❌ [RegisterScreen] Error stack:', error.stack);
       setLoading(false);
-      
+
       Alert.alert(
         'Kayıt Hatası',
         error.message || 'Hesap oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.',
-        [{ 
-          text: 'Tamam',
-          onPress: () => {
-            console.log('🔄 [RegisterScreen] User acknowledged error');
-          }
-        }]
+        [
+          {
+            text: 'Tamam',
+            onPress: () => {
+              console.log('🔄 [RegisterScreen] User acknowledged error');
+            },
+          },
+        ]
       );
     } finally {
       // Ensure loading is always turned off
@@ -217,7 +230,7 @@ const RegisterScreen = ({ navigation }) => {
   // Validation message component
   const ValidationMessage = ({ field, message, touched }) => {
     if (!touched || !message) return null;
-    
+
     return (
       <View style={styles.validationMessageContainer}>
         <MaterialIcons name="info-outline" size={16} color={colors.error} />
@@ -231,7 +244,7 @@ const RegisterScreen = ({ navigation }) => {
       <AppStatusBar />
       {/* Header */}
       <AppHeader />
-      
+
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -246,8 +259,8 @@ const RegisterScreen = ({ navigation }) => {
           <View style={styles.avatarSection}>
             <Text style={styles.avatarLabel}>Avatar</Text>
             <View style={styles.avatarContainer}>
-              <ScrollView 
-                horizontal 
+              <ScrollView
+                horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.avatarScrollContent}
               >
@@ -259,7 +272,7 @@ const RegisterScreen = ({ navigation }) => {
                         key={index}
                         style={[
                           styles.avatarOption,
-                          formData.avatar === avatar && styles.selectedAvatarOption
+                          formData.avatar === avatar && styles.selectedAvatarOption,
                         ]}
                         onPress={() => selectAvatar(avatar)}
                       >
@@ -267,7 +280,7 @@ const RegisterScreen = ({ navigation }) => {
                       </TouchableOpacity>
                     ))}
                   </View>
-                  
+
                   {/* Second Row */}
                   <View style={styles.avatarRow}>
                     {DEFAULT_AVATARS.slice(16, 32).map((avatar, index) => (
@@ -275,7 +288,7 @@ const RegisterScreen = ({ navigation }) => {
                         key={index + 16}
                         style={[
                           styles.avatarOption,
-                          formData.avatar === avatar && styles.selectedAvatarOption
+                          formData.avatar === avatar && styles.selectedAvatarOption,
                         ]}
                         onPress={() => selectAvatar(avatar)}
                       >
@@ -286,7 +299,7 @@ const RegisterScreen = ({ navigation }) => {
                 </View>
               </ScrollView>
             </View>
-            
+
             {/* Info Message */}
             <View style={styles.avatarInfo}>
               <MaterialIcons name="info-outline" size={16} color={colors.textSecondary} />
@@ -308,7 +321,7 @@ const RegisterScreen = ({ navigation }) => {
                   onChangeText={(text) => handleInputChange('firstName', text)}
                   autoCapitalize="words"
                 />
-                <ValidationMessage 
+                <ValidationMessage
                   field="firstName"
                   message={validationMessages.firstName}
                   touched={fieldTouched.firstName}
@@ -323,7 +336,7 @@ const RegisterScreen = ({ navigation }) => {
                   onChangeText={(text) => handleInputChange('lastName', text)}
                   autoCapitalize="words"
                 />
-                <ValidationMessage 
+                <ValidationMessage
                   field="lastName"
                   message={validationMessages.lastName}
                   touched={fieldTouched.lastName}
@@ -349,7 +362,7 @@ const RegisterScreen = ({ navigation }) => {
                   <MaterialIcons name="error" size={20} color={colors.error} />
                 )}
               </View>
-              <ValidationMessage 
+              <ValidationMessage
                 field="username"
                 message={validationMessages.username}
                 touched={fieldTouched.username}
@@ -375,7 +388,7 @@ const RegisterScreen = ({ navigation }) => {
                   <MaterialIcons name="error" size={20} color={colors.error} />
                 )}
               </View>
-              <ValidationMessage 
+              <ValidationMessage
                 field="email"
                 message={validationMessages.email}
                 touched={fieldTouched.email}
@@ -395,14 +408,14 @@ const RegisterScreen = ({ navigation }) => {
                     autoCapitalize="none"
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <MaterialIcons 
-                      name={showPassword ? 'visibility-off' : 'visibility'} 
-                      size={20} 
-                      color={colors.textSecondary} 
+                    <MaterialIcons
+                      name={showPassword ? 'visibility-off' : 'visibility'}
+                      size={20}
+                      color={colors.textSecondary}
                     />
                   </TouchableOpacity>
                 </View>
-                <ValidationMessage 
+                <ValidationMessage
                   field="password"
                   message={validationMessages.password}
                   touched={fieldTouched.password}
@@ -418,7 +431,7 @@ const RegisterScreen = ({ navigation }) => {
                   secureTextEntry={true}
                   autoCapitalize="none"
                 />
-                <ValidationMessage 
+                <ValidationMessage
                   field="confirmPassword"
                   message={validationMessages.confirmPassword}
                   touched={fieldTouched.confirmPassword}
@@ -438,10 +451,7 @@ const RegisterScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.loginLink}
-              onPress={() => navigation.navigate('Login')}
-            >
+            <TouchableOpacity style={styles.loginLink} onPress={() => navigation.navigate('Login')}>
               <Text style={styles.loginLinkText}>
                 Zaten hesabınız var mı? <Text style={styles.loginLinkTextBold}>Giriş yapın</Text>
               </Text>
@@ -460,167 +470,130 @@ const RegisterScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: 0, // StatusBar için yer
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    justifyContent: 'space-between',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  avatarSection: {
-    marginBottom: 20,
-  },
-  avatarLabel: {
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
   avatarContainer: {
     marginBottom: 8,
   },
-  avatarScrollContent: {
-    paddingHorizontal: 8,
+  avatarEmoji: {
+    color: '#333333',
+    fontSize: 20,
+    textAlign: 'center',
   },
   avatarGrid: {
     flexDirection: 'column',
+  },
+  avatarInfo: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderLeftColor: colors.primary,
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    flexDirection: 'row',
+    marginTop: 8,
+    padding: 8,
+  },
+  avatarInfoText: {
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 14,
+    marginLeft: 8,
+  },
+  avatarLabel: {
+    color: colors.text,
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  avatarOption: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E5E5',
+    borderRadius: 20,
+    borderWidth: 2,
+    elevation: 2,
+    height: 40,
+    justifyContent: 'center',
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    width: 40,
   },
   avatarRow: {
     flexDirection: 'row',
     marginBottom: 8,
   },
-  avatarOption: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  avatarScrollContent: {
+    paddingHorizontal: 8,
   },
-  selectedAvatarOption: {
-    borderColor: colors.primary,
-    borderWidth: 3,
-    backgroundColor: '#FFFFFF',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
+  avatarSection: {
+    marginBottom: 20,
   },
-  avatarEmoji: {
-    fontSize: 20,
-    color: '#333333',
-    textAlign: 'center',
-  },
-  avatarInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: 8,
-    borderRadius: 8,
-    marginTop: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  avatarInfoText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginLeft: 8,
+  container: {
+    backgroundColor: colors.background,
     flex: 1,
-    lineHeight: 14,
+    paddingTop: 0, // StatusBar için yer
   },
-  form: {
+  content: {
     flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-  inputContainer: {
-    marginBottom: 15,
-  },
-  halfWidth: {
-    width: '48%',
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inputWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputField: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-    padding: 0,
-  },
-  inputError: {
-    borderColor: colors.error,
+  copyright: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
   },
   errorText: {
     color: colors.error,
     fontSize: 12,
-    marginTop: 4,
     marginLeft: 4,
+    marginTop: 4,
   },
-  validationMessageContainer: {
-    flexDirection: 'row',
+  footer: {
     alignItems: 'center',
-    marginTop: 4,
-    marginLeft: 4,
+    paddingBottom: 20,
   },
-  validationMessage: {
-    color: colors.error,
-    fontSize: 11,
-    marginLeft: 4,
+  form: {
     flex: 1,
   },
-  registerButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
+  halfWidth: {
+    width: '48%',
+  },
+  header: {
     alignItems: 'center',
-    marginTop: 10,
+    marginBottom: 20,
   },
-  registerButtonDisabled: {
-    opacity: 0.7,
-  },
-  registerButtonText: {
-    color: colors.white,
+  input: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    color: colors.text,
     fontSize: 16,
-    fontWeight: '600',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  inputContainer: {
+    marginBottom: 15,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  inputField: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  inputWithIcon: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   loginLink: {
     alignItems: 'center',
@@ -634,19 +607,56 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  footer: {
-    alignItems: 'center',
-    paddingBottom: 20,
-  },
-  copyright: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
   poweredBy: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  registerButton: {
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    marginTop: 10,
+    paddingVertical: 12,
+  },
+  registerButtonDisabled: {
+    opacity: 0.7,
+  },
+  registerButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  selectedAvatarOption: {
+    backgroundColor: '#FFFFFF',
+    borderColor: colors.primary,
+    borderWidth: 3,
+    elevation: 3,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  title: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  validationMessage: {
+    color: colors.error,
+    flex: 1,
+    fontSize: 11,
+    marginLeft: 4,
+  },
+  validationMessageContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginLeft: 4,
+    marginTop: 4,
   },
 });
 

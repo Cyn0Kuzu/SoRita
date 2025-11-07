@@ -7,7 +7,7 @@
 export const APP_CONFIG = {
   NAME: 'SoRita',
   VERSION: '1.0.0',
-  BUILD: (__DEV__ ? 'development' : 'production'),
+  BUILD: __DEV__ ? 'development' : 'production',
   API_TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
   CACHE_DURATION: 5 * 60 * 1000, // 5 minutes

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  StyleSheet, 
+import {
+  View,
+  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -12,16 +12,30 @@ import {
   Modal,
   Image,
   FlatList,
-  Share
+  Share,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Text, Menu, Button } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import {
+  doc,
+  getDoc,
+  deleteDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from 'firebase/firestore';
+
 import { colors } from '../theme/theme';
 import { auth, db } from '../config/firebase';
-import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { AuthService } from '../services/authService';
 import SoRitaHeader from '../components/SoRitaHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
@@ -45,73 +59,73 @@ export default function ProfileScreen({ navigation }) {
   const realtimeSync = useRealtimeSync('Profile');
   const placeCardSync = usePlaceCardSync('Profile');
   const listSync = useListSync('Profile');
-  
+
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  
+
   // Edit modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editType, setEditType] = useState(''); // 'avatar', 'firstName', 'lastName', 'username', 'bio'
   const [editValue, setEditValue] = useState('');
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
-  
+
   // Edit Map Modal states
   const [editMapModalVisible, setEditMapModalVisible] = useState(false);
   const [editingList, setEditingList] = useState(null);
-  
+
   // Edit List Info Modal states
   const [editListInfoModalVisible, setEditListInfoModalVisible] = useState(false);
   const [editingListInfo, setEditingListInfo] = useState(null);
-  
+
   // View List Modal states
   const [viewListModalVisible, setViewListModalVisible] = useState(false);
   const [selectedListForView, setSelectedListForView] = useState(null);
-  
+
   // User places states
   const [userPlaces, setUserPlaces] = useState([]);
   const [placesLoading, setPlacesLoading] = useState(false);
-  
+
   // Stats states
   const [stats, setStats] = useState({
     followers: 0,
-    following: 0
+    following: 0,
   });
-  
+
   // User lists for grid display
   const [userLists, setUserLists] = useState([]);
-  
+
   // Tab system for lists/places
   const [activeTab, setActiveTab] = useState('listeler'); // 'listeler' or 'mekanlar'
-  
+
   // List modal states
   const [listModalVisible, setListModalVisible] = useState(false);
   const [listModalType, setListModalType] = useState(''); // 'followers', 'following', 'posts', 'lists'
   const [listData, setListData] = useState([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Error handling states
   const [error, setError] = useState(null);
   const [isOffline, setIsOffline] = useState(false);
-  
+
   // Refresh trigger for PlaceCard components
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+
   // Liste filtreleme sistemi
   const [listFilterVisible, setListFilterVisible] = useState(false);
   const [selectedListFilter, setSelectedListFilter] = useState('all'); // 'all', 'public', 'private', 'collaborative'
-  
+
   // Image modal states
   const [showImageModal, setShowImageModal] = useState(false);
   const [currentImageUri, setCurrentImageUri] = useState('');
-  
+
   const listFilterOptions = [
     { key: 'all', label: '🗂️ Tümü', description: 'Tüm listeler' },
     { key: 'public', label: '🌍 Herkese Açık', description: 'Herkese açık listeler' },
     { key: 'private', label: '🔒 Özel', description: 'Özel listeler' },
-    { key: 'collaborative', label: '👥 Ortak', description: 'Ortak listeler' }
+    { key: 'collaborative', label: '👥 Ortak', description: 'Ortak listeler' },
   ];
 
   useEffect(() => {
@@ -120,46 +134,46 @@ export default function ProfileScreen({ navigation }) {
       console.log('⚠️ [ProfileScreen] No authenticated user, skipping data load');
       return;
     }
-    
+
     console.log('🚀 [ProfileScreen] Component mounted, starting data load...');
     loadUserData();
     loadUserStats();
     loadUserListsForPreview();
     loadUserPlaces(); // Load user places
-    
+
     // Global state listeners
     const handleUserDataUpdate = (updatedData) => {
       console.log('🔄 [ProfileScreen] Received user data update from GlobalState');
       setUserData(updatedData);
     };
-    
+
     const handleUserListsUpdate = (updatedLists) => {
       console.log('🔄 [ProfileScreen] Received user lists update from GlobalState');
       setUserLists(updatedLists);
     };
-    
+
     const handleUserPlacesUpdate = (updatedPlaces) => {
       console.log('🔄 [ProfileScreen] Received user places update from GlobalState');
       setUserPlaces(updatedPlaces);
     };
-    
+
     const handleUserStatsUpdate = (updatedStats) => {
       console.log('🔄 [ProfileScreen] Received user stats update from GlobalState');
       setStats(updatedStats);
     };
-    
+
     const handleProfileRefresh = (trigger) => {
       console.log('🔄 [ProfileScreen] Received refresh trigger from GlobalState');
       setRefreshTrigger(trigger);
     };
-    
+
     // Subscribe to global state changes
     GlobalStateService.on('userDataUpdated', handleUserDataUpdate);
     GlobalStateService.on('userListsUpdated', handleUserListsUpdate);
     GlobalStateService.on('userPlacesUpdated', handleUserPlacesUpdate);
     GlobalStateService.on('userStatsUpdated', handleUserStatsUpdate);
     GlobalStateService.on('refresh_profile', handleProfileRefresh);
-    
+
     return () => {
       // Cleanup listeners
       GlobalStateService.off('userDataUpdated', handleUserDataUpdate);
@@ -174,24 +188,21 @@ export default function ProfileScreen({ navigation }) {
     try {
       setPlacesLoading(true);
       console.log('🏠 [ProfileScreen] Loading user places...');
-      
-      const currentUser = auth.currentUser;
+
+      const { currentUser } = auth;
       if (!currentUser) return;
 
       // Get all user lists
-      const userListsQuery = query(
-        collection(db, 'lists'),
-        where('userId', '==', currentUser.uid)
-      );
-      
+      const userListsQuery = query(collection(db, 'lists'), where('userId', '==', currentUser.uid));
+
       const userListsSnapshot = await getDocs(userListsQuery);
       const allPlaces = [];
-      
+
       // Extract places from all lists
-      userListsSnapshot.docs.forEach(doc => {
+      userListsSnapshot.docs.forEach((doc) => {
         const listData = doc.data();
         if (listData.places && listData.places.length > 0) {
-          listData.places.forEach(place => {
+          listData.places.forEach((place) => {
             // Add list info to place
             const placeWithListInfo = {
               ...place,
@@ -202,7 +213,8 @@ export default function ProfileScreen({ navigation }) {
               latitude: place.coordinate?.latitude,
               longitude: place.coordinate?.longitude,
               // Tutarlı ID oluştur - PlaceCard ile aynı mantık
-              id: place.id || 
+              id:
+                place.id ||
                 `${String(place.name || 'unknown').replace(/[^a-zA-Z0-9]/g, '_')}_${place.coordinate?.latitude || 0}_${place.coordinate?.longitude || 0}_${listData.userId || currentUser.uid}`,
               // Flatten userContent object for PlaceCard compatibility
               note: place.userContent?.note || place.note || '',
@@ -210,33 +222,40 @@ export default function ProfileScreen({ navigation }) {
               photos: place.userContent?.photos || place.photos || [],
               // Ensure we have name and address for PlaceCard
               name: place.name || 'İsimsiz Mekan',
-              address: place.address || 'Adres bilgisi yok'
+              address: place.address || 'Adres bilgisi yok',
             };
-            console.log('🏠 [ProfileScreen] Processed place for PlaceCard:', placeWithListInfo.name, {
-              hasUserId: !!placeWithListInfo.userId,
-              hasCoordinates: !!(placeWithListInfo.latitude && placeWithListInfo.longitude),
-              hasAddress: !!placeWithListInfo.address,
-              listName: placeWithListInfo.listName
-            });
+            console.log(
+              '🏠 [ProfileScreen] Processed place for PlaceCard:',
+              placeWithListInfo.name,
+              {
+                hasUserId: !!placeWithListInfo.userId,
+                hasCoordinates: !!(placeWithListInfo.latitude && placeWithListInfo.longitude),
+                hasAddress: !!placeWithListInfo.address,
+                listName: placeWithListInfo.listName,
+              }
+            );
             allPlaces.push(placeWithListInfo);
           });
         }
       });
 
       // Remove duplicates based on place coordinates
-      const uniquePlaces = allPlaces.filter((place, index, self) => 
-        index === self.findIndex(p => 
-          p.coordinate?.latitude === place.coordinate?.latitude && 
-          p.coordinate?.longitude === place.coordinate?.longitude &&
-          p.name === place.name
-        )
+      const uniquePlaces = allPlaces.filter(
+        (place, index, self) =>
+          index ===
+          self.findIndex(
+            (p) =>
+              p.coordinate?.latitude === place.coordinate?.latitude &&
+              p.coordinate?.longitude === place.coordinate?.longitude &&
+              p.name === place.name
+          )
       );
 
       setUserPlaces(uniquePlaces);
-      
+
       // Update global state
       await GlobalStateService.updateUserPlaces(uniquePlaces);
-      
+
       console.log('✅ [ProfileScreen] User places loaded:', uniquePlaces.length);
     } catch (error) {
       console.error('❌ [ProfileScreen] Error loading user places:', error);
@@ -262,13 +281,13 @@ export default function ProfileScreen({ navigation }) {
       if (!user) return;
 
       console.log('📊 [ProfileScreen] Loading user stats');
-      
+
       // Initialize stats with default values
-      let newStats = {
+      const newStats = {
         followers: 0,
-        following: 0
+        following: 0,
       };
-      
+
       try {
         // Get followers count
         const followersQuery = query(
@@ -280,7 +299,7 @@ export default function ProfileScreen({ navigation }) {
       } catch (error) {
         console.warn('⚠️ [ProfileScreen] Could not load followers:', error.message);
       }
-      
+
       try {
         // Get following count
         const followingQuery = query(
@@ -292,17 +311,16 @@ export default function ProfileScreen({ navigation }) {
       } catch (error) {
         console.warn('⚠️ [ProfileScreen] Could not load following:', error.message);
       }
-      
+
       setStats(newStats);
-      
+
       // Update global state
       await GlobalStateService.updateUserStats(newStats);
-      
+
       // Cache stats
       await AsyncStorage.setItem(`userStats_${user.uid}`, JSON.stringify(newStats));
-      
+
       console.log('✅ [ProfileScreen] User stats loaded:', newStats);
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Error loading stats:', error);
       // Use cached stats if available
@@ -328,23 +346,23 @@ export default function ProfileScreen({ navigation }) {
       }
 
       console.log('📋 [ProfileScreen] Loading user lists for user:', user.uid);
-      
+
       // Kullanıcının kendi listelerini al
       const ownListsQuery = query(
         collection(db, 'lists'),
         where('userId', '==', user.uid),
         orderBy('createdAt', 'desc')
       );
-      
+
       console.log('📋 [ProfileScreen] Executing own lists query...');
       const ownListsSnap = await getDocs(ownListsQuery);
       console.log('📋 [ProfileScreen] Own lists result - document count:', ownListsSnap.size);
-      
+
       // Kullanıcının üye olduğu ortak listeleri al
       console.log('📋 [ProfileScreen] Loading collaborative lists...');
       const collaborativeLists = await CollaborativeListService.getUserCollaborativeLists(user.uid);
       console.log('📋 [ProfileScreen] Collaborative lists count:', collaborativeLists.length);
-      
+
       const ownLists = [];
       ownListsSnap.forEach((doc) => {
         const listData = doc.data();
@@ -352,22 +370,29 @@ export default function ProfileScreen({ navigation }) {
         ownLists.push({
           id: doc.id,
           ...listData,
-          placesCount: listData.places?.length || 0
+          placesCount: listData.places?.length || 0,
         });
       });
-      
+
       // Ortak listeleri formatla
-      const formattedCollaborativeLists = collaborativeLists.map(list => ({
+      const formattedCollaborativeLists = collaborativeLists.map((list) => ({
         ...list,
-        placesCount: list.places?.length || 0
+        placesCount: list.places?.length || 0,
       }));
-      
+
       // Tüm listeleri birleştir
       const allLists = [...ownLists, ...formattedCollaborativeLists];
-      
-      console.log('✅ [ProfileScreen] All user lists loaded:', allLists.length, '(Own:', ownLists.length, ', Collaborative:', formattedCollaborativeLists.length, ')');
+
+      console.log(
+        '✅ [ProfileScreen] All user lists loaded:',
+        allLists.length,
+        '(Own:',
+        ownLists.length,
+        ', Collaborative:',
+        formattedCollaborativeLists.length,
+        ')'
+      );
       return allLists;
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Error loading lists:', error);
       return [];
@@ -377,13 +402,13 @@ export default function ProfileScreen({ navigation }) {
   // Liste filtreleme fonksiyonu
   const getFilteredLists = () => {
     // Önce null/undefined listelerini filtrele
-    const validLists = userLists.filter(list => list && list.id && list.name);
-    
+    const validLists = userLists.filter((list) => list && list.id && list.name);
+
     if (selectedListFilter === 'all') {
       return validLists;
     }
-    
-    return validLists.filter(list => {
+
+    return validLists.filter((list) => {
       switch (selectedListFilter) {
         case 'public':
           return !list.isPrivate && list.privacy !== 'private';
@@ -412,7 +437,12 @@ export default function ProfileScreen({ navigation }) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadUserData(), loadUserStats(), loadUserListsForPreview(), loadUserPlaces()]);
+    await Promise.all([
+      loadUserData(),
+      loadUserStats(),
+      loadUserListsForPreview(),
+      loadUserPlaces(),
+    ]);
     // Force refresh using hook
     realtimeSync.forceRefresh();
     setRefreshing(false);
@@ -423,14 +453,14 @@ export default function ProfileScreen({ navigation }) {
       const user = auth.currentUser;
       if (user) {
         console.log('🔍 [ProfileScreen] Loading user data for:', user.email);
-        
+
         // Try to get cached data first
         const cachedData = await AsyncStorage.getItem(`userData_${user.uid}`);
         if (cachedData) {
           console.log('📱 [ProfileScreen] Using cached user data');
           setUserData(JSON.parse(cachedData));
         }
-        
+
         try {
           // Try to get fresh data from Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -438,15 +468,18 @@ export default function ProfileScreen({ navigation }) {
             const freshData = userDoc.data();
             console.log('🔄 [ProfileScreen] Fresh user data loaded from Firestore');
             setUserData(freshData);
-            
+
             // Update global state
             await GlobalStateService.updateUserData(freshData);
-            
+
             // Cache the fresh data
             await AsyncStorage.setItem(`userData_${user.uid}`, JSON.stringify(freshData));
           }
         } catch (firestoreError) {
-          console.warn('⚠️ [ProfileScreen] Firestore offline, using cached data:', firestoreError.message);
+          console.warn(
+            '⚠️ [ProfileScreen] Firestore offline, using cached data:',
+            firestoreError.message
+          );
           if (!cachedData) {
             // If no cached data and Firestore fails, show basic user info from Firebase Auth
             setUserData({
@@ -454,14 +487,14 @@ export default function ProfileScreen({ navigation }) {
               firstName: user.displayName?.split(' ')[0] || 'Kullanıcı',
               lastName: user.displayName?.split(' ')[1] || '',
               username: user.email.split('@')[0],
-              avatar: '👤'
+              avatar: '👤',
             });
           }
         }
       }
     } catch (error) {
       console.error('❌ [ProfileScreen] Error loading user data:', error);
-      
+
       // Check if it's a Firebase offline error
       if (error.message?.includes('offline') || error.code === 'unavailable') {
         setIsOffline(true);
@@ -499,17 +532,16 @@ export default function ProfileScreen({ navigation }) {
 
       // Update in Firestore
       await updateDoc(doc(db, 'users', user.uid), { avatar });
-      
+
       // Update local state
-      setUserData(prev => ({ ...prev, avatar }));
-      
+      setUserData((prev) => ({ ...prev, avatar }));
+
       // Update cache
       const updatedData = { ...userData, avatar };
       await AsyncStorage.setItem(`userData_${user.uid}`, JSON.stringify(updatedData));
-      
+
       setAvatarModalVisible(false);
       Alert.alert('Başarılı', 'Profil fotoğrafı güncellendi');
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Error updating avatar:', error);
       Alert.alert('Hata', 'Profil fotoğrafı güncellenirken bir hata oluştu');
@@ -526,15 +558,14 @@ export default function ProfileScreen({ navigation }) {
 
       // Use the new automatic upload function
       const result = await pickImageFromLibraryAndUpload('avatars', user.uid);
-      
+
       if (!result.cancelled && result.downloadURL) {
         await selectAvatar(result.downloadURL);
         Alert.alert('Başarılı', 'Profil fotoğrafınız güncellendi');
       }
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Error picking and uploading image:', error);
-      Alert.alert('Hata', 'Fotoğraf yüklenirken bir hata oluştu: ' + error.message);
+      Alert.alert('Hata', `Fotoğraf yüklenirken bir hata oluştu: ${error.message}`);
     }
   };
 
@@ -542,7 +573,7 @@ export default function ProfileScreen({ navigation }) {
   const migrateImageToFirebase = async (list) => {
     try {
       console.log('🔄 [ProfileScreen] Migrating image for list:', list.name);
-      
+
       if (!StorageService.isCacheFile(list.image)) {
         console.log('ℹ️ [ProfileScreen] Image is already a valid URL, skipping:', list.image);
         return list.image; // Zaten Firebase URL
@@ -551,17 +582,16 @@ export default function ProfileScreen({ navigation }) {
       // Firebase Storage'a yükle
       console.log('📤 [ProfileScreen] Uploading cache file to Firebase...');
       const firebaseURL = await StorageService.uploadListCoverImage(list.image, list.id);
-      
+
       // Firestore'da güncelle
       const listRef = doc(db, 'lists', list.id);
       await updateDoc(listRef, {
         image: firebaseURL,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       console.log('✅ [ProfileScreen] Migration completed for:', list.name);
       return firebaseURL;
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Migration failed for list:', list.name, error);
       throw error;
@@ -573,10 +603,10 @@ export default function ProfileScreen({ navigation }) {
     try {
       console.log('📤 [ProfileScreen] Sharing list:', list.name);
       const shareMessage = `${list.name} listemi kontrol edin!\n\n${list.placesCount} harika mekan keşfedin.\n\nSoRita uygulaması ile paylaşıldı.`;
-      
+
       await Share.share({
         message: shareMessage,
-        title: `${list.name} - SoRita`
+        title: `${list.name} - SoRita`,
       });
     } catch (error) {
       console.error('❌ [ProfileScreen] Share failed:', error);
@@ -596,19 +626,19 @@ export default function ProfileScreen({ navigation }) {
   const handleListUpdated = async (updatedList, isDeleted = false) => {
     if (isDeleted) {
       // Liste silindi
-      const updatedLists = userLists.filter(l => l.id !== updatedList?.id);
+      const updatedLists = userLists.filter((l) => l.id !== updatedList?.id);
       setUserLists(updatedLists);
-      
+
       // Update global state
       await GlobalStateService.updateUserLists(updatedLists);
       await GlobalStateService.updateUserStats(stats);
     } else {
       // Liste güncellendi
-      const updatedLists = userLists.map(list => 
+      const updatedLists = userLists.map((list) =>
         list.id === updatedList.id ? updatedList : list
       );
       setUserLists(updatedLists);
-      
+
       // Update global state
       await GlobalStateService.updateUserLists(updatedLists);
     }
@@ -627,11 +657,11 @@ export default function ProfileScreen({ navigation }) {
       `"${list.name}" listesini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve listedeki tüm mekanlar silinecektir.`,
       [
         { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Sil', 
+        {
+          text: 'Sil',
           style: 'destructive',
-          onPress: () => confirmDeleteList(list)
-        }
+          onPress: () => confirmDeleteList(list),
+        },
       ]
     );
   };
@@ -646,10 +676,9 @@ export default function ProfileScreen({ navigation }) {
       await deleteDoc(listRef);
 
       // Local state'den çıkar
-      setUserLists(prev => prev.filter(l => l.id !== list.id));
+      setUserLists((prev) => prev.filter((l) => l.id !== list.id));
       console.log('✅ [ProfileScreen] List deleted successfully');
       Alert.alert('Başarılı', `"${list.name}" listesi silindi`);
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Delete failed:', error);
       Alert.alert('Hata', 'Liste silinirken bir hata oluştu');
@@ -669,7 +698,7 @@ export default function ProfileScreen({ navigation }) {
       if (!user) return;
 
       const updateData = {};
-      
+
       switch (editType) {
         case 'avatar':
           updateData.avatar = editValue;
@@ -687,7 +716,7 @@ export default function ProfileScreen({ navigation }) {
             where('username', '==', editValue.toLowerCase())
           );
           const existingUsers = await getDocs(usernameQuery);
-          
+
           if (existingUsers.size > 0 && existingUsers.docs[0].id !== user.uid) {
             Alert.alert('Hata', 'Bu kullanıcı adı zaten kullanılıyor');
             return;
@@ -701,20 +730,19 @@ export default function ProfileScreen({ navigation }) {
 
       // Update in Firestore
       await updateDoc(doc(db, 'users', user.uid), updateData);
-      
+
       // Update local state
       const updatedUserData = { ...userData, ...updateData };
       setUserData(updatedUserData);
-      
+
       // Update global state
       await GlobalStateService.updateUserData(updatedUserData);
-      
+
       // Update cache
       await AsyncStorage.setItem(`userData_${user.uid}`, JSON.stringify(updatedUserData));
-      
+
       setEditModalVisible(false);
       Alert.alert('Başarılı', 'Profil güncellendi');
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Error updating profile:', error);
       Alert.alert('Hata', 'Profil güncellenirken bir hata oluştu');
@@ -725,7 +753,7 @@ export default function ProfileScreen({ navigation }) {
   const handleEditPlace = async (updatedPlace) => {
     try {
       console.log('✏️ [ProfileScreen] Editing place:', updatedPlace.name);
-      
+
       if (!updatedPlace.listId) {
         Alert.alert('Hata', 'Bu mekanın liste bilgisi bulunamadı.');
         return;
@@ -734,7 +762,7 @@ export default function ProfileScreen({ navigation }) {
       // Update the place in the corresponding list
       const listRef = doc(db, 'lists', updatedPlace.listId);
       const listDoc = await getDoc(listRef);
-      
+
       if (!listDoc.exists()) {
         Alert.alert('Hata', 'Liste bulunamadı.');
         return;
@@ -742,23 +770,25 @@ export default function ProfileScreen({ navigation }) {
 
       const listData = listDoc.data();
       const places = listData.places || [];
-      
+
       // Find and update the place
-      const updatedPlaces = places.map(place => {
-        if (place.id === updatedPlace.id || 
-            (place.name === updatedPlace.name && place.address === updatedPlace.address)) {
+      const updatedPlaces = places.map((place) => {
+        if (
+          place.id === updatedPlace.id ||
+          (place.name === updatedPlace.name && place.address === updatedPlace.address)
+        ) {
           return {
             ...place,
             userContent: {
               ...place.userContent,
               note: updatedPlace.note || '',
               rating: updatedPlace.rating || 0,
-              photos: updatedPlace.photos || []
+              photos: updatedPlace.photos || [],
             },
             // Also update top-level properties for backward compatibility
             note: updatedPlace.note || '',
             rating: updatedPlace.rating || 0,
-            photos: updatedPlace.photos || []
+            photos: updatedPlace.photos || [],
           };
         }
         return place;
@@ -767,7 +797,7 @@ export default function ProfileScreen({ navigation }) {
       // Update the list in Firestore
       await updateDoc(listRef, {
         places: updatedPlaces,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Use hook to update global state
@@ -775,7 +805,6 @@ export default function ProfileScreen({ navigation }) {
 
       console.log('✅ [ProfileScreen] Place updated successfully');
       Alert.alert('Başarılı', 'Mekan bilgileri güncellendi');
-      
     } catch (error) {
       console.error('❌ [ProfileScreen] Error updating place:', error);
       Alert.alert('Hata', 'Mekan güncellenirken bir hata oluştu');
@@ -786,14 +815,14 @@ export default function ProfileScreen({ navigation }) {
   const handleDeletePlace = async (place) => {
     try {
       console.log('🗑️ [ProfileScreen] Deleting place:', place.name);
-      
+
       Alert.alert(
         'Mekanı Sil',
         `"${place.name}" mekanını listeden silmek istediğinizden emin misiniz?`,
         [
           { text: 'İptal', style: 'cancel' },
-          { 
-            text: 'Sil', 
+          {
+            text: 'Sil',
             style: 'destructive',
             onPress: async () => {
               try {
@@ -811,13 +840,12 @@ export default function ProfileScreen({ navigation }) {
 
                 console.log('✅ [ProfileScreen] Place deleted successfully');
                 Alert.alert('Başarılı', `"${place.name}" mekanı listeden silindi`);
-                
               } catch (error) {
                 console.error('❌ [ProfileScreen] Error deleting place:', error);
                 Alert.alert('Hata', 'Mekan silinirken bir hata oluştu');
               }
-            }
-          }
+            },
+          },
         ]
       );
     } catch (error) {
@@ -829,11 +857,11 @@ export default function ProfileScreen({ navigation }) {
   const showStatsList = async (type) => {
     const user = auth.currentUser;
     if (!user) return;
-    
+
     setListLoading(true);
     setListData([]);
     setSearchQuery('');
-    
+
     let modalType = '';
     switch (type) {
       case 'Takipçiler':
@@ -849,29 +877,33 @@ export default function ProfileScreen({ navigation }) {
         modalType = 'lists';
         break;
     }
-    
+
     setListModalType(modalType);
     setListModalVisible(true);
-    
+
     try {
       await loadListData(modalType, user.uid);
     } catch (error) {
       console.error('❌ [ProfileScreen] Error loading list data:', {
         type: modalType,
         userId: user.uid,
-        error: error,
+        error,
         code: error.code,
-        message: error.message
+        message: error.message,
       });
-      
+
       if (error.code === 'failed-precondition' || error.message?.includes('index')) {
         Alert.alert(
-          'Yükleniyor', 
+          'Yükleniyor',
           'Veriler hazırlanıyor. Lütfen birkaç dakika sonra tekrar deneyin.'
         );
-      } else if (error.code === 'permission-denied' || error.message?.includes('permissions') || error.message?.includes('Missing or insufficient permissions')) {
+      } else if (
+        error.code === 'permission-denied' ||
+        error.message?.includes('permissions') ||
+        error.message?.includes('Missing or insufficient permissions')
+      ) {
         Alert.alert(
-          'Erişim Hatası', 
+          'Erişim Hatası',
           `Bu ${modalType} listesine erişim izniniz bulunmuyor. Error: ${error.code || 'unknown'}`
         );
       } else {
@@ -884,10 +916,10 @@ export default function ProfileScreen({ navigation }) {
 
   const loadListData = async (type, userId) => {
     console.log(`🔄 [ProfileScreen] Loading ${type} for user:`, userId);
-    
+
     try {
       let data = [];
-      
+
       switch (type) {
         case 'followers':
           // Get followers
@@ -896,8 +928,8 @@ export default function ProfileScreen({ navigation }) {
             where('followedUserId', '==', userId)
           );
           const followersSnap = await getDocs(followersQuery);
-          
-          const followerIds = followersSnap.docs.map(doc => doc.data().followerId);
+
+          const followerIds = followersSnap.docs.map((doc) => doc.data().followerId);
           if (followerIds.length > 0) {
             // Get user details for followers
             for (const followerId of followerIds) {
@@ -907,7 +939,7 @@ export default function ProfileScreen({ navigation }) {
                   data.push({
                     id: followerId,
                     ...userDoc.data(),
-                    type: 'user'
+                    type: 'user',
                   });
                 }
               } catch (error) {
@@ -916,7 +948,7 @@ export default function ProfileScreen({ navigation }) {
             }
           }
           break;
-          
+
         case 'following':
           // Get following
           const followingQuery = query(
@@ -924,8 +956,8 @@ export default function ProfileScreen({ navigation }) {
             where('followerId', '==', userId)
           );
           const followingSnap = await getDocs(followingQuery);
-          
-          const followingIds = followingSnap.docs.map(doc => doc.data().followedUserId);
+
+          const followingIds = followingSnap.docs.map((doc) => doc.data().followedUserId);
           if (followingIds.length > 0) {
             // Get user details for following
             for (const followedId of followingIds) {
@@ -935,7 +967,7 @@ export default function ProfileScreen({ navigation }) {
                   data.push({
                     id: followedId,
                     ...userDoc.data(),
-                    type: 'user'
+                    type: 'user',
                   });
                 }
               } catch (error) {
@@ -944,21 +976,18 @@ export default function ProfileScreen({ navigation }) {
             }
           }
           break;
-          
+
         case 'posts':
           // Get posts
-          const postsQuery = query(
-            collection(db, 'posts'),
-            where('userId', '==', userId)
-          );
+          const postsQuery = query(collection(db, 'posts'), where('userId', '==', userId));
           const postsSnap = await getDocs(postsQuery);
-          data = postsSnap.docs.map(doc => ({
+          data = postsSnap.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-            type: 'post'
+            type: 'post',
           }));
           break;
-          
+
         case 'lists':
           // Get lists
           console.log('📋 [ProfileScreen] Loading lists for user:', userId);
@@ -970,43 +999,43 @@ export default function ProfileScreen({ navigation }) {
           console.log('📋 [ProfileScreen] Executing lists query...');
           const listsSnap = await getDocs(listsQuery);
           console.log('📋 [ProfileScreen] Lists query result - count:', listsSnap.size);
-          
-          data = listsSnap.docs.map(doc => {
+
+          data = listsSnap.docs.map((doc) => {
             const listData = doc.data();
             console.log('📋 [ProfileScreen] Processing list doc:', doc.id, listData.title);
             return {
               id: doc.id,
               ...listData,
               type: 'list',
-              placesCount: listData.places?.length || 0
+              placesCount: listData.places?.length || 0,
             };
           });
-          
+
           console.log('📋 [ProfileScreen] Final processed lists data:', data);
           break;
       }
-      
+
       console.log(`✅ [ProfileScreen] Loaded ${data.length} ${type}`, data);
       setListData(data);
-      
+
       // Update stats to match actual list count (ensure non-negative)
       let statsKey = type;
       if (type === 'lists') statsKey = 'lists';
       else if (type === 'posts') statsKey = 'posts';
       else if (type === 'followers') statsKey = 'followers';
       else if (type === 'following') statsKey = 'following';
-      
+
       console.log(`📊 [ProfileScreen] Updating stats - ${statsKey}: ${data.length}`);
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
-        [statsKey]: Math.max(0, data.length)
+        [statsKey]: Math.max(0, data.length),
       }));
     } catch (error) {
       console.error('❌ [ProfileScreen] Error loading list data:', {
         type,
         userId,
         code: error.code,
-        message: error.message
+        message: error.message,
       });
       throw error;
     }
@@ -1014,26 +1043,26 @@ export default function ProfileScreen({ navigation }) {
 
   const getFilteredData = () => {
     if (!searchQuery.trim()) return listData;
-    
-    return listData.filter(item => {
+
+    return listData.filter((item) => {
       const query = searchQuery.toLowerCase();
-      
+
       switch (item.type) {
         case 'user':
           const fullName = `${item.firstName || ''} ${item.lastName || ''}`.toLowerCase();
           const username = (item.username || '').toLowerCase();
           return fullName.includes(query) || username.includes(query);
-          
+
         case 'post':
           const content = (item.content || '').toLowerCase();
           const title = (item.title || '').toLowerCase();
           return content.includes(query) || title.includes(query);
-          
+
         case 'list':
           const listName = (item.name || '').toLowerCase();
           const description = (item.description || '').toLowerCase();
           return listName.includes(query) || description.includes(query);
-          
+
         default:
           return false;
       }
@@ -1062,13 +1091,15 @@ export default function ProfileScreen({ navigation }) {
                 )}
               </View>
               <View style={styles.userInfo}>
-                <Text style={styles.userName}>{item.firstName} {item.lastName}</Text>
+                <Text style={styles.userName}>
+                  {item.firstName} {item.lastName}
+                </Text>
                 <Text style={styles.userUsername}>@{item.username}</Text>
               </View>
             </View>
           </TouchableOpacity>
         );
-        
+
       case 'post':
         return (
           <TouchableOpacity style={styles.listItem}>
@@ -1077,12 +1108,14 @@ export default function ProfileScreen({ navigation }) {
                 {item.content || 'İçerik yok'}
               </Text>
               <Text style={styles.postDate}>
-                {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString('tr-TR') : 'Tarih yok'}
+                {item.createdAt
+                  ? new Date(item.createdAt.toDate()).toLocaleDateString('tr-TR')
+                  : 'Tarih yok'}
               </Text>
             </View>
           </TouchableOpacity>
         );
-        
+
       case 'list':
         return (
           <ListCard
@@ -1101,7 +1134,7 @@ export default function ProfileScreen({ navigation }) {
             style={styles.listItem}
           />
         );
-        
+
       default:
         return null;
     }
@@ -1123,41 +1156,37 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Çıkış Yap',
-      'Oturumu kapatmak istediğinizden emin misiniz?',
-      [
-        {
-          text: 'İptal',
-          style: 'cancel'
-        },
-        {
-          text: 'Çıkış Yap',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🚪 [ProfileScreen] User initiated logout');
-              await AuthService.logout();
-              console.log('✅ [ProfileScreen] Logout successful');
-              
-              // Clear component state immediately
-              setUserData(null);
-              setUserLists([]);
-              setUserPlaces([]);
-              
-              // Force navigation to Welcome screen
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Welcome' }],
-              });
-            } catch (error) {
-              console.error('❌ [ProfileScreen] Logout error:', error);
-              Alert.alert('Hata', 'Çıkış yapılırken bir hata oluştu.');
-            }
+    Alert.alert('Çıkış Yap', 'Oturumu kapatmak istediğinizden emin misiniz?', [
+      {
+        text: 'İptal',
+        style: 'cancel',
+      },
+      {
+        text: 'Çıkış Yap',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            console.log('🚪 [ProfileScreen] User initiated logout');
+            await AuthService.logout();
+            console.log('✅ [ProfileScreen] Logout successful');
+
+            // Clear component state immediately
+            setUserData(null);
+            setUserLists([]);
+            setUserPlaces([]);
+
+            // Force navigation to Welcome screen
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Welcome' }],
+            });
+          } catch (error) {
+            console.error('❌ [ProfileScreen] Logout error:', error);
+            Alert.alert('Hata', 'Çıkış yapılırken bir hata oluştu.');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const handleDeleteAccount = async () => {
@@ -1167,29 +1196,25 @@ export default function ProfileScreen({ navigation }) {
       [
         {
           text: 'İptal',
-          style: 'cancel'
+          style: 'cancel',
         },
         {
           text: 'Hesabı Sil',
           style: 'destructive',
           onPress: () => {
-            Alert.alert(
-              'Son Onay',
-              'Hesabınızı silmek için "SİL" yazın:',
-              [
-                {
-                  text: 'İptal',
-                  style: 'cancel'
-                },
-                {
-                  text: 'Devam Et',
-                  style: 'destructive',
-                  onPress: confirmDeleteAccount
-                }
-              ]
-            );
-          }
-        }
+            Alert.alert('Son Onay', 'Hesabınızı silmek için "SİL" yazın:', [
+              {
+                text: 'İptal',
+                style: 'cancel',
+              },
+              {
+                text: 'Devam Et',
+                style: 'destructive',
+                onPress: confirmDeleteAccount,
+              },
+            ]);
+          },
+        },
       ]
     );
   };
@@ -1200,20 +1225,16 @@ export default function ProfileScreen({ navigation }) {
       if (user) {
         // Firestore'dan kullanıcı verisini sil
         await deleteDoc(doc(db, 'users', user.uid));
-        
+
         // Firebase Auth'dan kullanıcıyı sil
         await user.delete();
-        
-        Alert.alert(
-          'Hesap Silindi',
-          'Hesabınız başarıyla silindi.',
-          [
-            {
-              text: 'Tamam',
-              onPress: () => console.log('Account deleted successfully')
-            }
-          ]
-        );
+
+        Alert.alert('Hesap Silindi', 'Hesabınız başarıyla silindi.', [
+          {
+            text: 'Tamam',
+            onPress: () => console.log('Account deleted successfully'),
+          },
+        ]);
       }
     } catch (error) {
       console.error('Error deleting account:', error);
@@ -1248,24 +1269,18 @@ export default function ProfileScreen({ navigation }) {
       <AppStatusBar />
       {/* Header */}
       <View style={styles.headerContainer}>
-          <SoRitaHeader 
-            rightIcon="settings"
-            onRightPress={() => setMenuVisible(true)}
-          />
-          <View style={styles.profileHeaderActions}>
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <TouchableOpacity 
-                  onPress={() => setMenuVisible(true)}
-                  style={styles.menuButton}
-                >
-                  <MaterialIcons name="more-vert" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-              }
-            >
-            <Menu.Item 
+        <SoRitaHeader rightIcon="settings" onRightPress={() => setMenuVisible(true)} />
+        <View style={styles.profileHeaderActions}>
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
+              <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.menuButton}>
+                <MaterialIcons name="more-vert" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            }
+          >
+            <Menu.Item
               onPress={() => {
                 setMenuVisible(false);
                 handleLogout();
@@ -1273,7 +1288,7 @@ export default function ProfileScreen({ navigation }) {
               title="Çıkış Yap"
               leadingIcon="logout"
             />
-            <Menu.Item 
+            <Menu.Item
               onPress={() => {
                 setMenuVisible(false);
                 handleDeleteAccount();
@@ -1282,216 +1297,249 @@ export default function ProfileScreen({ navigation }) {
               leadingIcon="delete"
             />
           </Menu>
-          </View>
         </View>
+      </View>
 
-        {/* Offline/Error Notification */}
-        {(error || isOffline) && (
-          <View style={styles.errorBanner}>
-            <MaterialIcons 
-              name={isOffline ? "wifi-off" : "error-outline"} 
-              size={20} 
-              color={colors.white} 
-            />
-            <Text style={styles.errorBannerText}>{error}</Text>
-            {isOffline && (
-              <TouchableOpacity onPress={retryLoading} style={styles.retryButton}>
-                <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+      {/* Offline/Error Notification */}
+      {(error || isOffline) && (
+        <View style={styles.errorBanner}>
+          <MaterialIcons
+            name={isOffline ? 'wifi-off' : 'error-outline'}
+            size={20}
+            color={colors.white}
+          />
+          <Text style={styles.errorBannerText}>{error}</Text>
+          {isOffline && (
+            <TouchableOpacity onPress={retryLoading} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* Profile Info Section */}
+        <View style={styles.profileSection}>
+          {/* Avatar with Edit */}
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarContainer}>
+              <TouchableOpacity
+                style={styles.avatarCircle}
+                onPress={() => {
+                  if (
+                    userData.avatar &&
+                    (userData.avatar.startsWith('data:image') || userData.avatar.startsWith('http'))
+                  ) {
+                    setCurrentImageUri(userData.avatar);
+                    setShowImageModal(true);
+                  }
+                }}
+              >
+                {userData.avatar && userData.avatar.startsWith('data:image') ? (
+                  <Image
+                    source={{ uri: userData.avatar }}
+                    style={styles.avatarImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.avatar}>{userData.avatar || '👤'}</Text>
+                )}
               </TouchableOpacity>
-            )}
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => openEditModal('avatar', userData.avatar)}
+              >
+                <MaterialIcons name="edit" size={16} color={colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
 
-        <ScrollView 
-          style={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          {/* Profile Info Section */}
-          <View style={styles.profileSection}>
-            {/* Avatar with Edit */}
-            <View style={styles.avatarRow}>
-              <View style={styles.avatarContainer}>
-                <TouchableOpacity 
-                  style={styles.avatarCircle}
-                  onPress={() => {
-                    if (userData.avatar && (userData.avatar.startsWith('data:image') || userData.avatar.startsWith('http'))) {
-                      setCurrentImageUri(userData.avatar);
-                      setShowImageModal(true);
-                    }
-                  }}
-                >
-                  {userData.avatar && userData.avatar.startsWith('data:image') ? (
-                    <Image 
-                      source={{ uri: userData.avatar }} 
-                      style={styles.avatarImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Text style={styles.avatar}>{userData.avatar || '👤'}</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.editButton}
-                  onPress={() => openEditModal('avatar', userData.avatar)}
-                >
-                  <MaterialIcons name="edit" size={16} color={colors.white} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Name - Display Only Style */}
-            <View style={styles.nameContainer}>
-              <TouchableOpacity onPress={() => openEditModal('firstName', userData.firstName)}>
-                <View style={styles.editableField}>
-                  <Text style={styles.displayName}>{userData.firstName} {userData.lastName}</Text>
-                  <MaterialIcons name="edit" size={16} color={colors.textSecondary} style={styles.editIcon} />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Username with Edit */}
-            <TouchableOpacity onPress={() => openEditModal('username', userData.username)}>
+          {/* Name - Display Only Style */}
+          <View style={styles.nameContainer}>
+            <TouchableOpacity onPress={() => openEditModal('firstName', userData.firstName)}>
               <View style={styles.editableField}>
-                <Text style={styles.username}>@{userData.username}</Text>
-                <MaterialIcons name="edit" size={16} color={colors.textSecondary} style={styles.editIcon} />
+                <Text style={styles.displayName}>
+                  {userData.firstName} {userData.lastName}
+                </Text>
+                <MaterialIcons
+                  name="edit"
+                  size={16}
+                  color={colors.textSecondary}
+                  style={styles.editIcon}
+                />
               </View>
             </TouchableOpacity>
+          </View>
 
-            {/* Stats Row */}
-            <View style={styles.statsContainer}>
-              <TouchableOpacity style={styles.statButton} onPress={() => showStatsList('Takipçiler')}>
-                <Text style={styles.statNumber}>{stats.followers}</Text>
-                <Text style={styles.statLabel}>Takipçi</Text>
+          {/* Username with Edit */}
+          <TouchableOpacity onPress={() => openEditModal('username', userData.username)}>
+            <View style={styles.editableField}>
+              <Text style={styles.username}>@{userData.username}</Text>
+              <MaterialIcons
+                name="edit"
+                size={16}
+                color={colors.textSecondary}
+                style={styles.editIcon}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Stats Row */}
+          <View style={styles.statsContainer}>
+            <TouchableOpacity style={styles.statButton} onPress={() => showStatsList('Takipçiler')}>
+              <Text style={styles.statNumber}>{stats.followers}</Text>
+              <Text style={styles.statLabel}>Takipçi</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.statButton}
+              onPress={() => showStatsList('Takip Edilenler')}
+            >
+              <Text style={styles.statNumber}>{stats.following}</Text>
+              <Text style={styles.statLabel}>Takip</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Bio with Edit */}
+          <TouchableOpacity onPress={() => openEditModal('bio', userData.bio)}>
+            <View style={styles.bioContainer}>
+              <View style={styles.editableField}>
+                {userData.bio ? (
+                  <Text style={styles.bio}>{userData.bio}</Text>
+                ) : (
+                  <Text style={styles.noBio}>Biyografi ekle...</Text>
+                )}
+                <MaterialIcons
+                  name="edit"
+                  size={16}
+                  color={colors.textSecondary}
+                  style={styles.editIcon}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Lists/Places Tab Section */}
+          <View style={styles.contentSection}>
+            {/* Tab Buttons */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'listeler' && styles.activeTabButton]}
+                onPress={() => setActiveTab('listeler')}
+              >
+                <MaterialIcons
+                  name="list"
+                  size={20}
+                  color={activeTab === 'listeler' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeTab === 'listeler' && styles.activeTabButtonText,
+                  ]}
+                >
+                  Listeler ({userLists.length})
+                </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.statButton} onPress={() => showStatsList('Takip Edilenler')}>
-                <Text style={styles.statNumber}>{stats.following}</Text>
-                <Text style={styles.statLabel}>Takip</Text>
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'mekanlar' && styles.activeTabButton]}
+                onPress={() => setActiveTab('mekanlar')}
+              >
+                <MaterialIcons
+                  name="location-on"
+                  size={20}
+                  color={activeTab === 'mekanlar' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeTab === 'mekanlar' && styles.activeTabButtonText,
+                  ]}
+                >
+                  Mekanlar ({userPlaces.length})
+                </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Bio with Edit */}
-            <TouchableOpacity onPress={() => openEditModal('bio', userData.bio)}>
-              <View style={styles.bioContainer}>
-                <View style={styles.editableField}>
-                  {userData.bio ? (
-                    <Text style={styles.bio}>{userData.bio}</Text>
-                  ) : (
-                    <Text style={styles.noBio}>Biyografi ekle...</Text>
-                  )}
-                  <MaterialIcons name="edit" size={16} color={colors.textSecondary} style={styles.editIcon} />
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            {/* Lists/Places Tab Section */}
-            <View style={styles.contentSection}>
-              {/* Tab Buttons */}
-              <View style={styles.tabContainer}>
-                <TouchableOpacity 
-                  style={[styles.tabButton, activeTab === 'listeler' && styles.activeTabButton]}
-                  onPress={() => setActiveTab('listeler')}
-                >
-                  <MaterialIcons 
-                    name="list" 
-                    size={20} 
-                    color={activeTab === 'listeler' ? colors.primary : colors.textSecondary} 
-                  />
-                  <Text style={[styles.tabButtonText, activeTab === 'listeler' && styles.activeTabButtonText]}>
-                    Listeler ({userLists.length})
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.tabButton, activeTab === 'mekanlar' && styles.activeTabButton]}
-                  onPress={() => setActiveTab('mekanlar')}
-                >
-                  <MaterialIcons 
-                    name="location-on" 
-                    size={20} 
-                    color={activeTab === 'mekanlar' ? colors.primary : colors.textSecondary} 
-                  />
-                  <Text style={[styles.tabButtonText, activeTab === 'mekanlar' && styles.activeTabButtonText]}>
-                    Mekanlar ({userPlaces.length})
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Tab Content */}
-              {activeTab === 'listeler' ? (
-                <View>
-                  {/* Liste Filtreleme Seçenekleri */}
-                  {listFilterVisible && (
-                    <View style={styles.filterContainer}>
-                      <View style={styles.filterHeader}>
-                        <Text style={styles.filterTitle}>Liste Türü Seçin</Text>
-                        <TouchableOpacity 
-                          style={styles.filterCloseButton}
-                          onPress={() => {
-                            setListFilterVisible(false);
-                            setSelectedListFilter('all');
-                          }}
-                        >
-                          <MaterialIcons name="close" size={20} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      </View>
-                      
-                      {listFilterOptions.map((option) => (
-                        <TouchableOpacity
-                          key={option.key}
-                          style={[
-                            styles.filterOption,
-                            selectedListFilter === option.key && styles.selectedFilterOption
-                          ]}
-                          onPress={() => {
-                            setSelectedListFilter(option.key);
-                            setListFilterVisible(false);
-                          }}
-                        >
-                          <Text style={[
-                            styles.filterOptionLabel,
-                            selectedListFilter === option.key && styles.selectedFilterOptionLabel
-                          ]}>
-                            {option.label}
-                          </Text>
-                          <Text style={styles.filterOptionDescription}>
-                            {option.description}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+            {/* Tab Content */}
+            {activeTab === 'listeler' ? (
+              <View>
+                {/* Liste Filtreleme Seçenekleri */}
+                {listFilterVisible && (
+                  <View style={styles.filterContainer}>
+                    <View style={styles.filterHeader}>
+                      <Text style={styles.filterTitle}>Liste Türü Seçin</Text>
+                      <TouchableOpacity
+                        style={styles.filterCloseButton}
+                        onPress={() => {
+                          setListFilterVisible(false);
+                          setSelectedListFilter('all');
+                        }}
+                      >
+                        <MaterialIcons name="close" size={20} color={colors.textSecondary} />
+                      </TouchableOpacity>
                     </View>
-                  )}
-                  
-                  {/* Filtreleme Butonu */}
-                  <View style={styles.filterButtonContainer}>
-                    <TouchableOpacity 
-                      style={styles.filterButton}
-                      onPress={() => setListFilterVisible(!listFilterVisible)}
-                    >
-                      <MaterialIcons name="filter-list" size={20} color={colors.primary} />
-                      <Text style={styles.filterButtonText}>
-                        {listFilterOptions.find(opt => opt.key === selectedListFilter)?.label || 'Filtrele'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
 
-                  {/* Lists Content */}
-                  {getFilteredLists().length === 0 ? (
+                    {listFilterOptions.map((option) => (
+                      <TouchableOpacity
+                        key={option.key}
+                        style={[
+                          styles.filterOption,
+                          selectedListFilter === option.key && styles.selectedFilterOption,
+                        ]}
+                        onPress={() => {
+                          setSelectedListFilter(option.key);
+                          setListFilterVisible(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.filterOptionLabel,
+                            selectedListFilter === option.key && styles.selectedFilterOptionLabel,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                        <Text style={styles.filterOptionDescription}>{option.description}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* Filtreleme Butonu */}
+                <View style={styles.filterButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.filterButton}
+                    onPress={() => setListFilterVisible(!listFilterVisible)}
+                  >
+                    <MaterialIcons name="filter-list" size={20} color={colors.primary} />
+                    <Text style={styles.filterButtonText}>
+                      {listFilterOptions.find((opt) => opt.key === selectedListFilter)?.label ||
+                        'Filtrele'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Lists Content */}
+                {getFilteredLists().length === 0 ? (
                   <View style={styles.emptyState}>
                     <MaterialIcons name="list" size={48} color={colors.textSecondary} />
                     <Text style={styles.emptyTitle}>Henüz liste yok</Text>
                     <Text style={styles.emptySubtitle}>
-                      {selectedListFilter === 'all' 
+                      {selectedListFilter === 'all'
                         ? 'Yeni listeler oluşturduğunuzda burada görünecek.'
-                        : `${listFilterOptions.find(opt => opt.key === selectedListFilter)?.description} bulunamadı.`
-                      }
+                        : `${listFilterOptions.find((opt) => opt.key === selectedListFilter)?.description} bulunamadı.`}
                     </Text>
                   </View>
                 ) : (
@@ -1515,281 +1563,275 @@ export default function ProfileScreen({ navigation }) {
                     })}
                   </View>
                 )}
-                </View>
-              ) : (
-                // Places Content
-                placesLoading ? (
-                  <View style={styles.emptyState}>
-                    <MaterialIcons name="location-on" size={48} color={colors.textSecondary} />
-                    <Text style={styles.emptyTitle}>Mekanlar yükleniyor...</Text>
-                  </View>
-                ) : userPlaces.length === 0 ? (
-                  <View style={styles.emptyState}>
-                    <MaterialIcons name="location-on" size={48} color={colors.textSecondary} />
-                    <Text style={styles.emptyTitle}>Henüz mekan yok</Text>
-                    <Text style={styles.emptySubtitle}>
-                      Listelerinize mekan eklediğinizde burada görünecek.
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.placesContainer}>
-                    {userPlaces.map((place, index) => {
-                      console.log('🏠 [ProfileScreen] Place object:', index, place);
-                      return (
-                      <PlaceCard
-                        key={`${place.listId || 'no-list'}_${place.id || `place_${index}`}`}
-                        place={place}
-                        refreshTrigger={realtimeSync.refreshTrigger}
-                        onFocus={() => {
-                          // Navigate to map with place focus
-                          navigation.navigate('MapScreen', {
-                            focusedPlace: place,
-                            cameFromProfile: true
-                          });
-                        }}
-                        showFocusButton={true}
-                        showMap={true}
-                        isEvent={false}
-                        onEdit={handleEditPlace}
-                        onDelete={handleDeletePlace}
-                        onViewList={(place) => {
-                          // Navigate to the list that contains this place
-                          if (place.listId && place.listName) {
-                            // Find the list in userLists and navigate to it
-                            const targetList = userLists.find(list => list.id === place.listId);
-                            if (targetList) {
-                              // Open the ViewListModal for this list
-                              setSelectedListForView(targetList);
-                              setViewListModalVisible(true);
-                            } else {
-                              Alert.alert('Hata', 'Liste bulunamadı.');
-                            }
+              </View>
+            ) : // Places Content
+            placesLoading ? (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="location-on" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyTitle}>Mekanlar yükleniyor...</Text>
+              </View>
+            ) : userPlaces.length === 0 ? (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="location-on" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyTitle}>Henüz mekan yok</Text>
+                <Text style={styles.emptySubtitle}>
+                  Listelerinize mekan eklediğinizde burada görünecek.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.placesContainer}>
+                {userPlaces.map((place, index) => {
+                  console.log('🏠 [ProfileScreen] Place object:', index, place);
+                  return (
+                    <PlaceCard
+                      key={`${place.listId || 'no-list'}_${place.id || `place_${index}`}`}
+                      place={place}
+                      refreshTrigger={realtimeSync.refreshTrigger}
+                      onFocus={() => {
+                        // Navigate to map with place focus
+                        navigation.navigate('MapScreen', {
+                          focusedPlace: place,
+                          cameFromProfile: true,
+                        });
+                      }}
+                      showFocusButton={true}
+                      showMap={true}
+                      isEvent={false}
+                      onEdit={handleEditPlace}
+                      onDelete={handleDeletePlace}
+                      onViewList={(place) => {
+                        // Navigate to the list that contains this place
+                        if (place.listId && place.listName) {
+                          // Find the list in userLists and navigate to it
+                          const targetList = userLists.find((list) => list.id === place.listId);
+                          if (targetList) {
+                            // Open the ViewListModal for this list
+                            setSelectedListForView(targetList);
+                            setViewListModalVisible(true);
                           } else {
-                            Alert.alert('Hata', 'Bu mekanın liste bilgisi bulunamadı.');
+                            Alert.alert('Hata', 'Liste bulunamadı.');
                           }
-                        }}
-                        navigation={navigation}
-                      />
-                      );
-                    })}
-                  </View>
-                )
-              )}
+                        } else {
+                          Alert.alert('Hata', 'Bu mekanın liste bilgisi bulunamadı.');
+                        }
+                      }}
+                      navigation={navigation}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Edit Modal */}
+      <Modal visible={editModalVisible} transparent={true} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {editType === 'avatar'
+                ? 'Avatar Düzenle'
+                : editType === 'firstName'
+                  ? 'Ad Düzenle'
+                  : editType === 'lastName'
+                    ? 'Soyad Düzenle'
+                    : editType === 'username'
+                      ? 'Kullanıcı Adı Düzenle'
+                      : 'Biyografi Düzenle'}
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              value={editValue}
+              onChangeText={setEditValue}
+              placeholder={
+                editType === 'avatar'
+                  ? 'Emoji girin (örn: 😊)'
+                  : editType === 'bio'
+                    ? 'Biyografinizi yazın...'
+                    : 'Yazın...'
+              }
+              multiline={editType === 'bio'}
+              numberOfLines={editType === 'bio' ? 4 : 1}
+              maxLength={editType === 'bio' ? 150 : 50}
+            />
+
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setEditModalVisible(false)}
+                style={styles.cancelButton}
+              >
+                İptal
+              </Button>
+              <Button mode="contained" onPress={saveEdit} style={styles.saveButton}>
+                Kaydet
+              </Button>
             </View>
           </View>
-        </ScrollView>
+        </View>
+      </Modal>
 
-        {/* Edit Modal */}
-        <Modal
-          visible={editModalVisible}
-          transparent={true}
-          animationType="slide"
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                {editType === 'avatar' ? 'Avatar Düzenle' : 
-                 editType === 'firstName' ? 'Ad Düzenle' :
-                 editType === 'lastName' ? 'Soyad Düzenle' :
-                 editType === 'username' ? 'Kullanıcı Adı Düzenle' : 'Biyografi Düzenle'}
-              </Text>
-              
-              <TextInput
-                style={styles.modalInput}
-                value={editValue}
-                onChangeText={setEditValue}
-                placeholder={editType === 'avatar' ? 'Emoji girin (örn: 😊)' : 
-                           editType === 'bio' ? 'Biyografinizi yazın...' : 'Yazın...'}
-                multiline={editType === 'bio'}
-                numberOfLines={editType === 'bio' ? 4 : 1}
-                maxLength={editType === 'bio' ? 150 : 50}
-              />
-              
-              <View style={styles.modalButtons}>
-                <Button
-                  mode="outlined"
-                  onPress={() => setEditModalVisible(false)}
-                  style={styles.cancelButton}
-                >
-                  İptal
-                </Button>
-                <Button
-                  mode="contained"
-                  onPress={saveEdit}
-                  style={styles.saveButton}
-                >
-                  Kaydet
-                </Button>
+      {/* Avatar Selection Modal */}
+      <Modal visible={avatarModalVisible} transparent={true} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.avatarModalContent]}>
+            <Text style={styles.modalTitle}>Profil Fotoğrafı Seç</Text>
+
+            {/* Action Buttons */}
+            <View style={styles.avatarActionButtons}>
+              <TouchableOpacity style={styles.avatarActionButton} onPress={pickImageFromGallery}>
+                <MaterialIcons name="photo-library" size={30} color={colors.primary} />
+                <Text style={styles.avatarActionText}>Galeri</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.avatarActionButton}
+                onPress={() => {
+                  /* Show emoji grid */
+                }}
+              >
+                <MaterialIcons name="emoji-emotions" size={30} color={colors.primary} />
+                <Text style={styles.avatarActionText}>Avatar</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Emoji Grid */}
+            <ScrollView style={styles.emojiGrid} showsVerticalScrollIndicator={false}>
+              <View style={styles.emojiContainer}>
+                {DEFAULT_AVATARS.map((emoji, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.emojiButton, userData?.avatar === emoji && styles.selectedEmoji]}
+                    onPress={() => selectAvatar(emoji)}
+                  >
+                    <Text style={styles.emojiText}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setAvatarModalVisible(false)}
+                style={styles.cancelButton}
+              >
+                İptal
+              </Button>
             </View>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        {/* Avatar Selection Modal */}
-        <Modal
-          visible={avatarModalVisible}
-          transparent={true}
-          animationType="slide"
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, styles.avatarModalContent]}>
-              <Text style={styles.modalTitle}>Profil Fotoğrafı Seç</Text>
-              
-              {/* Action Buttons */}
-              <View style={styles.avatarActionButtons}>
-                <TouchableOpacity 
-                  style={styles.avatarActionButton} 
-                  onPress={pickImageFromGallery}
-                >
-                  <MaterialIcons name="photo-library" size={30} color={colors.primary} />
-                  <Text style={styles.avatarActionText}>Galeri</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.avatarActionButton}
-                  onPress={() => {/* Show emoji grid */}}
-                >
-                  <MaterialIcons name="emoji-emotions" size={30} color={colors.primary} />
-                  <Text style={styles.avatarActionText}>Avatar</Text>
-                </TouchableOpacity>
-              </View>
-              
-              {/* Emoji Grid */}
-              <ScrollView style={styles.emojiGrid} showsVerticalScrollIndicator={false}>
-                <View style={styles.emojiContainer}>
-                  {DEFAULT_AVATARS.map((emoji, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.emojiButton,
-                        userData?.avatar === emoji && styles.selectedEmoji
-                      ]}
-                      onPress={() => selectAvatar(emoji)}
-                    >
-                      <Text style={styles.emojiText}>{emoji}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-              
-              <View style={styles.modalButtons}>
-                <Button
-                  mode="outlined"
-                  onPress={() => setAvatarModalVisible(false)}
-                  style={styles.cancelButton}
-                >
-                  İptal
-                </Button>
-              </View>
+      {/* List Modal */}
+      <Modal visible={listModalVisible} transparent={true} animationType="slide">
+        <View style={styles.listModalOverlay}>
+          <View style={styles.listModalContent}>
+            <View style={styles.listModalHeader}>
+              <Text style={styles.listModalTitle}>{getModalTitle()}</Text>
+              <TouchableOpacity onPress={() => setListModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
 
-        {/* List Modal */}
-        <Modal
-          visible={listModalVisible}
-          transparent={true}
-          animationType="slide"
-        >
-          <View style={styles.listModalOverlay}>
-            <View style={styles.listModalContent}>
-              <View style={styles.listModalHeader}>
-                <Text style={styles.listModalTitle}>{getModalTitle()}</Text>
-                <TouchableOpacity onPress={() => setListModalVisible(false)}>
-                  <MaterialIcons name="close" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
+            {/* Search Input */}
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Ara..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+
+            {/* List Content */}
+            {listLoading ? (
+              <View style={styles.listEmptyState}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.listEmptyText}>Yükleniyor...</Text>
               </View>
-              
-              {/* Search Input */}
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Ara..."
-                placeholderTextColor={colors.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              
-              {/* List Content */}
-              {listLoading ? (
-                <View style={styles.listEmptyState}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.listEmptyText}>Yükleniyor...</Text>
-                </View>
-              ) : getFilteredData().length === 0 ? (
-                <View style={styles.listEmptyState}>
-                  <MaterialIcons 
-                    name={
-                      listModalType === 'followers' ? 'people' :
-                      listModalType === 'following' ? 'person-add' :
-                      listModalType === 'posts' ? 'article' : 'list'
-                    } 
-                    size={48} 
-                    color={colors.textSecondary} 
-                  />
-                  <Text style={styles.listEmptyText}>
-                    {searchQuery.trim() ? 'Arama sonucu bulunamadı' : `Henüz ${getModalTitle().toLowerCase()} yok`}
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={getFilteredData()}
-                  renderItem={renderListItem}
-                  keyExtractor={(item) => item.id}
-                  showsVerticalScrollIndicator={false}
-                  style={{ maxHeight: 400 }}
+            ) : getFilteredData().length === 0 ? (
+              <View style={styles.listEmptyState}>
+                <MaterialIcons
+                  name={
+                    listModalType === 'followers'
+                      ? 'people'
+                      : listModalType === 'following'
+                        ? 'person-add'
+                        : listModalType === 'posts'
+                          ? 'article'
+                          : 'list'
+                  }
+                  size={48}
+                  color={colors.textSecondary}
                 />
-              )}
-            </View>
+                <Text style={styles.listEmptyText}>
+                  {searchQuery.trim()
+                    ? 'Arama sonucu bulunamadı'
+                    : `Henüz ${getModalTitle().toLowerCase()} yok`}
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={getFilteredData()}
+                renderItem={renderListItem}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: 400 }}
+              />
+            )}
           </View>
-        </Modal>
-        
-        {/* Edit Map Modal */}
-        <EditMapModal
-          visible={editMapModalVisible}
-          onClose={() => {
-            setEditMapModalVisible(false);
-            setEditingList(null);
-          }}
-          listData={editingList}
-        />
+        </View>
+      </Modal>
 
-        {/* Edit List Info Modal */}
-        <EditListInfoModal
-          visible={editListInfoModalVisible}
-          onClose={() => {
-            setEditListInfoModalVisible(false);
-            setEditingListInfo(null);
-          }}
-          listData={editingListInfo}
-          onListUpdated={handleListUpdated}
-        />
+      {/* Edit Map Modal */}
+      <EditMapModal
+        visible={editMapModalVisible}
+        onClose={() => {
+          setEditMapModalVisible(false);
+          setEditingList(null);
+        }}
+        listData={editingList}
+      />
 
-        {/* View List Modal */}
-        <ViewListModal
-          visible={viewListModalVisible}
-          onClose={() => {
-            setViewListModalVisible(false);
-            setSelectedListForView(null);
-          }}
-          listData={selectedListForView}
-          navigation={navigation}
-        />
-        
-        {/* Image Modal */}
-        <ImageModal
-          visible={showImageModal}
-          imageUri={currentImageUri}
-          onClose={() => setShowImageModal(false)}
-          title="Profil Fotoğrafı"
-        />
-      </EdgeToEdgeScreen>
+      {/* Edit List Info Modal */}
+      <EditListInfoModal
+        visible={editListInfoModalVisible}
+        onClose={() => {
+          setEditListInfoModalVisible(false);
+          setEditingListInfo(null);
+        }}
+        listData={editingListInfo}
+        onListUpdated={handleListUpdated}
+      />
+
+      {/* View List Modal */}
+      <ViewListModal
+        visible={viewListModalVisible}
+        onClose={() => {
+          setViewListModalVisible(false);
+          setSelectedListForView(null);
+        }}
+        listData={selectedListForView}
+        navigation={navigation}
+      />
+
+      {/* Image Modal */}
+      <ImageModal
+        visible={showImageModal}
+        imageUri={currentImageUri}
+        onClose={() => setShowImageModal(false)}
+        title="Profil Fotoğrafı"
+      />
+    </EdgeToEdgeScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
+    flex: 1,
     paddingTop: 0, // StatusBar için yer
   },
   headerContainer: {
@@ -1802,33 +1844,33 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   centered: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 10,
   },
   errorText: {
-    marginTop: 10,
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 10,
     textAlign: 'center',
   },
   header: {
+    alignItems: 'center',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: colors.primary,
   },
   headerTitle: {
+    color: colors.white,
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.white,
   },
   menuButton: {
     padding: 5,
@@ -1838,10 +1880,10 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 30,
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingVertical: 30,
   },
   avatarRow: {
     marginBottom: 15,
@@ -1850,36 +1892,36 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatarCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    backgroundColor: colors.surface,
     borderColor: colors.primary,
+    borderRadius: 60,
+    borderWidth: 3,
+    height: 120,
+    justifyContent: 'center',
     overflow: 'hidden',
+    width: 120,
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
     borderRadius: 60,
+    height: '100%',
+    width: '100%',
   },
   avatar: {
-    fontSize: 48,
     color: '#333333',
+    fontSize: 48,
     textAlign: 'center',
   },
   editButton: {
-    position: 'absolute',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 16,
     bottom: 0,
+    height: 32,
+    justifyContent: 'center',
+    position: 'absolute',
     right: 0,
     width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   infoRow: {
     marginBottom: 20,
@@ -1889,35 +1931,35 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   editableField: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
     backgroundColor: colors.surface,
+    borderRadius: 8,
+    flexDirection: 'row',
     marginVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   editIcon: {
     marginLeft: 8,
   },
   firstName: {
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   lastName: {
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   displayName: {
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   username: {
-    fontSize: 16,
     color: colors.textSecondary,
+    fontSize: 16,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -1928,73 +1970,73 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   statNumber: {
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   statLabel: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     marginTop: 2,
   },
   bioContainer: {
-    paddingHorizontal: 30,
     marginBottom: 20,
+    paddingHorizontal: 30,
   },
   bio: {
-    fontSize: 16,
     color: colors.textPrimary,
-    textAlign: 'center',
+    fontSize: 16,
     lineHeight: 22,
+    textAlign: 'center',
   },
   noBio: {
-    fontSize: 16,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 16,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
   },
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: 15,
+    maxWidth: 400,
     padding: 20,
     width: '90%',
-    maxWidth: 400,
   },
   modalTitle: {
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
     marginBottom: 15,
     textAlign: 'center',
   },
   modalInput: {
-    borderWidth: 1,
+    backgroundColor: colors.background,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderWidth: 1,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
+    fontSize: 16,
     marginBottom: 20,
     minHeight: 50,
+    padding: 12,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 10,
+    justifyContent: 'space-between',
   },
   cancelButton: {
     flex: 1,
   },
   saveButton: {
-    flex: 1,
     backgroundColor: colors.primary,
+    flex: 1,
   },
   // Avatar Modal Styles
   avatarModalContent: {
@@ -2007,149 +2049,149 @@ const styles = StyleSheet.create({
   },
   avatarActionButton: {
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 12,
     backgroundColor: colors.background,
+    borderRadius: 12,
     minWidth: 100,
+    padding: 20,
   },
   avatarActionText: {
-    marginTop: 8,
-    fontSize: 14,
     color: colors.textPrimary,
+    fontSize: 14,
     fontWeight: '500',
+    marginTop: 8,
   },
   emojiGrid: {
-    maxHeight: 300,
     marginBottom: 20,
+    maxHeight: 300,
   },
   emojiContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
     gap: 5,
+    justifyContent: 'center',
   },
   emojiButton: {
-    width: 50,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E5E5',
+    borderRadius: 25,
+    borderWidth: 2,
+    elevation: 2,
     height: 50,
     justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 25,
-    backgroundColor: '#FFFFFF',
     margin: 2,
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    width: 50,
   },
   selectedEmoji: {
-    backgroundColor: colors.primary + '20',
-    borderWidth: 2,
+    backgroundColor: `${colors.primary}20`,
     borderColor: colors.primary,
+    borderWidth: 2,
   },
   emojiText: {
-    fontSize: 24,
     color: '#333333',
+    fontSize: 24,
     textAlign: 'center',
   },
 
   // Content Section Styles
   contentSection: {
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingVertical: 16,
     width: '100%',
-    backgroundColor: colors.background,
   },
   sectionTitle: {
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
     marginBottom: 16,
-    textAlign: 'left',
     marginLeft: 0,
     paddingLeft: 0,
+    textAlign: 'left',
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 30,
   },
   emptyTitle: {
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textSecondary,
     marginTop: 10,
   },
   emptySubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 14,
     marginTop: 5,
     paddingHorizontal: 20,
+    textAlign: 'center',
   },
 
   // List Modal Styles
   listModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
   },
   listModalContent: {
     backgroundColor: colors.surface,
     borderRadius: 15,
+    maxHeight: '80%',
+    maxWidth: 400,
     padding: 20,
     width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
   },
   listModalHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 15,
   },
   listModalTitle: {
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   searchInput: {
-    borderWidth: 1,
+    backgroundColor: colors.background,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderWidth: 1,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
+    fontSize: 16,
     marginBottom: 15,
+    padding: 12,
   },
   listItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   userItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    borderWidth: 2,
+    backgroundColor: colors.surface,
     borderColor: colors.primary,
+    borderRadius: 20,
+    borderWidth: 2,
+    height: 40,
+    justifyContent: 'center',
+    marginRight: 12,
+    width: 40,
   },
   userAvatarImage: {
-    width: 40,
-    height: 40,
     borderRadius: 20,
+    height: 40,
+    width: 40,
   },
   userAvatarText: {
     fontSize: 16,
@@ -2158,197 +2200,198 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   userUsername: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
   },
   postItem: {
     paddingVertical: 8,
   },
   postContent: {
-    fontSize: 14,
     color: colors.textPrimary,
+    fontSize: 14,
     lineHeight: 20,
     marginBottom: 8,
   },
   postDate: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   listItemContent: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   listItemInfo: {
     flex: 1,
     marginLeft: 12,
   },
   listItemName: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
     marginBottom: 4,
   },
   listItemDescription: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
     lineHeight: 18,
     marginBottom: 4,
   },
   listItemDate: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   listEmptyState: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   listEmptyText: {
-    fontSize: 16,
     color: colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 16,
     marginTop: 10,
+    textAlign: 'center',
   },
   // New list styles
   sectionHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
   },
   seeAllButton: {
-    paddingVertical: 4,
     paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   seeAllText: {
-    fontSize: 14,
     color: colors.primary,
+    fontSize: 14,
     fontWeight: '500',
   },
   listsPreview: {
     marginTop: 8,
   },
   listsPreviewCard: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.lightBackground,
-    padding: 16,
+    borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    flexDirection: 'row',
+    padding: 16,
   },
   listsPreviewInfo: {
     flex: 1,
     marginLeft: 12,
   },
   listsPreviewTitle: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 2,
   },
   listsPreviewSubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
+    fontSize: 14,
   },
   // List item styles
   listImageContainer: {
-    width: 50,
     height: 50,
     marginRight: 12,
+    width: 50,
   },
   listItemImage: {
-    width: 50,
-    height: 50,
     borderRadius: 8,
+    height: 50,
+    width: 50,
   },
   listItemIcon: {
-    width: 50,
-    height: 50,
+    alignItems: 'center',
     backgroundColor: colors.lightBackground,
     borderRadius: 8,
+    height: 50,
     justifyContent: 'center',
-    alignItems: 'center',
+    width: 50,
   },
   listItemPlaces: {
-    fontSize: 12,
-    color: colors.textSecondary,
     backgroundColor: colors.lightBackground,
+    borderRadius: 4,
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
-    fontWeight: '500',
   },
   listItemPrivacy: {
-    fontSize: 12,
     color: colors.textSecondary,
+    fontSize: 12,
     fontWeight: '500',
   },
   // Error Banner Styles
   errorBanner: {
-    backgroundColor: colors.error || '#f44336',
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: colors.error || '#f44336',
+    borderRadius: 8,
+    flexDirection: 'row',
     marginHorizontal: 16,
     marginTop: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   errorBannerText: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
     color: colors.white,
+    flex: 1,
+    fontSize: 14,
+    marginLeft: 8,
   },
   retryButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 4,
   },
   retryButtonText: {
-    fontSize: 12,
     color: colors.white,
+    fontSize: 12,
     fontWeight: '600',
   },
   // Lists Container Styles
   listsContainer: {
+    flex: 1,
     marginTop: 8,
     paddingHorizontal: 0,
     width: '100%',
-    flex: 1,
   },
   // Places Container Styles
   placesContainer: {
+    flex: 1,
     marginTop: 8,
     paddingHorizontal: 0,
     width: '100%',
-    flex: 1,
   },
   // Tab System Styles
   tabContainer: {
-    flexDirection: 'row',
     backgroundColor: colors.lightBackground,
     borderRadius: 12,
-    padding: 4,
+    flexDirection: 'row',
     marginBottom: 16,
+    padding: 4,
   },
   tabButton: {
+    alignItems: 'center',
+    borderRadius: 8,
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 12,
   },
   activeTabButton: {
     backgroundColor: colors.white,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -2356,93 +2399,92 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
   },
   tabButtonText: {
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
     marginLeft: 6,
   },
   activeTabButtonText: {
     color: colors.primary,
     fontWeight: '600',
   },
-  
+
   // Filter Styles
   filterButtonContainer: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   filterButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
     backgroundColor: colors.surface,
+    borderColor: colors.primary,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   filterButtonText: {
-    fontSize: 14,
     color: colors.primary,
+    fontSize: 14,
     fontWeight: '500',
     marginLeft: 6,
   },
   filterContainer: {
     backgroundColor: colors.white,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    elevation: 3,
+    marginHorizontal: 16,
+    marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
   },
   filterHeader: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   filterTitle: {
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   filterCloseButton: {
     padding: 4,
   },
   filterOption: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   selectedFilterOption: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary}10`,
   },
   filterOptionLabel: {
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '500',
-    color: colors.textPrimary,
     marginBottom: 2,
   },
   selectedFilterOptionLabel: {
     color: colors.primary,
   },
   filterOptionDescription: {
-    fontSize: 13,
     color: colors.textSecondary,
+    fontSize: 13,
   },
 });

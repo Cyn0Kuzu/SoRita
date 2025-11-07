@@ -19,7 +19,7 @@ export const COLLABORATOR_COLORS = [
   '#FAD7A0', // Krem
   '#D5A6BD', // Pembe
   '#A9CCE3', // Gri Mavi
-  '#D2B4DE'  // Gri Mor
+  '#D2B4DE', // Gri Mor
 ];
 
 // Kullanıcı için benzersiz renk ataması
@@ -31,19 +31,19 @@ export const assignUserColor = (userId, existingAssignments = {}) => {
 
   // Kullanılan renkleri bul
   const usedColors = Object.values(existingAssignments);
-  
+
   // Kullanılmamış renk bul
-  const availableColors = COLLABORATOR_COLORS.filter(color => !usedColors.includes(color));
-  
+  const availableColors = COLLABORATOR_COLORS.filter((color) => !usedColors.includes(color));
+
   // Eğer tüm renkler kullanılmışsa, hash ile deterministik renk seç
   if (availableColors.length === 0) {
     const hash = userId.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
+      a = (a << 5) - a + b.charCodeAt(0);
       return a & a;
     }, 0);
     return COLLABORATOR_COLORS[Math.abs(hash) % COLLABORATOR_COLORS.length];
   }
-  
+
   // İlk kullanılmamış rengi seç
   return availableColors[0];
 };
@@ -51,7 +51,7 @@ export const assignUserColor = (userId, existingAssignments = {}) => {
 // Liste için kullanıcı renk atamaları oluştur
 export const generateColorAssignments = (userIds) => {
   const assignments = {};
-  
+
   // İlk kullanıcı (liste sahibi) her zaman ilk rengi alır
   userIds.forEach((userId, index) => {
     if (index === 0) {
@@ -62,7 +62,7 @@ export const generateColorAssignments = (userIds) => {
       assignments[userId] = assignUserColor(userId, assignments);
     }
   });
-  
+
   return assignments;
 };
 
@@ -72,10 +72,10 @@ export const getContrastColor = (hexColor) => {
   const r = parseInt(hexColor.slice(1, 3), 16);
   const g = parseInt(hexColor.slice(3, 5), 16);
   const b = parseInt(hexColor.slice(5, 7), 16);
-  
+
   // Luminance hesapla
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  
+
   return luminance > 0.5 ? '#000000' : '#FFFFFF';
 };
 
@@ -84,10 +84,10 @@ export const lightenColor = (hexColor, amount = 0.3) => {
   const r = parseInt(hexColor.slice(1, 3), 16);
   const g = parseInt(hexColor.slice(3, 5), 16);
   const b = parseInt(hexColor.slice(5, 7), 16);
-  
+
   const newR = Math.min(255, Math.floor(r + (255 - r) * amount));
   const newG = Math.min(255, Math.floor(g + (255 - g) * amount));
   const newB = Math.min(255, Math.floor(b + (255 - b) * amount));
-  
+
   return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
 };

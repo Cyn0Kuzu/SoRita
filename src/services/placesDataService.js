@@ -1,11 +1,11 @@
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
   deleteDoc,
-  serverTimestamp, 
-  collection, 
+  serverTimestamp,
+  collection,
   addDoc,
   query,
   where,
@@ -13,19 +13,21 @@ import {
   orderBy,
   limit,
   startAfter,
-  increment
+  increment,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage, auth } from '../config/firebase';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { db, storage, auth } from '../config/firebase';
+
 import ActivityService from './activityService';
 
 export class PlacesDataService {
-
   // Save complete place data with all metadata
   static async savePlace(placeData) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -33,7 +35,8 @@ export class PlacesDataService {
       console.log('📍 [PlacesDataService] Saving place data');
 
       // Generate unique ID if not provided
-      const placeId = placeData.id || `place_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const placeId =
+        placeData.id || `place_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       const completePlaceData = {
         // Basic Place Info
@@ -42,36 +45,36 @@ export class PlacesDataService {
         userEmail: currentUser.email,
         userName: placeData.userName || currentUser.displayName || currentUser.email,
         userAvatar: placeData.userAvatar || '👤',
-        
+
         // Location Data
         name: placeData.name || '',
         address: placeData.address || '',
         description: placeData.description || '',
         category: placeData.category || 'other',
-        
+
         // Geographic Coordinates (ESSENTIAL for recovery)
         latitude: placeData.latitude || null,
         longitude: placeData.longitude || null,
         coordinates: {
           latitude: placeData.latitude || null,
-          longitude: placeData.longitude || null
+          longitude: placeData.longitude || null,
         },
-        
+
         // Location Details
         city: placeData.city || '',
         district: placeData.district || '',
         country: placeData.country || '',
         postalCode: placeData.postalCode || '',
-        
+
         // Google Places Data (for recovery)
         googlePlaceId: placeData.googlePlaceId || '',
         googleMapsData: placeData.googleMapsData || null,
-        
+
         // Media
         photos: placeData.photos || [],
         mainPhoto: placeData.mainPhoto || null,
         photoCount: (placeData.photos || []).length,
-        
+
         // Social Data
         likes: placeData.likes || [],
         likesCount: (placeData.likes || []).length,
@@ -79,69 +82,68 @@ export class PlacesDataService {
         commentsCount: (placeData.comments || []).length,
         shares: placeData.shares || [],
         sharesCount: (placeData.shares || []).length,
-        
+
         // Visit Information
         visitDate: placeData.visitDate || new Date().toISOString(),
         rating: placeData.rating || null,
         review: placeData.review || '',
         tags: placeData.tags || [],
-        
+
         // Privacy & Visibility
         isPublic: placeData.isPublic !== false, // Default to public
         visibility: placeData.visibility || 'public', // public, friends, private
-        
+
         // Lists (which lists this place belongs to)
         listIds: placeData.listIds || [],
         listNames: placeData.listNames || [],
-        
+
         // Metadata for Recovery
         deviceInfo: placeData.deviceInfo || {
           platform: 'mobile',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         },
-        
+
         // Activity Tracking
         viewsCount: 0,
         lastViewed: null,
-        
+
         // Timestamps
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        
+
         // Backup Info
         backupVersion: 1,
         lastBackup: serverTimestamp(),
-        
+
         // Status
         isActive: true,
-        isDeleted: false
+        isDeleted: false,
       };
 
       // Save to Firestore
       await setDoc(doc(db, 'posts', placeId), completePlaceData);
-      
+
       // Update user's places count
       await this.updateUserPlacesCount(currentUser.uid, 1);
-      
+
       // Cache place data locally
       await this.cachePlaceData(placeId, completePlaceData);
-      
+
       // Record activity
       await ActivityService.recordActivity({
         action: 'place_saved',
         data: {
-          placeId: placeId,
+          placeId,
           placeName: completePlaceData.name,
           hasPhotos: completePlaceData.photoCount > 0,
           hasLocation: !!(completePlaceData.latitude && completePlaceData.longitude),
           isPublic: completePlaceData.isPublic,
-          category: completePlaceData.category
-        }
+          category: completePlaceData.category,
+        },
       });
 
       console.log('✅ [PlacesDataService] Place saved successfully:', placeId);
       return { success: true, placeId, placeData: completePlaceData };
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error saving place:', error);
       await ActivityService.recordError(error, 'savePlace');
@@ -152,7 +154,7 @@ export class PlacesDataService {
   // Upload place photos with metadata
   static async uploadPlacePhotos(placeId, photos) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -186,12 +188,11 @@ export class PlacesDataService {
             height: photo.height || null,
             size: photo.size || blob.size,
             uploadedAt: new Date().toISOString(),
-            uploadedBy: currentUser.uid
+            uploadedBy: currentUser.uid,
           };
 
           uploadedPhotos.push(photoData);
           console.log('✅ Photo uploaded:', photoData.id);
-          
         } catch (photoError) {
           console.error('❌ Error uploading photo:', photoError);
           await ActivityService.recordError(photoError, 'uploadPlacePhoto');
@@ -205,23 +206,22 @@ export class PlacesDataService {
           photos: uploadedPhotos,
           photoCount: uploadedPhotos.length,
           mainPhoto: uploadedPhotos[0].url,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
         });
 
         // Record activity
         await ActivityService.recordActivity({
           action: 'place_photos_uploaded',
           data: {
-            placeId: placeId,
+            placeId,
             photoCount: uploadedPhotos.length,
-            totalSize: uploadedPhotos.reduce((total, photo) => total + (photo.size || 0), 0)
-          }
+            totalSize: uploadedPhotos.reduce((total, photo) => total + (photo.size || 0), 0),
+          },
         });
       }
 
       console.log(`✅ [PlacesDataService] ${uploadedPhotos.length} photos uploaded successfully`);
       return uploadedPhotos;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error uploading photos:', error);
       await ActivityService.recordError(error, 'uploadPlacePhotos');
@@ -243,23 +243,22 @@ export class PlacesDataService {
 
       // Get from Firestore
       const placeDoc = await getDoc(doc(db, 'posts', placeId));
-      
+
       if (!placeDoc.exists()) {
         console.warn('⚠️ [PlacesDataService] Place not found:', placeId);
         return null;
       }
 
       const placeData = { id: placeDoc.id, ...placeDoc.data() };
-      
+
       // Cache the data
       await this.cachePlaceData(placeId, placeData);
-      
+
       // Update view count
       await this.incrementPlaceViews(placeId);
-      
+
       console.log('✅ [PlacesDataService] Place retrieved');
       return placeData;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error getting place:', error);
       await ActivityService.recordError(error, 'getPlace');
@@ -297,15 +296,14 @@ export class PlacesDataService {
       }
 
       const placesSnapshot = await getDocs(placesQuery);
-      const places = placesSnapshot.docs.map(doc => ({
+      const places = placesSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        _doc: doc // Keep for pagination
+        _doc: doc, // Keep for pagination
       }));
 
       console.log(`✅ [PlacesDataService] Retrieved ${places.length} places`);
       return places;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error getting user places:', error);
       await ActivityService.recordError(error, 'getUserPlaces');
@@ -316,7 +314,7 @@ export class PlacesDataService {
   // Update place data
   static async updatePlace(placeId, updates) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -327,31 +325,30 @@ export class PlacesDataService {
         ...updates,
         updatedAt: serverTimestamp(),
         backupVersion: increment(1),
-        lastBackup: serverTimestamp()
+        lastBackup: serverTimestamp(),
       };
 
       // Update in Firestore
       await updateDoc(doc(db, 'posts', placeId), updateData);
-      
+
       // Update cache
       const currentData = await this.getCachedPlaceData(placeId);
       if (currentData) {
         const updatedData = { ...currentData, ...updateData };
         await this.cachePlaceData(placeId, updatedData);
       }
-      
+
       // Record activity
       await ActivityService.recordActivity({
         action: 'place_updated',
         data: {
-          placeId: placeId,
-          updatedFields: Object.keys(updates)
-        }
+          placeId,
+          updatedFields: Object.keys(updates),
+        },
       });
 
       console.log('✅ [PlacesDataService] Place updated');
       return true;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error updating place:', error);
       await ActivityService.recordError(error, 'updatePlace');
@@ -362,7 +359,7 @@ export class PlacesDataService {
   // Soft delete place (mark as deleted but keep data)
   static async deletePlace(placeId) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -375,24 +372,23 @@ export class PlacesDataService {
         isActive: false,
         deletedAt: serverTimestamp(),
         deletedBy: currentUser.uid,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Update user's places count
       await this.updateUserPlacesCount(currentUser.uid, -1);
-      
+
       // Remove from cache
       await this.removeCachedPlaceData(placeId);
-      
+
       // Record activity
       await ActivityService.recordActivity({
         action: 'place_deleted',
-        data: { placeId: placeId }
+        data: { placeId },
       });
 
       console.log('✅ [PlacesDataService] Place soft deleted');
       return true;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error deleting place:', error);
       await ActivityService.recordError(error, 'deletePlace');
@@ -403,7 +399,7 @@ export class PlacesDataService {
   // Like/Unlike place
   static async togglePlaceLike(placeId) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -412,7 +408,7 @@ export class PlacesDataService {
 
       const placeRef = doc(db, 'posts', placeId);
       const placeDoc = await getDoc(placeRef);
-      
+
       if (!placeDoc.exists()) {
         throw new Error('Place not found');
       }
@@ -426,7 +422,7 @@ export class PlacesDataService {
 
       if (userLiked) {
         // Unlike
-        updatedLikes = likes.filter(uid => uid !== currentUser.uid);
+        updatedLikes = likes.filter((uid) => uid !== currentUser.uid);
         action = 'place_unliked';
       } else {
         // Like
@@ -438,7 +434,7 @@ export class PlacesDataService {
       await updateDoc(placeRef, {
         likes: updatedLikes,
         likesCount: updatedLikes.length,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Update cache
@@ -448,20 +444,19 @@ export class PlacesDataService {
         cachedData.likesCount = updatedLikes.length;
         await this.cachePlaceData(placeId, cachedData);
       }
-      
+
       // Record activity
       await ActivityService.recordActivity({
-        action: action,
+        action,
         data: {
-          placeId: placeId,
+          placeId,
           placeOwnerId: placeData.userId,
-          totalLikes: updatedLikes.length
-        }
+          totalLikes: updatedLikes.length,
+        },
       });
 
       console.log(`✅ [PlacesDataService] Place ${userLiked ? 'unliked' : 'liked'}`);
       return { liked: !userLiked, totalLikes: updatedLikes.length };
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error toggling like:', error);
       await ActivityService.recordError(error, 'togglePlaceLike');
@@ -472,7 +467,7 @@ export class PlacesDataService {
   // Add comment to place
   static async addPlaceComment(placeId, commentText) {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -487,12 +482,12 @@ export class PlacesDataService {
         userName: currentUser.displayName || currentUser.email,
         userAvatar: '👤', // This should come from user profile
         createdAt: new Date().toISOString(),
-        isDeleted: false
+        isDeleted: false,
       };
 
       const placeRef = doc(db, 'posts', placeId);
       const placeDoc = await getDoc(placeRef);
-      
+
       if (!placeDoc.exists()) {
         throw new Error('Place not found');
       }
@@ -505,7 +500,7 @@ export class PlacesDataService {
       await updateDoc(placeRef, {
         comments: updatedComments,
         commentsCount: updatedComments.length,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Update cache
@@ -515,21 +510,20 @@ export class PlacesDataService {
         cachedData.commentsCount = updatedComments.length;
         await this.cachePlaceData(placeId, cachedData);
       }
-      
+
       // Record activity
       await ActivityService.recordActivity({
         action: 'place_comment_added',
         data: {
-          placeId: placeId,
+          placeId,
           commentId: comment.id,
           placeOwnerId: placeData.userId,
-          commentLength: commentText.length
-        }
+          commentLength: commentText.length,
+        },
       });
 
       console.log('✅ [PlacesDataService] Comment added');
       return comment;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error adding comment:', error);
       await ActivityService.recordError(error, 'addPlaceComment');
@@ -543,7 +537,7 @@ export class PlacesDataService {
       const cacheKey = `placeData_${placeId}`;
       const cacheData = {
         ...placeData,
-        lastCacheUpdate: Date.now()
+        lastCacheUpdate: Date.now(),
       };
       await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
     } catch (error) {
@@ -586,7 +580,7 @@ export class PlacesDataService {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         placesCount: increment > 0 ? increment(increment) : increment(increment),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
     } catch (error) {
       console.warn('⚠️ [PlacesDataService] Error updating places count:', error);
@@ -599,7 +593,7 @@ export class PlacesDataService {
       const placeRef = doc(db, 'posts', placeId);
       await updateDoc(placeRef, {
         viewsCount: increment(1),
-        lastViewed: serverTimestamp()
+        lastViewed: serverTimestamp(),
       });
     } catch (error) {
       console.warn('⚠️ [PlacesDataService] Error updating views:', error);
@@ -613,7 +607,7 @@ export class PlacesDataService {
 
       // Simple bounding box search (for better performance, use geohash)
       const latDelta = radiusKm / 111; // Rough conversion
-      const lonDelta = radiusKm / (111 * Math.cos(latitude * Math.PI / 180));
+      const lonDelta = radiusKm / (111 * Math.cos((latitude * Math.PI) / 180));
 
       const minLat = latitude - latDelta;
       const maxLat = latitude + latDelta;
@@ -629,12 +623,17 @@ export class PlacesDataService {
 
       const placesSnapshot = await getDocs(placesQuery);
       const places = [];
-      
-      placesSnapshot.docs.forEach(doc => {
+
+      placesSnapshot.docs.forEach((doc) => {
         const placeData = { id: doc.id, ...doc.data() };
         // Check if place has coordinates and is within radius
         if (placeData['longitude'] && placeData['latitude']) {
-          const distance = this.calculateDistance(latitude, longitude, placeData['latitude'], placeData['longitude']);
+          const distance = this.calculateDistance(
+            latitude,
+            longitude,
+            placeData['latitude'],
+            placeData['longitude']
+          );
           if (distance <= radiusKm) {
             places.push(placeData);
           }
@@ -643,7 +642,6 @@ export class PlacesDataService {
 
       console.log(`✅ [PlacesDataService] Found ${places.length} nearby places`);
       return places;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error getting nearby places:', error);
       return [];
@@ -653,13 +651,15 @@ export class PlacesDataService {
   // Calculate distance between two coordinates
   static calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the Earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c; // Distance in km
     return d;
   }
@@ -673,24 +673,23 @@ export class PlacesDataService {
       console.log('💾 [PlacesDataService] Backing up all user places');
 
       const places = await this.getUserPlaces(targetUserId, null, 1000); // Get all places
-      
+
       const backup = {
         userId: targetUserId,
-        places: places,
+        places,
         placeCount: places.length,
         backupDate: new Date().toISOString(),
-        version: '1.0'
+        version: '1.0',
       };
 
       // Save backup
       const backupRef = await addDoc(collection(db, 'placesBackups'), {
         ...backup,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       });
 
       console.log(`✅ [PlacesDataService] Backed up ${places.length} places`);
       return backupRef.id;
-      
     } catch (error) {
       console.error('❌ [PlacesDataService] Error backing up places:', error);
       return null;

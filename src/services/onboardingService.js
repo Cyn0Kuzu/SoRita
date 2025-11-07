@@ -1,6 +1,8 @@
-import { ListsDataService } from './listsDataService';
-import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { auth } from '../config/firebase';
+
+import { ListsDataService } from './listsDataService';
 
 export class OnboardingService {
   // Check if user has completed onboarding
@@ -29,7 +31,7 @@ export class OnboardingService {
   // Create welcome list for new users
   static async createWelcomeList() {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         throw new Error('No authenticated user');
       }
@@ -46,26 +48,26 @@ export class OnboardingService {
       // Create welcome list
       const welcomeListData = {
         title: 'İlk Listem',
-        description: 'SoRita\'ya hoş geldin! Bu senin ilk listen. Haritadan mekanlar ekleyerek listeni oluşturmaya başlayabilirsin.',
+        description:
+          "SoRita'ya hoş geldin! Bu senin ilk listen. Haritadan mekanlar ekleyerek listeni oluşturmaya başlayabilirsin.",
         category: 'general',
         tags: ['hoş geldin', 'başlangıç'],
         isPublic: false,
         places: [],
         placeIds: [],
         userName: currentUser.displayName || currentUser.email,
-        userAvatar: '🎉'
+        userAvatar: '🎉',
       };
 
       const result = await ListsDataService.createList(welcomeListData);
-      
+
       if (result.success) {
         console.log('✅ [OnboardingService] Welcome list created successfully');
         await this.markOnboardingCompleted(currentUser.uid);
         return result;
       }
-      
+
       throw new Error('Failed to create welcome list');
-      
     } catch (error) {
       console.error('❌ [OnboardingService] Error creating welcome list:', error);
       throw error;
@@ -75,34 +77,38 @@ export class OnboardingService {
   // Get onboarding tips based on user progress
   static getOnboardingTips(userStats = {}) {
     const tips = [];
-    
+
     if (!userStats.listsCount || userStats.listsCount === 0) {
       tips.push({
         icon: 'add-location',
         title: 'İlk Listeni Oluştur',
         description: 'Harita üzerinden mekanları keşfet ve ilk listeni oluştur',
-        action: 'create_list'
+        action: 'create_list',
       });
     }
-    
+
     if (!userStats.followingCount || userStats.followingCount === 0) {
       tips.push({
         icon: 'person-add',
         title: 'Arkadaşlarını Takip Et',
         description: 'Arama yaparak arkadaşlarını bul ve takip et',
-        action: 'find_friends'
+        action: 'find_friends',
       });
     }
-    
-    if (userStats.listsCount && userStats.listsCount > 0 && (!userStats.placesCount || userStats.placesCount < 3)) {
+
+    if (
+      userStats.listsCount &&
+      userStats.listsCount > 0 &&
+      (!userStats.placesCount || userStats.placesCount < 3)
+    ) {
       tips.push({
         icon: 'explore',
         title: 'Daha Fazla Mekan Ekle',
         description: 'Listelerine daha fazla mekan ekleyerek keşfet',
-        action: 'add_places'
+        action: 'add_places',
       });
     }
-    
+
     return tips;
   }
 

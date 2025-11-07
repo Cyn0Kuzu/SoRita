@@ -1,5 +1,7 @@
-import { auth, db } from '../config/firebase';
 import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
+
+import { auth, db } from '../config/firebase';
+
 import StorageService from './storageService';
 
 /**
@@ -7,24 +9,23 @@ import StorageService from './storageService';
  * and cleaning up broken image references
  */
 export class ImageMaintenanceService {
-
   /**
    * Check if an image URL is accessible
    */
   static async checkImageAvailability(imageUrl) {
     try {
       if (!imageUrl) return false;
-      
+
       // For Firebase URLs, assume they're valid
       if (imageUrl.includes('firebasestorage.googleapis.com')) {
         return true;
       }
-      
+
       // For cache files, they're likely not accessible
       if (StorageService.isCacheFile(imageUrl)) {
         return false;
       }
-      
+
       return true;
     } catch (error) {
       console.log('❌ [ImageMaintenance] Error checking image:', error);
@@ -42,10 +43,7 @@ export class ImageMaintenanceService {
         return { broken: [], healthy: [] };
       }
 
-      const listsQuery = query(
-        collection(db, 'lists'),
-        where('userId', '==', userId)
-      );
+      const listsQuery = query(collection(db, 'lists'), where('userId', '==', userId));
 
       const snapshot = await getDocs(listsQuery);
       const broken = [];
@@ -54,20 +52,30 @@ export class ImageMaintenanceService {
       for (const docSnapshot of snapshot.docs) {
         const listData = docSnapshot.data();
         const list = { id: docSnapshot.id, ...listData };
-        
+
         if (listData.image) {
           const isHealthy = await this.checkImageAvailability(listData.image);
-          
+
           if (isHealthy) {
-            healthy.push({ listId: list.id, image: listData.image, name: listData.name || 'Unknown' });
+            healthy.push({
+              listId: list.id,
+              image: listData.image,
+              name: listData.name || 'Unknown',
+            });
           } else {
-            broken.push({ listId: list.id, image: listData.image, name: listData.name || 'Unknown' });
+            broken.push({
+              listId: list.id,
+              image: listData.image,
+              name: listData.name || 'Unknown',
+            });
           }
         }
       }
 
-      console.log(`🔍 [ImageMaintenance] Image health scan complete - Healthy: ${healthy.length}, Broken: ${broken.length}`);
-      
+      console.log(
+        `🔍 [ImageMaintenance] Image health scan complete - Healthy: ${healthy.length}, Broken: ${broken.length}`
+      );
+
       return { broken, healthy };
     } catch (error) {
       console.error('❌ [ImageMaintenance] Error scanning images:', error);
@@ -81,16 +89,16 @@ export class ImageMaintenanceService {
   static async cleanupBrokenImages(userId) {
     try {
       const { broken } = await this.scanUserImagesHealth(userId);
-      
+
       let cleanedCount = 0;
-      
+
       for (const brokenImage of broken) {
         try {
           await updateDoc(doc(db, 'lists', brokenImage.listId), {
             image: null,
-            imageType: null
+            imageType: null,
           });
-          
+
           cleanedCount++;
           console.log(`🧹 [ImageMaintenance] Cleaned broken image from list: ${brokenImage.name}`);
         } catch (error) {
@@ -112,14 +120,15 @@ export class ImageMaintenanceService {
   static async getImageHealthStats(userId) {
     try {
       const { broken, healthy } = await this.scanUserImagesHealth(userId);
-      
+
       return {
         total: broken.length + healthy.length,
         healthy: healthy.length,
         broken: broken.length,
-        healthPercentage: broken.length + healthy.length > 0 
-          ? Math.round((healthy.length / (broken.length + healthy.length)) * 100) 
-          : 100
+        healthPercentage:
+          broken.length + healthy.length > 0
+            ? Math.round((healthy.length / (broken.length + healthy.length)) * 100)
+            : 100,
       };
     } catch (error) {
       console.error('❌ [ImageMaintenance] Error getting stats:', error);
@@ -132,7 +141,7 @@ export class ImageMaintenanceService {
    */
   static async autoCleanupForCurrentUser() {
     try {
-      const currentUser = auth.currentUser;
+      const { currentUser } = auth;
       if (!currentUser) {
         console.warn('⚠️ [ImageMaintenance] No authenticated user for auto cleanup');
         return 0;

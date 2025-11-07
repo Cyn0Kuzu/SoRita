@@ -8,31 +8,28 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+
 import FirestoreService from '../services/firestoreService';
 import storageService from '../services/storageService';
 import { colors } from '../theme/theme';
 import { auth, db } from '../config/firebase';
-import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import CollaborativeListService from '../services/collaborativeListService';
 
-const EditListInfoModal = ({ 
-  visible, 
-  onClose, 
-  listData, 
-  onListUpdated 
-}) => {
+const EditListInfoModal = ({ visible, onClose, listData, onListUpdated }) => {
   const [listName, setListName] = useState('');
   const [listImage, setListImage] = useState(null);
   const [listPrivacy, setListPrivacy] = useState('public');
   const [isCollaborativePrivate, setIsCollaborativePrivate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  
+
   // Collaborator states
   const [showCollaboratorSearch, setShowCollaboratorSearch] = useState(false);
   const [followers, setFollowers] = useState([]);
@@ -44,7 +41,7 @@ const EditListInfoModal = ({
     if (listData) {
       setListName(listData.name || '');
       setListImage(listData.image || null);
-      
+
       // Gizlilik ayarını belirle
       if (listData.privacy) {
         setListPrivacy(listData.privacy);
@@ -59,7 +56,7 @@ const EditListInfoModal = ({
           setListPrivacy('public');
         }
       }
-      
+
       // Eğer liste zaten ortak liste ise collaborative olarak ayarla
       if (listData.collaborators && listData.collaborators.length > 0) {
         setListPrivacy('collaborative');
@@ -115,7 +112,7 @@ const EditListInfoModal = ({
   const loadFollowers = async () => {
     try {
       console.log('📋 [EditListInfoModal] Loading followers...');
-      
+
       const currentUser = auth?.currentUser;
       if (!currentUser) {
         console.log('❌ [EditListInfoModal] No current user found');
@@ -131,12 +128,12 @@ const EditListInfoModal = ({
         collection(db, 'follows'),
         where('followedUserId', '==', currentUser.uid)
       );
-      
+
       const followersSnapshot = await getDocs(followersQuery);
-      const followerIds = followersSnapshot.docs.map(doc => doc.data().followerId);
-      
+      const followerIds = followersSnapshot.docs.map((doc) => doc.data().followerId);
+
       console.log('📋 [EditListInfoModal] Found follower IDs:', followerIds.length);
-      
+
       if (followerIds.length === 0) {
         console.log('📋 [EditListInfoModal] No followers found');
         setFollowers([]);
@@ -156,14 +153,14 @@ const EditListInfoModal = ({
               username: userData.username || 'unknown',
               firstName: userData.firstName || 'İsimsiz',
               lastName: userData.lastName || 'Kullanıcı',
-              avatar: userData.avatar || '👤'
+              avatar: userData.avatar || '👤',
             };
             followersData.push(followerData);
-            
+
             // Eğer bu kullanıcı listeye ortak ise, selectedCollaborators'a ekle
             if (listData && listData.collaborators && listData.collaborators.includes(followerId)) {
-              setSelectedCollaborators(prev => {
-                const exists = prev.some(c => c.id === followerId);
+              setSelectedCollaborators((prev) => {
+                const exists = prev.some((c) => c.id === followerId);
                 if (!exists) {
                   return [...prev, followerData];
                 }
@@ -172,7 +169,11 @@ const EditListInfoModal = ({
             }
           }
         } catch (error) {
-          console.warn('⚠️ [EditListInfoModal] Error loading follower data for:', followerId, error);
+          console.warn(
+            '⚠️ [EditListInfoModal] Error loading follower data for:',
+            followerId,
+            error
+          );
         }
       }
 
@@ -194,14 +195,14 @@ const EditListInfoModal = ({
       return;
     }
 
-    const filtered = followers.filter(follower => {
+    const filtered = followers.filter((follower) => {
       const fullName = `${follower.firstName} ${follower.lastName}`.toLowerCase();
       const username = follower.username.toLowerCase();
       const searchQuery = query.toLowerCase();
-      
+
       return fullName.includes(searchQuery) || username.includes(searchQuery);
     });
-    
+
     setFilteredFollowers(filtered);
   };
 
@@ -220,15 +221,16 @@ const EditListInfoModal = ({
   const searchCollaborators = async (searchTerm) => {
     const followers = await getUserFollowers();
     if (!searchTerm.trim()) return followers;
-    
-    return followers.filter(follower => 
-      follower.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      follower.username?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    return followers.filter(
+      (follower) =>
+        follower.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        follower.username?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
   const removeCollaborator = (collaboratorId) => {
-    setSelectedCollaborators(prev => prev.filter(c => c.uid !== collaboratorId));
+    setSelectedCollaborators((prev) => prev.filter((c) => c.uid !== collaboratorId));
   };
 
   const handlePrivacyChange = async (value) => {
@@ -242,12 +244,12 @@ const EditListInfoModal = ({
   };
 
   const toggleCollaborator = (collaborator) => {
-    const isSelected = selectedCollaborators.some(c => c.id === collaborator.id);
-    
+    const isSelected = selectedCollaborators.some((c) => c.id === collaborator.id);
+
     if (isSelected) {
-      setSelectedCollaborators(prev => prev.filter(c => c.id !== collaborator.id));
+      setSelectedCollaborators((prev) => prev.filter((c) => c.id !== collaborator.id));
     } else {
-      setSelectedCollaborators(prev => [...prev, collaborator]);
+      setSelectedCollaborators((prev) => [...prev, collaborator]);
     }
   };
 
@@ -258,23 +260,23 @@ const EditListInfoModal = ({
       `${collaboratorDetail.firstName} ${collaboratorDetail.lastName} kişisini listeden çıkarmak istediğinize emin misiniz?`,
       [
         { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Çıkar', 
+        {
+          text: 'Çıkar',
           style: 'destructive',
           onPress: async () => {
             try {
               setIsLoading(true);
               await CollaborativeListService.removeCollaborator(
-                listData.id, 
-                collaboratorId, 
+                listData.id,
+                collaboratorId,
                 auth.currentUser?.uid
               );
-              
+
               // Listeyi yeniden yükle
               if (onListUpdated) {
                 onListUpdated();
               }
-              
+
               Alert.alert('Başarılı', 'Üye listeden çıkarıldı');
             } catch (error) {
               console.error('❌ [EditListInfoModal] Error removing member:', error);
@@ -282,8 +284,8 @@ const EditListInfoModal = ({
             } finally {
               setIsLoading(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -317,19 +319,20 @@ const EditListInfoModal = ({
         privacy: listPrivacy,
         isCollaborativePrivate: listPrivacy === 'collaborative' ? isCollaborativePrivate : false,
         // Geriye uyumluluk için eski alanları da güncelle
-        isPublic: listPrivacy === 'public' || (listPrivacy === 'collaborative' && !isCollaborativePrivate),
+        isPublic:
+          listPrivacy === 'public' || (listPrivacy === 'collaborative' && !isCollaborativePrivate),
         allowInvites: listPrivacy === 'collaborative',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
       await FirestoreService.updateList(listData.id, updatedListData);
 
       Alert.alert('Başarılı', 'Liste başarıyla güncellendi.');
-      
+
       if (onListUpdated) {
         onListUpdated({ ...listData, ...updatedListData });
       }
-      
+
       onClose();
     } catch (error) {
       console.error('Error updating list:', error);
@@ -355,16 +358,16 @@ const EditListInfoModal = ({
               if (listData.image) {
                 await storageService.deleteImageByUrl(listData.image);
               }
-              
+
               // Listeyi sil
               await FirestoreService.deleteList(listData.id);
-              
+
               Alert.alert('Başarılı', 'Liste başarıyla silindi.');
-              
+
               if (onListUpdated) {
                 onListUpdated(null, true); // null ve true ile silindiğini belirt
               }
-              
+
               onClose();
             } catch (error) {
               console.error('Error deleting list:', error);
@@ -372,8 +375,8 @@ const EditListInfoModal = ({
             } finally {
               setIsLoading(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -393,21 +396,18 @@ const EditListInfoModal = ({
           <Text style={styles.modalTitle}>Listeyi Düzenle</Text>
           <View style={{ width: 24 }} />
         </View>
-        
+
         <ScrollView style={styles.modalContent}>
           {/* List Image Selection */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Liste Fotoğrafı</Text>
-            
+
             {/* Gallery Button */}
-            <TouchableOpacity
-              style={styles.galleryButton}
-              onPress={pickImageFromGallery}
-            >
+            <TouchableOpacity style={styles.galleryButton} onPress={pickImageFromGallery}>
               <MaterialIcons name="photo-library" size={24} color="#007AFF" />
               <Text style={styles.galleryButtonText}>Galeriden Seç</Text>
             </TouchableOpacity>
-            
+
             {/* Selected Image Preview */}
             {listImage ? (
               <View style={styles.selectedImageContainer}>
@@ -427,7 +427,7 @@ const EditListInfoModal = ({
               </Text>
             )}
           </View>
-          
+
           {/* List Name */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Liste Adı</Text>
@@ -439,44 +439,80 @@ const EditListInfoModal = ({
               maxLength={50}
             />
           </View>
-          
+
           {/* Privacy Settings */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Gizlilik Ayarları</Text>
-            
+
             <TouchableOpacity
-              style={[styles.privacyOption, listPrivacy === 'public' && styles.privacyOptionSelected]}
+              style={[
+                styles.privacyOption,
+                listPrivacy === 'public' && styles.privacyOptionSelected,
+              ]}
               onPress={() => handlePrivacyChange('public')}
             >
-              <MaterialIcons name="public" size={24} color={listPrivacy === 'public' ? '#fff' : '#666'} />
-              <Text style={[styles.privacyOptionText, listPrivacy === 'public' && styles.privacyOptionTextSelected]}>
+              <MaterialIcons
+                name="public"
+                size={24}
+                color={listPrivacy === 'public' ? '#fff' : '#666'}
+              />
+              <Text
+                style={[
+                  styles.privacyOptionText,
+                  listPrivacy === 'public' && styles.privacyOptionTextSelected,
+                ]}
+              >
                 Herkese Açık
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.privacyOption, listPrivacy === 'private' && styles.privacyOptionSelected]}
+              style={[
+                styles.privacyOption,
+                listPrivacy === 'private' && styles.privacyOptionSelected,
+              ]}
               onPress={() => handlePrivacyChange('private')}
             >
-              <MaterialIcons name="lock" size={24} color={listPrivacy === 'private' ? '#fff' : '#666'} />
-              <Text style={[styles.privacyOptionText, listPrivacy === 'private' && styles.privacyOptionTextSelected]}>
+              <MaterialIcons
+                name="lock"
+                size={24}
+                color={listPrivacy === 'private' ? '#fff' : '#666'}
+              />
+              <Text
+                style={[
+                  styles.privacyOptionText,
+                  listPrivacy === 'private' && styles.privacyOptionTextSelected,
+                ]}
+              >
                 Özel
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.privacyOption, listPrivacy === 'collaborative' && styles.privacyOptionSelected]}
+              style={[
+                styles.privacyOption,
+                listPrivacy === 'collaborative' && styles.privacyOptionSelected,
+              ]}
               onPress={async () => {
                 await handlePrivacyChange('collaborative');
                 setShowCollaboratorSearch(true);
               }}
             >
-              <MaterialIcons name="group" size={24} color={listPrivacy === 'collaborative' ? '#fff' : '#666'} />
-              <Text style={[styles.privacyOptionText, listPrivacy === 'collaborative' && styles.privacyOptionTextSelected]}>
+              <MaterialIcons
+                name="group"
+                size={24}
+                color={listPrivacy === 'collaborative' ? '#fff' : '#666'}
+              />
+              <Text
+                style={[
+                  styles.privacyOptionText,
+                  listPrivacy === 'collaborative' && styles.privacyOptionTextSelected,
+                ]}
+              >
                 Ortak
               </Text>
             </TouchableOpacity>
-            
+
             {/* Davet Et seçiliyse özel ve herkese açık seçenekleri göster */}
             {listPrivacy === 'collaborative' && (
               <View style={styles.subPrivacyOptions}>
@@ -484,8 +520,10 @@ const EditListInfoModal = ({
                 <View style={styles.subPrivacyContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.subPrivacyOption, 
-                      (listPrivacy === 'collaborative' && !isCollaborativePrivate) && styles.subPrivacyOptionSelected
+                      styles.subPrivacyOption,
+                      listPrivacy === 'collaborative' &&
+                        !isCollaborativePrivate &&
+                        styles.subPrivacyOptionSelected,
                     ]}
                     onPress={() => {
                       setIsCollaborativePrivate(false);
@@ -494,11 +532,13 @@ const EditListInfoModal = ({
                     <MaterialIcons name="public" size={20} color="#10B981" />
                     <Text style={styles.subPrivacyOptionText}>Herkese Açık</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={[
                       styles.subPrivacyOption,
-                      (listPrivacy === 'collaborative' && isCollaborativePrivate) && styles.subPrivacyOptionSelected
+                      listPrivacy === 'collaborative' &&
+                        isCollaborativePrivate &&
+                        styles.subPrivacyOptionSelected,
                     ]}
                     onPress={() => {
                       setIsCollaborativePrivate(true);
@@ -510,8 +550,8 @@ const EditListInfoModal = ({
                 </View>
               </View>
             )}
-            
-            {(showCollaboratorSearch && listPrivacy === 'collaborative') && (
+
+            {showCollaboratorSearch && listPrivacy === 'collaborative' && (
               <View style={styles.collaboratorSearch}>
                 <TextInput
                   style={styles.modalInput}
@@ -519,7 +559,7 @@ const EditListInfoModal = ({
                   value={collaboratorQuery}
                   onChangeText={filterFollowers}
                 />
-                
+
                 {/* Seçilen işbirlikçiler */}
                 {selectedCollaborators.length > 0 && (
                   <View style={styles.selectedCollaborators}>
@@ -527,7 +567,7 @@ const EditListInfoModal = ({
                       Seçilen Kişiler ({selectedCollaborators.length}):
                     </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {selectedCollaborators.map(collaborator => (
+                      {selectedCollaborators.map((collaborator) => (
                         <TouchableOpacity
                           key={collaborator.id}
                           style={styles.selectedCollaboratorChip}
@@ -545,7 +585,7 @@ const EditListInfoModal = ({
                     </ScrollView>
                   </View>
                 )}
-                
+
                 {/* Takipçi listesi */}
                 <View style={styles.followersList}>
                   {/* Mevcut Üyeler */}
@@ -554,11 +594,14 @@ const EditListInfoModal = ({
                       <Text style={styles.followersListTitle}>
                         Mevcut Üyeler ({listData.collaborators.length})
                       </Text>
-                      <ScrollView style={[styles.followersScrollView, { maxHeight: 150 }]} nestedScrollEnabled={true}>
+                      <ScrollView
+                        style={[styles.followersScrollView, { maxHeight: 150 }]}
+                        nestedScrollEnabled={true}
+                      >
                         {listData.collaborators.map((collaboratorId) => {
                           const collaboratorDetail = listData.collaboratorDetails?.[collaboratorId];
                           if (!collaboratorDetail) return null;
-                          
+
                           return (
                             <View key={collaboratorId} style={styles.currentMemberItem}>
                               <Text style={styles.followerAvatar}>{collaboratorDetail.avatar}</Text>
@@ -566,12 +609,16 @@ const EditListInfoModal = ({
                                 <Text style={styles.followerName}>
                                   {collaboratorDetail.firstName} {collaboratorDetail.lastName}
                                 </Text>
-                                <Text style={styles.followerUsername}>@{collaboratorDetail.username}</Text>
+                                <Text style={styles.followerUsername}>
+                                  @{collaboratorDetail.username}
+                                </Text>
                               </View>
                               {listData.userId === auth.currentUser?.uid && (
                                 <TouchableOpacity
                                   style={styles.removeMemberButton}
-                                  onPress={() => handleRemoveMember(collaboratorId, collaboratorDetail)}
+                                  onPress={() =>
+                                    handleRemoveMember(collaboratorId, collaboratorDetail)
+                                  }
                                 >
                                   <MaterialIcons name="remove-circle" size={24} color="#EF4444" />
                                 </TouchableOpacity>
@@ -582,35 +629,37 @@ const EditListInfoModal = ({
                       </ScrollView>
                     </View>
                   )}
-                  
+
                   <Text style={styles.followersListTitle}>
                     Takipçileriniz ({filteredFollowers.length})
                   </Text>
-                  <ScrollView style={[styles.followersScrollView, { maxHeight: 200 }]} nestedScrollEnabled={true}>
+                  <ScrollView
+                    style={[styles.followersScrollView, { maxHeight: 200 }]}
+                    nestedScrollEnabled={true}
+                  >
                     {filteredFollowers.length > 0 ? (
                       filteredFollowers.map((item) => {
                         // Kullanıcı zaten listeye ortak mı kontrol et
                         const isCurrentCollaborator = listData?.collaborators?.includes(item.id);
                         // Kullanıcı yeni seçilen ortaklar arasında mı kontrol et
-                        const isSelectedCollaborator = selectedCollaborators.some(c => c.id === item.id);
+                        const isSelectedCollaborator = selectedCollaborators.some(
+                          (c) => c.id === item.id
+                        );
                         // Her iki durumda da işaretli olmalı
                         const isSelected = isCurrentCollaborator || isSelectedCollaborator;
-                        
+
                         console.log('🔍 [EditListInfoModal] User check:', {
                           userId: item.id,
                           userName: `${item.firstName} ${item.lastName}`,
                           isCurrentCollaborator,
                           isSelectedCollaborator,
                           isSelected,
-                          listCollaborators: listData?.collaborators
+                          listCollaborators: listData?.collaborators,
                         });
                         return (
                           <TouchableOpacity
                             key={item.id}
-                            style={[
-                              styles.followerItem,
-                              isSelected && styles.followerItemSelected
-                            ]}
+                            style={[styles.followerItem, isSelected && styles.followerItemSelected]}
                             onPress={() => toggleCollaborator(item)}
                           >
                             <Text style={styles.followerAvatar}>{item.avatar}</Text>
@@ -621,9 +670,9 @@ const EditListInfoModal = ({
                               <Text style={styles.followerUsername}>@{item.username}</Text>
                             </View>
                             <MaterialIcons
-                              name={isSelected ? "check-circle" : "radio-button-unchecked"}
+                              name={isSelected ? 'check-circle' : 'radio-button-unchecked'}
                               size={24}
-                              color={isSelected ? "#10B981" : "#999"}
+                              color={isSelected ? '#10B981' : '#999'}
                             />
                           </TouchableOpacity>
                         );
@@ -638,7 +687,7 @@ const EditListInfoModal = ({
                     )}
                   </ScrollView>
                 </View>
-                
+
                 <Text style={styles.collaboratorHint}>
                   Sadece takipçilerinizden davet edebilirsiniz
                 </Text>
@@ -646,7 +695,7 @@ const EditListInfoModal = ({
             )}
           </View>
         </ScrollView>
-        
+
         {/* Footer with action buttons - exactly like MapScreen */}
         <View style={styles.createListFooter}>
           <TouchableOpacity
@@ -658,9 +707,12 @@ const EditListInfoModal = ({
           >
             <Text style={styles.cancelCreateButtonText}>İptal için 2sn basılı tutun</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[styles.createListButton, (!listName.trim() || !listImage) && styles.createListButtonDisabled]}
+            style={[
+              styles.createListButton,
+              (!listName.trim() || !listImage) && styles.createListButtonDisabled,
+            ]}
             onPress={handleSave}
             disabled={!listName.trim() || !listImage || isLoading}
           >
@@ -676,22 +728,22 @@ const EditListInfoModal = ({
 
 const styles = StyleSheet.create({
   modalContainer: {
-    flex: 1,
     backgroundColor: '#fff',
+    flex: 1,
   },
   modalHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderBottomColor: '#E0E0E0',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   modalTitle: {
+    color: '#333',
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
   },
   modalContent: {
     flex: 1,
@@ -701,85 +753,85 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
+    color: '#333',
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 16,
   },
   galleryButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginBottom: 16,
-    justifyContent: 'center',
-    borderWidth: 1,
     borderColor: '#007AFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 16,
+    padding: 12,
   },
   galleryButtonText: {
-    marginLeft: 8,
-    fontSize: 16,
     color: '#007AFF',
+    fontSize: 16,
     fontWeight: '500',
+    marginLeft: 8,
   },
   selectedImageContainer: {
-    position: 'relative',
     alignSelf: 'center',
     marginBottom: 16,
+    position: 'relative',
   },
   selectedImage: {
-    width: 80,
-    height: 80,
     borderRadius: 40,
+    height: 80,
+    width: 80,
   },
   removeImageButton: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
+    alignItems: 'center',
     backgroundColor: '#ff3b30',
     borderRadius: 12,
-    width: 24,
     height: 24,
-    alignItems: 'center',
     justifyContent: 'center',
+    position: 'absolute',
+    right: -5,
+    top: -5,
+    width: 24,
   },
   helperText: {
-    fontSize: 14,
     color: '#6C757D',
-    textAlign: 'center',
+    fontSize: 14,
     fontStyle: 'italic',
     marginTop: 8,
+    textAlign: 'center',
   },
   modalInput: {
-    borderWidth: 1,
+    backgroundColor: '#fff',
     borderColor: '#ddd',
     borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
   },
   privacyOption: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
     backgroundColor: '#f8f9fa',
+    borderColor: 'transparent',
+    borderRadius: 12,
+    borderWidth: 2,
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   privacyOptionSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   privacyOptionText: {
-    fontSize: 16,
     color: '#333',
-    marginLeft: 12,
+    fontSize: 16,
     fontWeight: '500',
+    marginLeft: 12,
   },
   privacyOptionTextSelected: {
     color: '#fff',
@@ -789,9 +841,9 @@ const styles = StyleSheet.create({
     paddingLeft: 15,
   },
   subPrivacyTitle: {
+    color: '#666',
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
     marginBottom: 10,
   },
   subPrivacyContainer: {
@@ -799,112 +851,112 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   subPrivacyOption: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    backgroundColor: '#F8F9FA',
+    borderColor: '#E9ECEF',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#E9ECEF',
-    backgroundColor: '#F8F9FA',
+    flex: 1,
+    flexDirection: 'row',
+    padding: 10,
   },
   subPrivacyOptionSelected: {
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
     borderColor: '#10B981',
   },
   subPrivacyOptionText: {
-    marginLeft: 8,
+    color: '#666',
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
+    marginLeft: 8,
   },
   createListFooter: {
+    borderTopColor: '#eee',
+    borderTopWidth: 1,
     flexDirection: 'row',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    gap: 12,
   },
   cancelCreateButton: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderColor: '#dc3545',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#dc3545',
-    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   cancelCreateButtonText: {
-    fontSize: 12,
     color: '#dc3545',
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
   createListButton: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    alignItems: 'center',
     backgroundColor: colors.primary,
     borderRadius: 12,
-    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   createListButtonDisabled: {
     backgroundColor: '#ccc',
   },
   createListButtonText: {
-    fontSize: 16,
     color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   // Collaboration styles
   collaboratorSearch: {
+    borderTopColor: '#eee',
+    borderTopWidth: 1,
     marginTop: 16,
     paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   collaboratorHint: {
-    fontSize: 12,
     color: '#666',
-    marginTop: 8,
+    fontSize: 12,
     fontStyle: 'italic',
+    marginTop: 8,
   },
   selectedCollaborators: {
-    marginTop: 12,
     marginBottom: 12,
+    marginTop: 12,
   },
   selectedCollaboratorsTitle: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   selectedCollaboratorChip: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E8F5E8',
     borderRadius: 20,
+    flexDirection: 'row',
+    gap: 6,
+    marginRight: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginRight: 8,
-    gap: 6,
   },
   selectedCollaboratorAvatar: {
     fontSize: 16,
   },
   selectedCollaboratorName: {
-    fontSize: 12,
     color: '#10B981',
+    fontSize: 12,
     fontWeight: '500',
   },
   followersList: {
     marginTop: 12,
   },
   followersListTitle: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   followersScrollView: {
@@ -914,12 +966,12 @@ const styles = StyleSheet.create({
     overflow: 'scroll',
   },
   followerItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   followerItemSelected: {
     backgroundColor: '#E8F5E8',
@@ -932,13 +984,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   followerName: {
+    color: '#333',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
   },
   followerUsername: {
-    fontSize: 12,
     color: '#666',
+    fontSize: 12,
     marginTop: 2,
   },
   emptyFollowers: {
@@ -946,27 +998,27 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyFollowersText: {
-    fontSize: 14,
     color: '#999',
+    fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
   },
-  
+
   // Mevcut üyeler için stiller
   currentMembersSection: {
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
     marginBottom: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   currentMemberItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#f5f5f5',
   },
   removeMemberButton: {
     padding: 4,

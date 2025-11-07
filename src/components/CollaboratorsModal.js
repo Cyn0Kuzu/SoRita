@@ -12,11 +12,14 @@ import {
   Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { colors } from '../theme/theme';
+
 import { Avatar } from 'react-native-paper';
+
+import { doc, getDoc } from 'firebase/firestore';
+
+import { colors } from '../theme/theme';
 import CollaborativeListService from '../services/collaborativeListService';
 import { auth, db } from '../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 
 const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = false }) => {
   const [members, setMembers] = useState([]);
@@ -42,18 +45,20 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
     try {
       setLoading(true);
       console.log('👥 [CollaboratorsModal] Loading members for list:', listId);
-      
+
       const listMembers = await CollaborativeListService.getListMembers(listId);
       setMembers(listMembers);
-      
+
       // Listedeki gerçek toplam yer sayısını al
       const listRef = doc(db, 'lists', listId);
       const listDoc = await getDoc(listRef);
       const listData = listDoc.data();
       const actualTotalPlaces = (listData.places || []).length;
       setTotalPlaces(actualTotalPlaces);
-      
-      console.log(`✅ [CollaboratorsModal] Loaded ${listMembers.length} members, ${actualTotalPlaces} total places`);
+
+      console.log(
+        `✅ [CollaboratorsModal] Loaded ${listMembers.length} members, ${actualTotalPlaces} total places`
+      );
     } catch (error) {
       console.error('❌ [CollaboratorsModal] Error loading members:', error);
       Alert.alert('Hata', 'Üye listesi yüklenirken bir hata oluştu.');
@@ -86,8 +91,8 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
               console.error('❌ [CollaboratorsModal] Error removing member:', error);
               Alert.alert('Hata', 'Üye çıkarılırken bir hata oluştu.');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -98,8 +103,8 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
       if (member.avatar && member.avatar.startsWith('http')) {
         return (
           <View style={styles.ownerAvatarContainer}>
-            <Image 
-              source={{ uri: member.avatar }} 
+            <Image
+              source={{ uri: member.avatar }}
               style={styles.ownerAvatarImage}
               resizeMode="cover"
             />
@@ -109,11 +114,11 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
           </View>
         );
       }
-      
+
       return (
         <View style={styles.ownerEmojiAvatar}>
           <Text style={styles.ownerEmojiText}>
-            {member.avatar === '👑' ? '👑' : (member.avatar || '👑')}
+            {member.avatar === '👑' ? '👑' : member.avatar || '👑'}
           </Text>
         </View>
       );
@@ -122,19 +127,17 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
     // Normal üyeler için avatar
     if (member.avatar && member.avatar.startsWith('http')) {
       return (
-        <Image 
-          source={{ uri: member.avatar }} 
+        <Image
+          source={{ uri: member.avatar }}
           style={styles.memberAvatarImage}
           resizeMode="cover"
         />
       );
     }
-    
+
     return (
       <View style={styles.emojiAvatar}>
-        <Text style={styles.emojiAvatarText}>
-          {member.avatar || '👤'}
-        </Text>
+        <Text style={styles.emojiAvatarText}>{member.avatar || '👤'}</Text>
       </View>
     );
   };
@@ -144,37 +147,39 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
     const canRemove = isOwner && member.role !== 'owner' && !isCurrentUser;
 
     // Kullanıcı adını düzgün formatlayalım
-    const displayName = member.displayName || 
-                       (member.firstName && member.lastName ? `${member.firstName} ${member.lastName}`.trim() : 
-                        member.firstName || member.lastName || 'İsimsiz Kullanıcı');
+    const displayName =
+      member.displayName ||
+      (member.firstName && member.lastName
+        ? `${member.firstName} ${member.lastName}`.trim()
+        : member.firstName || member.lastName || 'İsimsiz Kullanıcı');
 
     return (
-      <View key={member.id} style={[
-        styles.memberCard, 
-        member.role === 'owner' && styles.ownerMemberCard
-      ]}>
+      <View
+        key={member.id}
+        style={[styles.memberCard, member.role === 'owner' && styles.ownerMemberCard]}
+      >
         <View style={styles.memberInfo}>
           {/* Avatar Container */}
           <View style={styles.avatarContainer}>
             {renderAvatar(member)}
             {/* Renk göstergesi */}
-            <View 
+            <View
               style={[
-                styles.colorIndicator, 
+                styles.colorIndicator,
                 { backgroundColor: member.color || '#ccc' },
-                member.role === 'owner' && styles.ownerColorIndicator
-              ]} 
+                member.role === 'owner' && styles.ownerColorIndicator,
+              ]}
             />
           </View>
-          
+
           {/* Member Details */}
           <View style={styles.memberDetails}>
             {/* Name and Role Row */}
             <View style={styles.memberNameRow}>
-              <Text style={[
-                styles.memberName, 
-                member.role === 'owner' && styles.ownerMemberName
-              ]} numberOfLines={1}>
+              <Text
+                style={[styles.memberName, member.role === 'owner' && styles.ownerMemberName]}
+                numberOfLines={1}
+              >
                 {displayName}
               </Text>
               {member.role === 'owner' && (
@@ -189,33 +194,29 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
                 </View>
               )}
             </View>
-            
+
             {/* Username Row */}
             {member.username && (
               <View style={styles.usernameRow}>
                 <MaterialIcons name="alternate-email" size={14} color={colors.textSecondary} />
-                <Text style={styles.memberUsername}>
-                  {member.username}
-                </Text>
+                <Text style={styles.memberUsername}>{member.username}</Text>
               </View>
             )}
-            
+
             {/* Stats Row */}
             <View style={styles.memberStatsRow}>
               <View style={styles.statBadge}>
                 <MaterialIcons name="place" size={14} color={colors.success} />
-                <Text style={styles.memberStats}>
-                  {member.addedPlacesCount || 0} yer
-                </Text>
+                <Text style={styles.memberStats}>{member.addedPlacesCount || 0} yer</Text>
               </View>
-              
+
               {member.joinedAt && (
                 <View style={styles.dateBadge}>
                   <MaterialIcons name="schedule" size={14} color={colors.textSecondary} />
                   <Text style={styles.joinDate}>
-                    {new Date(member.joinedAt).toLocaleDateString('tr-TR', { 
-                      day: 'numeric', 
-                      month: 'short' 
+                    {new Date(member.joinedAt).toLocaleDateString('tr-TR', {
+                      day: 'numeric',
+                      month: 'short',
                     })}
                   </Text>
                 </View>
@@ -250,7 +251,7 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <MaterialIcons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          
+
           <View style={styles.headerContent}>
             <Text style={styles.title}>Ortak Üyeler</Text>
             <Text style={styles.subtitle}>{listTitle}</Text>
@@ -258,7 +259,7 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
         </View>
 
         {/* Content */}
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           refreshControl={
             <RefreshControl
@@ -284,7 +285,7 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
                   <Text style={styles.statNumber}>{members.length}</Text>
                   <Text style={styles.statLabel}>Toplam Üye</Text>
                 </View>
-                
+
                 <View style={styles.statCard}>
                   <View style={styles.statIconContainer}>
                     <MaterialIcons name="place" size={24} color={colors.success} />
@@ -307,368 +308,368 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  activeColorsContainer: {
+    gap: 8,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.white,
+  avatarContainer: {
+    marginRight: 12,
+    position: 'relative',
   },
   closeButton: {
     padding: 8,
   },
-  headerContent: {
-    flex: 1,
+  colorCircle: {
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 16,
+    width: 16,
+  },
+  colorIndicator: {
+    borderColor: colors.white,
+    borderRadius: 9,
+    borderWidth: 2,
+    bottom: -2,
+    height: 18,
+    position: 'absolute',
+    right: -2,
+    width: 18,
+  },
+  colorItem: {
     alignItems: 'center',
-    marginLeft: -40, // X butonunun genişliğini telafi et
-  },
-  headerLeft: {
-    width: 40,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerRight: {
-    width: 40,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-  },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  membersContainer: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 12,
-  },
-  memberItem: {
+    borderRadius: 20,
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  colorLegend: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
     elevation: 1,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
+  colorMemberName: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  ownerMemberCard: {
-    backgroundColor: colors.white,
-  },
-  memberInfo: {
+  container: {
+    backgroundColor: colors.background,
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  emojiAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  emojiAvatarText: {
-    fontSize: 24,
-  },
-  ownerAvatarContainer: {
-    position: 'relative',
-    width: 60,
-    height: 60,
-  },
-  ownerAvatarImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  crownOverlay: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    padding: 2,
+  content: {
+    flex: 1,
+    padding: 16,
   },
   crownEmoji: {
     fontSize: 16,
   },
-  ownerEmojiAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
+  crownOverlay: {
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    padding: 2,
+    position: 'absolute',
+    right: -5,
+    top: -5,
   },
-  ownerEmojiText: {
-    fontSize: 28,
+  dateBadge: {
+    alignItems: 'center',
+    backgroundColor: `${colors.textSecondary}15`,
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 2,
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  emojiAvatar: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 30,
+    borderWidth: 2,
+    height: 60,
+    justifyContent: 'center',
+    width: 60,
+  },
+  emojiAvatarText: {
+    fontSize: 24,
+  },
+  header: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerCenter: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerContent: {
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: -40, // X butonunun genişliğini telafi et
+  },
+  headerLeft: {
+    width: 40,
+  },
+  headerRight: {
+    width: 40,
+  },
+  joinDate: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  legendHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  legendText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 100,
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 10,
   },
   memberAvatarImage: {
-    width: 60,
-    height: 60,
+    borderColor: colors.border,
     borderRadius: 30,
     borderWidth: 2,
+    height: 60,
+    width: 60,
+  },
+  memberCard: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
     borderColor: colors.border,
-  },
-  colorIndicator: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  ownerColorIndicator: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    elevation: 2,
+    flexDirection: 'row',
+    marginBottom: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
   },
   memberDetails: {
     flex: 1,
   },
-  memberNameRow: {
-    flexDirection: 'row',
+  memberInfo: {
     alignItems: 'center',
-    marginBottom: 4,
+    flex: 1,
+    flexDirection: 'row',
+  },
+  memberItem: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    elevation: 1,
+    flexDirection: 'row',
+    marginBottom: 8,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   memberName: {
+    color: colors.textPrimary,
+    flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: colors.textPrimary,
     marginRight: 8,
-    flex: 1,
+  },
+  memberNameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  memberStats: {
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: '500',
+    marginLeft: 2,
+  },
+  memberStatsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  memberUsername: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 2,
+  },
+  membersContainer: {
+    marginBottom: 24,
+  },
+  ownerAvatarContainer: {
+    height: 60,
+    position: 'relative',
+    width: 60,
+  },
+  ownerAvatarImage: {
+    borderColor: colors.border,
+    borderRadius: 30,
+    borderWidth: 2,
+    height: 60,
+    width: 60,
+  },
+  ownerBadge: {
+    alignItems: 'center',
+    backgroundColor: `${colors.warning}20`,
+    borderRadius: 8,
+    flexDirection: 'row',
+    marginRight: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  ownerColorIndicator: {
+    borderColor: colors.white,
+    borderRadius: 9,
+    borderWidth: 2,
+    bottom: -2,
+    height: 18,
+    position: 'absolute',
+    right: -2,
+    width: 18,
+  },
+  ownerEmojiAvatar: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 30,
+    borderWidth: 2,
+    height: 60,
+    justifyContent: 'center',
+    width: 60,
+  },
+  ownerEmojiText: {
+    fontSize: 28,
+  },
+  ownerMemberCard: {
+    backgroundColor: colors.white,
   },
   ownerMemberName: {
     color: colors.textPrimary,
     fontWeight: '700',
   },
-  ownerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.warning + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginRight: 8,
-  },
   ownerText: {
-    fontSize: 12,
     color: colors.warning,
-    marginLeft: 2,
-    fontWeight: '500',
-  },
-  youText: {
     fontSize: 12,
-    color: colors.primary,
-    fontStyle: 'italic',
-  },
-  youBadge: {
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginLeft: 6,
-  },
-  usernameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 4,
-  },
-  dateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.textSecondary + '15',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
-    marginLeft: 8,
-  },
-  joinDate: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  memberStats: {
-    fontSize: 11,
-    color: colors.success,
-    marginLeft: 2,
-    fontWeight: '500',
-  },
-  memberStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  statBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.success + '15',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  memberUsername: {
-    fontSize: 12,
-    color: colors.primary,
     fontWeight: '500',
     marginLeft: 2,
   },
   removeButton: {
     padding: 8,
   },
-  colorLegend: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  legendText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  legendHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  activeColorsContainer: {
-    gap: 8,
-  },
-  colorItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    gap: 10,
-  },
-  colorCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  colorMemberName: {
-    fontSize: 14,
-    fontWeight: '500',
+  sectionTitle: {
     color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  statBadge: {
+    alignItems: 'center',
+    backgroundColor: `${colors.success}15`,
+    borderRadius: 12,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statCard: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    elevation: 3,
+    flex: 1,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  statIconContainer: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    marginBottom: 12,
+    width: 48,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  statNumber: {
+    color: colors.primary,
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  title: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  usernameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 4,
+  },
+  youBadge: {
+    backgroundColor: `${colors.primary}15`,
+    borderRadius: 8,
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  youText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });
 

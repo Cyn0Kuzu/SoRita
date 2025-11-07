@@ -8,27 +8,29 @@ import {
   RefreshControl,
   Alert,
   Image,
-  StatusBar
+  StatusBar,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../theme/theme';
-import { auth, db } from '../config/firebase';
-import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy, 
-  updateDoc, 
-  doc, 
+
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  updateDoc,
+  doc,
   deleteDoc,
   getDoc,
   onSnapshot,
-  Timestamp 
+  Timestamp,
 } from 'firebase/firestore';
+
+import { colors } from '../theme/theme';
+import { auth, db } from '../config/firebase';
+import { EdgeToEdgeScreen } from '../components/EdgeToEdgeContainer';
 import GlobalStateService from '../services/globalStateService';
 import { AppStatusBar } from '../components/AppStatusBar';
 import SoRitaHeader from '../components/SoRitaHeader';
@@ -51,16 +53,16 @@ const NotificationItem = ({ notification, onInvitationResponse, onMarkAsRead }) 
 
   const formatDate = (timestamp) => {
     if (!timestamp) return '';
-    
+
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) return 'Bugün';
     if (diffDays === 2) return 'Dün';
     if (diffDays <= 7) return `${diffDays} gün önce`;
-    
+
     return date.toLocaleDateString('tr-TR');
   };
 
@@ -146,20 +148,13 @@ const NotificationItem = ({ notification, onInvitationResponse, onMarkAsRead }) 
 
   return (
     <TouchableOpacity
-      style={[
-        styles.notificationItem,
-        !notification.read && styles.unreadNotification
-      ]}
+      style={[styles.notificationItem, !notification.read && styles.unreadNotification]}
       onPress={() => onMarkAsRead(notification.id)}
       activeOpacity={0.7}
     >
       <View style={styles.notificationContent}>
         <View style={[styles.iconContainer, { backgroundColor: getNotificationColor() }]}>
-          <MaterialIcons 
-            name={getNotificationIcon()} 
-            size={20} 
-            color="#FFFFFF" 
-          />
+          <MaterialIcons name={getNotificationIcon()} size={20} color="#FFFFFF" />
         </View>
 
         <View style={styles.textContainer}>
@@ -169,19 +164,19 @@ const NotificationItem = ({ notification, onInvitationResponse, onMarkAsRead }) 
           <Text style={styles.notificationMessage} numberOfLines={3}>
             {notification.message}
           </Text>
-          
+
           <View style={styles.notificationFooter}>
-            <Text style={styles.notificationTime}>
-              {formatDate(notification.createdAt)}
-            </Text>
-            
+            <Text style={styles.notificationTime}>{formatDate(notification.createdAt)}</Text>
+
             {notification.status && (
-              <Text style={[
-                styles.statusText,
-                notification.status === 'accepted' && styles.acceptedStatus,
-                notification.status === 'rejected' && styles.rejectedStatus,
-                notification.status === 'pending' && styles.pendingStatus
-              ]}>
+              <Text
+                style={[
+                  styles.statusText,
+                  notification.status === 'accepted' && styles.acceptedStatus,
+                  notification.status === 'rejected' && styles.rejectedStatus,
+                  notification.status === 'pending' && styles.pendingStatus,
+                ]}
+              >
                 {getStatusText()}
               </Text>
             )}
@@ -190,9 +185,7 @@ const NotificationItem = ({ notification, onInvitationResponse, onMarkAsRead }) 
           {renderInvitationActions()}
         </View>
 
-        {!notification.read && (
-          <View style={styles.unreadIndicator} />
-        )}
+        {!notification.read && <View style={styles.unreadIndicator} />}
       </View>
     </TouchableOpacity>
   );
@@ -209,15 +202,15 @@ export default function NotificationsScreen({ navigation }) {
       const user = auth.currentUser;
       if (!user) return;
 
-      const unreadCount = notifications.filter(n => !n.read).length;
+      const unreadCount = notifications.filter((n) => !n.read).length;
       console.log('🔔 [NotificationsScreen] Updating unread count:', unreadCount);
 
       const userRef = doc(db, 'users', user.uid);
-      
+
       // Atomic update to prevent race conditions
       await updateDoc(userRef, {
         unreadNotifications: unreadCount,
-        lastNotificationUpdate: Timestamp.now()
+        lastNotificationUpdate: Timestamp.now(),
       });
 
       console.log('✅ [NotificationsScreen] Unread notification count updated:', unreadCount);
@@ -233,7 +226,7 @@ export default function NotificationsScreen({ navigation }) {
 
   useEffect(() => {
     loadNotifications();
-    
+
     // Real-time notifications listener
     const user = auth.currentUser;
     if (user) {
@@ -245,16 +238,20 @@ export default function NotificationsScreen({ navigation }) {
           orderBy('createdAt', 'desc')
         ),
         (snapshot) => {
-          console.log('🔔 [NotificationsScreen] Real-time update received:', snapshot.docs.length, 'notifications');
-          const updatedNotifications = snapshot.docs.map(doc => ({
+          console.log(
+            '🔔 [NotificationsScreen] Real-time update received:',
+            snapshot.docs.length,
+            'notifications'
+          );
+          const updatedNotifications = snapshot.docs.map((doc) => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
           }));
           setNotifications(updatedNotifications);
-          
+
           // Update global state
           GlobalStateService.updateNotifications(updatedNotifications);
-          
+
           // Bildirim sayısını güncelle
           updateUnreadNotificationCount(updatedNotifications);
         },
@@ -289,14 +286,13 @@ export default function NotificationsScreen({ navigation }) {
       );
 
       const querySnapshot = await getDocs(notificationsQuery);
-      const loadedNotifications = querySnapshot.docs.map(doc => ({
+      const loadedNotifications = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
 
       console.log('✅ [NotificationsScreen] Loaded notifications:', loadedNotifications.length);
       setNotifications(loadedNotifications);
-
     } catch (error) {
       // Offline durumunda özel mesaj göster
       if (error.code === 'unavailable' || error.message.includes('offline')) {
@@ -314,23 +310,35 @@ export default function NotificationsScreen({ navigation }) {
   }, []);
 
   const handleInvitationResponse = async (notificationId, response) => {
-    console.log('🚀 [NotificationsScreen] Starting invitation response process...', { notificationId, response });
-    
-    try {
-      console.log('🔔 [NotificationsScreen] Handling invitation response:', response, 'for notification:', notificationId);
+    console.log('🚀 [NotificationsScreen] Starting invitation response process...', {
+      notificationId,
+      response,
+    });
 
-      const notification = notifications.find(n => n.id === notificationId);
+    try {
+      console.log(
+        '🔔 [NotificationsScreen] Handling invitation response:',
+        response,
+        'for notification:',
+        notificationId
+      );
+
+      const notification = notifications.find((n) => n.id === notificationId);
       if (!notification) {
         throw new Error('Bildirim bulunamadı');
       }
 
-      console.log('📋 [NotificationsScreen] Found notification:', notification.type, notification.listId);
+      console.log(
+        '📋 [NotificationsScreen] Found notification:',
+        notification.type,
+        notification.listId
+      );
 
       if (response === 'accepted') {
         console.log('✅ [NotificationsScreen] Processing acceptance...');
-        
+
         // Daveti kabul et - kullanıcı verilerini al
-        const currentUser = auth.currentUser;
+        const { currentUser } = auth;
         if (!currentUser) {
           throw new Error('Kullanıcı oturumu bulunamadı');
         }
@@ -342,7 +350,7 @@ export default function NotificationsScreen({ navigation }) {
         try {
           console.log('📖 [NotificationsScreen] Fetching user profile...');
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          
+
           if (userDoc.exists()) {
             userData = userDoc.data();
             console.log('✅ [NotificationsScreen] User profile loaded from Firestore');
@@ -354,28 +362,35 @@ export default function NotificationsScreen({ navigation }) {
               displayName: currentUser.displayName || 'Kullanıcı',
               avatar: currentUser.photoURL || '👤',
               username: currentUser.email?.split('@')[0] || 'user',
-              email: currentUser.email
+              email: currentUser.email,
             };
-            console.log('⚠️ [NotificationsScreen] User profile not found, using Firebase Auth data');
+            console.log(
+              '⚠️ [NotificationsScreen] User profile not found, using Firebase Auth data'
+            );
           }
         } catch (userError) {
           // Offline durumunda veya hata durumunda Firebase Auth'tan bilgileri kullan
-          console.warn('⚠️ [NotificationsScreen] User data fetch failed, using Firebase Auth data:', userError.message);
+          console.warn(
+            '⚠️ [NotificationsScreen] User data fetch failed, using Firebase Auth data:',
+            userError.message
+          );
           userData = {
             firstName: currentUser.displayName?.split(' ')[0] || 'Kullanıcı',
             lastName: currentUser.displayName?.split(' ')[1] || '',
             displayName: currentUser.displayName || 'Kullanıcı',
             avatar: currentUser.photoURL || '👤',
             username: currentUser.email?.split('@')[0] || 'user',
-            email: currentUser.email
+            email: currentUser.email,
           };
         }
 
-        console.log('📋 [NotificationsScreen] Calling CollaborativeListService.acceptInvitation...');
-        
+        console.log(
+          '📋 [NotificationsScreen] Calling CollaborativeListService.acceptInvitation...'
+        );
+
         // Ana invitation kabul işlemi
         const result = await CollaborativeListService.acceptInvitation(
-          notification.listId, 
+          notification.listId,
           currentUser.uid,
           userData
         );
@@ -391,30 +406,32 @@ export default function NotificationsScreen({ navigation }) {
         await updateDoc(notificationRef, {
           status: response,
           read: true,
-          updatedAt: Timestamp.now()
+          updatedAt: Timestamp.now(),
         });
 
         console.log('📊 [NotificationsScreen] Updating unread count...');
         // Güncellenmiş bildirim listesini al ve sayacı güncelle
-        const updatedNotifications = notifications.map(n => 
+        const updatedNotifications = notifications.map((n) =>
           n.id === notificationId ? { ...n, read: true, status: response } : n
         );
         await updateUnreadNotificationCount(updatedNotifications);
-        
+
         console.log('✅ [NotificationsScreen] Notification status updated successfully');
       } catch (notificationUpdateError) {
-        console.warn('⚠️ [NotificationsScreen] Failed to update notification status:', notificationUpdateError);
+        console.warn(
+          '⚠️ [NotificationsScreen] Failed to update notification status:',
+          notificationUpdateError
+        );
         // Bildirim güncelleme başarısız olsa da ana işlem başarılı, devam et
       }
 
       console.log('🎉 [NotificationsScreen] Invitation response handled successfully');
-
     } catch (error) {
       console.error('❌ [NotificationsScreen] Error handling invitation response:', error);
-      
+
       // Kullanıcıya hata mesajı göster
       let errorMessage = 'İşlem sırasında bir hata oluştu';
-      
+
       if (error.message?.includes('offline') || error.code === 'unavailable') {
         errorMessage = 'İnternet bağlantınızı kontrol edin ve tekrar deneyin';
       } else if (error.message?.includes('permissions')) {
@@ -422,7 +439,7 @@ export default function NotificationsScreen({ navigation }) {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       Alert.alert('Hata', errorMessage);
       // Hata durumunda da devam etsin, throw etme
     }
@@ -433,17 +450,16 @@ export default function NotificationsScreen({ navigation }) {
       const notificationRef = doc(db, 'notifications', notificationId);
       await updateDoc(notificationRef, {
         read: true,
-        readAt: Timestamp.now()
+        readAt: Timestamp.now(),
       });
 
       console.log('✅ [NotificationsScreen] Notification marked as read:', notificationId);
 
       // Güncellenmiş bildirim listesini al ve sayacı güncelle
-      const updatedNotifications = notifications.map(n => 
+      const updatedNotifications = notifications.map((n) =>
         n.id === notificationId ? { ...n, read: true } : n
       );
       await updateUnreadNotificationCount(updatedNotifications);
-
     } catch (error) {
       console.error('❌ [NotificationsScreen] Error marking notification as read:', error);
     }
@@ -451,25 +467,24 @@ export default function NotificationsScreen({ navigation }) {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const unreadNotifications = notifications.filter(n => !n.read);
-      
-      const updatePromises = unreadNotifications.map(notification => {
+      const unreadNotifications = notifications.filter((n) => !n.read);
+
+      const updatePromises = unreadNotifications.map((notification) => {
         const notificationRef = doc(db, 'notifications', notification.id);
         return updateDoc(notificationRef, {
           read: true,
-          readAt: Timestamp.now()
+          readAt: Timestamp.now(),
         });
       });
 
       await Promise.all(updatePromises);
-      
+
       // Bildirim sayısını hemen güncelle
-      const updatedNotifications = notifications.map(n => ({ ...n, read: true }));
+      const updatedNotifications = notifications.map((n) => ({ ...n, read: true }));
       await updateUnreadNotificationCount(updatedNotifications);
-      
+
       Alert.alert('Başarılı', 'Tüm bildirimler okundu olarak işaretlendi');
       console.log('✅ [NotificationsScreen] All notifications marked as read');
-
     } catch (error) {
       console.error('❌ [NotificationsScreen] Error marking all as read:', error);
       Alert.alert('Hata', 'Bildirimler işaretlenirken bir hata oluştu');
@@ -477,38 +492,33 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   const handleClearAllNotifications = () => {
-    Alert.alert(
-      'Bildirimleri Temizle',
-      'Tüm bildirimleri silmek istediğinizden emin misiniz?',
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Sil', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const deletePromises = notifications.map(notification => {
-                const notificationRef = doc(db, 'notifications', notification.id);
-                return deleteDoc(notificationRef);
-              });
+    Alert.alert('Bildirimleri Temizle', 'Tüm bildirimleri silmek istediğinizden emin misiniz?', [
+      { text: 'İptal', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const deletePromises = notifications.map((notification) => {
+              const notificationRef = doc(db, 'notifications', notification.id);
+              return deleteDoc(notificationRef);
+            });
 
-              await Promise.all(deletePromises);
-              setNotifications([]);
-              
-              // Bildirim sayısını sıfırla
-              await updateUnreadNotificationCount([]);
-              
-              Alert.alert('Başarılı', 'Tüm bildirimler silindi');
-              console.log('✅ [NotificationsScreen] All notifications cleared');
+            await Promise.all(deletePromises);
+            setNotifications([]);
 
-            } catch (error) {
-              console.error('❌ [NotificationsScreen] Error clearing notifications:', error);
-              Alert.alert('Hata', 'Bildirimler silinirken bir hata oluştu');
-            }
+            // Bildirim sayısını sıfırla
+            await updateUnreadNotificationCount([]);
+
+            Alert.alert('Başarılı', 'Tüm bildirimler silindi');
+            console.log('✅ [NotificationsScreen] All notifications cleared');
+          } catch (error) {
+            console.error('❌ [NotificationsScreen] Error clearing notifications:', error);
+            Alert.alert('Hata', 'Bildirimler silinirken bir hata oluştu');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const onRefresh = useCallback(() => {
@@ -525,7 +535,7 @@ export default function NotificationsScreen({ navigation }) {
   );
 
   const renderHeader = () => {
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = notifications.filter((n) => !n.read).length;
 
     return (
       <View style={styles.header}>
@@ -541,19 +551,13 @@ export default function NotificationsScreen({ navigation }) {
         {notifications.length > 0 && (
           <View style={styles.headerActions}>
             {unreadCount > 0 && (
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={handleMarkAllAsRead}
-              >
+              <TouchableOpacity style={styles.headerButton} onPress={handleMarkAllAsRead}>
                 <MaterialIcons name="done-all" size={20} color="#007AFF" />
                 <Text style={styles.headerButtonText}>Tümünü Oku</Text>
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={handleClearAllNotifications}
-            >
+            <TouchableOpacity style={styles.headerButton} onPress={handleClearAllNotifications}>
               <MaterialIcons name="clear-all" size={20} color="#F44336" />
               <Text style={[styles.headerButtonText, { color: '#F44336' }]}>Temizle</Text>
             </TouchableOpacity>
@@ -577,7 +581,7 @@ export default function NotificationsScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <AppStatusBar />
-        <SoRitaHeader 
+        <SoRitaHeader
           showBackButton={true}
           onBackPress={() => {
             if (navigation.canGoBack()) {
@@ -598,7 +602,7 @@ export default function NotificationsScreen({ navigation }) {
   return (
     <EdgeToEdgeScreen style={styles.container}>
       <AppStatusBar />
-      <SoRitaHeader 
+      <SoRitaHeader
         showBackButton={true}
         onBackPress={() => {
           if (navigation.canGoBack()) {
@@ -615,12 +619,10 @@ export default function NotificationsScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[
           styles.listContainer,
-          notifications.length === 0 && styles.emptyListContainer
+          notifications.length === 0 && styles.emptyListContainer,
         ]}
         showsVerticalScrollIndicator={false}
       />
@@ -629,68 +631,70 @@ export default function NotificationsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  acceptedStatus: {
+    backgroundColor: '#E8F5E8',
+    color: '#4CAF50',
+  },
+  actionButton: {
     alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666666',
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
-  listContainer: {
-    padding: 16,
+  container: {
+    backgroundColor: '#F8F9FA',
+    flex: 1,
   },
   emptyListContainer: {
     flex: 1,
   },
+  emptyState: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyStateMessage: {
+    color: '#666666',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  emptyStateTitle: {
+    color: '#1a1a1a',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    marginTop: 16,
+  },
   header: {
     marginBottom: 20,
-  },
-  headerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginRight: 8,
-  },
-  unreadBadge: {
-    backgroundColor: '#FF3B30',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   headerActions: {
     flexDirection: 'row',
     gap: 12,
   },
   headerButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: '#E5E5E5',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   headerButtonText: {
     color: '#007AFF',
@@ -698,130 +702,128 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
+  headerInfo: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  headerTitle: {
+    color: '#1a1a1a',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  iconContainer: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    marginRight: 12,
+    width: 40,
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  listContainer: {
+    padding: 16,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#666666',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  notificationContent: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    padding: 16,
+  },
+  notificationFooter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   notificationItem: {
     backgroundColor: '#FFFFFF',
+    borderColor: '#F0F0F0',
     borderRadius: 12,
+    borderWidth: 1,
+    elevation: 3,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
-  unreadNotification: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-    backgroundColor: '#F8F9FA',
-  },
-  notificationContent: {
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'flex-start',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
   },
   notificationMessage: {
-    fontSize: 14,
     color: '#666666',
+    fontSize: 14,
     lineHeight: 20,
     marginBottom: 8,
   },
-  notificationFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   notificationTime: {
-    fontSize: 12,
     color: '#999999',
-  },
-  statusText: {
     fontSize: 12,
-    fontWeight: '500',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
   },
-  acceptedStatus: {
-    color: '#4CAF50',
-    backgroundColor: '#E8F5E8',
-  },
-  rejectedStatus: {
-    color: '#F44336',
-    backgroundColor: '#FFEBEE',
+  notificationTitle: {
+    color: '#1a1a1a',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   pendingStatus: {
-    color: '#FF9800',
     backgroundColor: '#FFF3E0',
-  },
-  invitationActions: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 4,
-  },
-  acceptButton: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    color: '#FF9800',
   },
   rejectButton: {
     backgroundColor: 'transparent',
     borderColor: '#F44336',
   },
-  actionButtonText: {
-    fontSize: 14,
+  rejectedStatus: {
+    backgroundColor: '#FFEBEE',
+    color: '#F44336',
+  },
+  statusText: {
+    borderRadius: 8,
+    fontSize: 12,
     fontWeight: '500',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  unreadBadge: {
+    alignItems: 'center',
+    backgroundColor: '#FF3B30',
+    borderRadius: 12,
+    height: 24,
+    justifyContent: 'center',
+    minWidth: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  unreadBadgeText: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   unreadIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
     backgroundColor: '#007AFF',
+    borderRadius: 4,
+    height: 8,
     marginLeft: 8,
+    width: 8,
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateMessage: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 24,
+  unreadNotification: {
+    backgroundColor: '#F8F9FA',
+    borderLeftColor: '#007AFF',
+    borderLeftWidth: 4,
   },
 });
