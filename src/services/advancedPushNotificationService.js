@@ -385,24 +385,9 @@ class PushNotificationService {
   // Send push notification to user
   async sendPushNotification(userId, title, body, data = {}) {
     try {
-      // Get user's push token
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.data();
-
-      if (!userData?.pushToken) {
-        // Only warn in production, as this is expected in development
-        if (ENV !== ENVIRONMENTS.DEVELOPMENT) {
-          notificationLogger.warn('No push token found for user:', userId);
-        } else {
-          notificationLogger.debug('No push token for user (expected in development):', userId);
-        }
-        return false;
-      }
-
-      // Send via Expo push service
+      // The backend function will handle fetching the user's push token.
       const message = {
-        to: userData.pushToken,
-        sound: 'default',
+        userId, // Pass userId for the backend to resolve
         title,
         body,
         data: {
@@ -413,8 +398,7 @@ class PushNotificationService {
         channelId: data.channelId || 'default',
       };
 
-      // In production, you would send this to Expo's push service
-      // For now, we'll store it in the database for the backend to process
+      // Store the notification request in the database for the backend to process.
       await addDoc(collection(db, 'pendingNotifications'), {
         message,
         createdAt: new Date(),
@@ -424,7 +408,7 @@ class PushNotificationService {
       notificationLogger.debug('Push notification queued for user:', userId);
       return true;
     } catch (error) {
-      notificationLogger.error('Error sending push notification:', error);
+      notificationLogger.error('Error queuing push notification:', error);
       return false;
     }
   }

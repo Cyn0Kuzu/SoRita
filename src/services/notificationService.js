@@ -14,8 +14,8 @@ import {
   orderBy,
   limit,
 } from 'firebase/firestore';
-
 import { db } from '../config/firebase';
+import pushNotificationService from './advancedPushNotificationService';
 
 export const sendFollowNotification = async ({
   fromUserId,
@@ -28,6 +28,9 @@ export const sendFollowNotification = async ({
     console.log('📬 [NotificationService] Sending follow notification...');
     console.log('From:', fromUserName, 'To:', toUserName);
 
+    const title = 'Yeni Takipçi!';
+    const message = `${fromUserName} seni takip etmeye başladı`;
+
     // Create notification document
     const notificationData = {
       type: 'follow',
@@ -36,8 +39,8 @@ export const sendFollowNotification = async ({
       fromUserAvatar,
       toUserId,
       toUserName,
-      title: 'Yeni Takipçi!',
-      message: `${fromUserName} seni takip etmeye başladı`,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
       timestamp: Date.now(),
@@ -57,6 +60,12 @@ export const sendFollowNotification = async ({
     });
 
     console.log('✅ [NotificationService] User notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'follow',
+      fromUserId,
+    });
 
     return {
       success: true,
@@ -86,6 +95,9 @@ export const sendUnfollowNotification = async ({
     console.log('📬 [NotificationService] Sending unfollow notification...');
     console.log('From:', fromUserName, 'To:', toUserName);
 
+    const title = 'Takip İptal Edildi';
+    const message = `${fromUserName} seni takip etmeyi bıraktı`;
+
     // Create notification document
     const notificationData = {
       type: 'unfollow',
@@ -94,8 +106,8 @@ export const sendUnfollowNotification = async ({
       fromUserAvatar,
       toUserId,
       toUserName,
-      title: 'Takip İptal Edildi',
-      message: `${fromUserName} seni takip etmeyi bıraktı`,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
       timestamp: Date.now(),
@@ -115,6 +127,12 @@ export const sendUnfollowNotification = async ({
     });
 
     console.log('✅ [NotificationService] User notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'unfollow',
+      fromUserId,
+    });
 
     return {
       success: true,
@@ -146,6 +164,9 @@ export const sendInviteNotification = async ({
     console.log('📬 [NotificationService] Sending invite notification...');
     console.log('From:', fromUserName, 'To:', toUserName, 'List:', listName);
 
+    const title = 'Liste Daveti!';
+    const message = `${fromUserName} seni "${listName}" listesine davet etti`;
+
     // Create notification document
     const notificationData = {
       type: 'list_invitation',
@@ -156,8 +177,8 @@ export const sendInviteNotification = async ({
       toUserName,
       listId,
       listName,
-      title: 'Liste Daveti!',
-      message: `${fromUserName} seni "${listName}" listesine davet etti`,
+      title,
+      message,
       status: 'pending',
       read: false,
       createdAt: serverTimestamp(),
@@ -178,6 +199,12 @@ export const sendInviteNotification = async ({
     });
 
     console.log('✅ [NotificationService] User notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'list_invitation',
+      listId,
+    });
 
     return {
       success: true,
@@ -271,6 +298,9 @@ export const sendCommentNotification = async ({
       return { success: true };
     }
 
+    const title = '💬 Gönderinize Yorum Yapıldı!';
+    const message = `${fromUserName} "${postTitle}" paylaşımınıza yorum yaptı: "${commentText?.substring(0, 50) || ''}${commentText?.length > 50 ? '...' : ''}"`;
+
     // Create notification document
     const notificationData = {
       type: 'comment',
@@ -282,8 +312,8 @@ export const sendCommentNotification = async ({
       postId,
       postTitle,
       commentText: commentText?.substring(0, 100) || '', // Limit comment preview
-      title: '💬 Gönderinize Yorum Yapıldı!',
-      message: `${fromUserName} "${postTitle}" paylaşımınıza yorum yaptı: "${commentText?.substring(0, 50) || ''}${commentText?.length > 50 ? '...' : ''}"`,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
       timestamp: Date.now(),
@@ -303,6 +333,12 @@ export const sendCommentNotification = async ({
     });
 
     console.log('✅ [NotificationService] User notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'comment',
+      postId,
+    });
 
     return {
       success: true,
@@ -336,6 +372,9 @@ export const sendCommentDeleteNotification = async ({
       return { success: true };
     }
 
+    const title = 'Yorum Silindi';
+    const message = `${fromUserName} gönderinizdeki yorumunu sildi`;
+
     // Create notification document
     const notificationData = {
       type: 'comment_deleted',
@@ -347,8 +386,8 @@ export const sendCommentDeleteNotification = async ({
       postId,
       postTitle,
       deletedCommentText: deletedCommentText?.substring(0, 100) || '',
-      title: 'Yorum Silindi',
-      message: `${fromUserName} gönderinizdeki yorumunu sildi`,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
       timestamp: Date.now(),
@@ -371,6 +410,12 @@ export const sendCommentDeleteNotification = async ({
     });
 
     console.log('✅ [NotificationService] User notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'comment_deleted',
+      postId,
+    });
 
     return {
       success: true,
@@ -401,88 +446,24 @@ export const sendPlaceLikeNotification = async ({
     console.log('📬 [NotificationService] Sending place like notification...');
     console.log('From:', fromUserName, 'To:', toUserName, 'Place:', placeName);
 
-    // Geçici olarak basit bildirim oluştur (duplicate check olmadan)
-    console.log('⏳ [NotificationService] Creating simple notification while index builds');
+    const title = '❤️ Gönderinizi Beğendi!';
+    const message = `${fromUserName} "${placeName}" paylaşımınızı beğendi`;
 
-    try {
-      // Create notification document (duplicate check olmadan)
-      const notificationData = {
-        type: 'place_like',
-        fromUserId,
-        fromUserName,
-        fromUserAvatar,
-        toUserId,
-        toUserName,
-        placeId,
-        placeName,
-        title: '❤️ Gönderinizi Beğendi!',
-        message: `${fromUserName} "${placeName}" paylaşımınızı beğendi`,
-        read: false,
-        createdAt: serverTimestamp(),
-        timestamp: Date.now(),
-      };
-
-      // Add notification to notifications collection
-      const notificationsRef = collection(db, 'notifications');
-      const notificationDoc = await addDoc(notificationsRef, notificationData);
-
-      console.log(
-        '✅ [NotificationService] Simple place like notification created:',
-        notificationDoc.id
-      );
-
-      // Update user's notification count
-      const userDocRef = doc(db, 'users', toUserId);
-      await updateDoc(userDocRef, {
-        unreadNotifications: increment(1),
-        lastNotificationUpdate: serverTimestamp(),
-      });
-
-      console.log('✅ [NotificationService] User notification count updated');
-
-      return {
-        success: true,
-        notificationId: notificationDoc.id,
-      };
-    } catch (error) {
-      console.error('❌ [NotificationService] Error creating simple notification:', error);
-
-      // Eğer hata duplicate check ile ilgiliyse, sadece count'u artır
-      if (error.message && error.message.includes('index')) {
-        console.log('⚠️ [NotificationService] Index issue - updating count only');
-        try {
-          const userDocRef = doc(db, 'users', toUserId);
-          await updateDoc(userDocRef, {
-            unreadNotifications: increment(1),
-            lastNotificationUpdate: serverTimestamp(),
-          });
-          return { success: true, reason: 'count_only' };
-        } catch (countError) {
-          console.error('❌ [NotificationService] Count update also failed:', countError);
-          return { success: false, error: countError };
-        }
-      }
-
-      return { success: false, error };
-    }
-
-    // Index hazır olunca bu kod aktif edilecek:
-    /*
     // Create notification document
     const notificationData = {
       type: 'place_like',
-      fromUserId: fromUserId,
-      fromUserName: fromUserName,
-      fromUserAvatar: fromUserAvatar,
-      toUserId: toUserId,
-      toUserName: toUserName,
-      placeId: placeId,
-      placeName: placeName,
-      title: 'Mekanına Beğeni!',
-      message: `${fromUserName} "${placeName}" mekanını beğendi`,
+      fromUserId,
+      fromUserName,
+      fromUserAvatar,
+      toUserId,
+      toUserName,
+      placeId,
+      placeName,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // Add notification to notifications collection
@@ -495,16 +476,21 @@ export const sendPlaceLikeNotification = async ({
     const userDocRef = doc(db, 'users', toUserId);
     await updateDoc(userDocRef, {
       unreadNotifications: increment(1),
-      lastNotificationUpdate: serverTimestamp()
+      lastNotificationUpdate: serverTimestamp(),
     });
 
     console.log('✅ [NotificationService] User notification count updated');
 
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'place_like',
+      placeId,
+    });
+
     return {
       success: true,
-      notificationId: notificationDoc.id
+      notificationId: notificationDoc.id,
     };
-    */
   } catch (error) {
     console.error('❌ [NotificationService] Error sending place like notification:', error);
 
@@ -537,6 +523,9 @@ export const sendLikeNotification = async ({
       return { success: true };
     }
 
+    const title = 'Gönderiniz Beğenildi!';
+    const message = `${fromUserName} gönderinizi beğendi`;
+
     // Create notification document
     const notificationData = {
       type: 'like',
@@ -547,8 +536,8 @@ export const sendLikeNotification = async ({
       toUserName,
       postId,
       postTitle,
-      title: 'Gönderiniz Beğenildi!',
-      message: `${fromUserName} gönderinizi beğendi`,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
       timestamp: Date.now(),
@@ -568,6 +557,12 @@ export const sendLikeNotification = async ({
     });
 
     console.log('✅ [NotificationService] User notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'like',
+      postId,
+    });
 
     return {
       success: true,
@@ -637,6 +632,9 @@ export const sendListInvitationAcceptedNotification = async ({
     console.log('📬 [NotificationService] Sending list invitation accepted notification...');
     console.log('From:', fromUserName, 'To List Owner:', toUserId, 'List:', listName);
 
+    const title = 'Davet Kabul Edildi!';
+    const message = `${fromUserName}, "${listName}" listenize katıldı`;
+
     // Bildirim dokümanı oluştur
     const notificationData = {
       type: 'list_invitation_accepted',
@@ -646,8 +644,8 @@ export const sendListInvitationAcceptedNotification = async ({
       toUserId,
       listId,
       listName,
-      title: 'Davet Kabul Edildi!',
-      message: `${fromUserName}, "${listName}" listenize katıldı`,
+      title,
+      message,
       read: false,
       createdAt: serverTimestamp(),
       timestamp: Date.now(),
@@ -670,6 +668,12 @@ export const sendListInvitationAcceptedNotification = async ({
     });
 
     console.log('✅ [NotificationService] List owner notification count updated');
+
+    // Send push notification
+    await pushNotificationService.sendPushNotification(toUserId, title, message, {
+      type: 'list_invitation_accepted',
+      listId,
+    });
 
     return {
       success: true,
