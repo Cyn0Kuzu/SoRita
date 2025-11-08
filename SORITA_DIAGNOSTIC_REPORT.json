@@ -1,0 +1,74 @@
+[
+  {
+    "id": "SEC-001",
+    "kategori": "Güvenlik",
+    "dosyalar": ["android/app/build.gradle", "sorita-release.keystore"],
+    "severity": "Critical",
+    "öncelik": "P0",
+    "tekrar_üretim": ["'android/app/build.gradle' dosyasını açıp 'signingConfigs.release' bölümündeki 'keyPassword' alanını inceleyin."],
+    "beklenen": "Üretim imzalama anahtarı parolasının güvenli bir şekilde (örneğin, CI/CD ortam değişkeni olarak) saklanması.",
+    "gerçek": "Üretim imzalama anahtarı parolası ('sorita123') kaynak koduna hardcoded olarak yazılmıştır.",
+    "root_cause": "Hassas bilgilerin koddan ayrıştırılmaması ve güvenlik en iyi pratiklerinin ihlal edilmesi.",
+    "çözüm": {
+      "kısa_vadeli": "build.gradle dosyasından parolayı derhal kaldırın. .keystore dosyasını depodan ve Git geçmişinden temizleyin.",
+      "kalıcı": "Google Play Console üzerinden yeni bir imzalama anahtarı oluşturun ve 'Uygulama İmzalama Anahtarı Yükseltme' işlemi yapın. Yeni parolayı güvenli bir ortam değişkeni olarak saklayın."
+    },
+    "örnek_kod": "keyPassword 'sorita123'",
+    "test_senaryosu": ["Yeni anahtarla imzalanan bir AAB dosyasının Google Play'e başarıyla yüklendiğini ve dahili test kanallarında çalıştığını doğrulayın."],
+    "dosya_değişiklikleri": ["android/app/build.gradle", ".gitignore", "eas.json (ortam değişkeni için)"]
+  },
+  {
+    "id": "SEC-002",
+    "kategori": "Güvenlik",
+    "dosyalar": ["app.json", "android/app/src/main/AndroidManifest.xml", ".env.example", "ROADMAP.md"],
+    "severity": "Critical",
+    "öncelik": "P0",
+    "tekrar_üretim": ["Proje genelinde 'AIza' anahtar kelimesi ile arama yapın."],
+    "beklenen": "Google Maps API anahtarının .env dosyası gibi güvenli bir yerden yüklenmesi ve asla kaynak koduna commit edilmemesi.",
+    "gerçek": "API anahtarı, app.json ve AndroidManifest.xml dahil olmak üzere birçok dosyada hardcoded olarak bulunmaktadır.",
+    "root_cause": "Hassas bilgilerin yapılandırma dosyalarına, kaynak koduna ve dokümantasyon dosyalarına düz metin olarak eklenmesi.",
+    "çözüm": {
+      "kısa_vadeli": "Google Cloud Console'dan ifşa olan API anahtarını derhal iptal edin veya kısıtlayın.",
+      "kalıcı": "Yeni bir API anahtarı oluşturun ve sadece uygulamanın paket adına (Android) ve bundle identifier'ına (iOS) özel olarak kısıtlayın. Anahtarı .env dosyasından yükleyin ve bu dosyayı .gitignore'a ekleyin."
+    },
+    "örnek_kod": "\"apiKey\": \"AIzaSyBxgDpK3-dWsuXewlIWB68ubkuH4Q4eEB8\"",
+    "test_senaryosu": ["Uygulamanın harita özelliklerinin yeni ve kısıtlanmış API anahtarıyla çalıştığını, ancak dışarıdan yapılan isteklerin başarısız olduğunu doğrulayın."],
+    "dosya_değişiklikleri": ["app.json", ".env", ".gitignore", "android/app/src/main/AndroidManifest.xml"]
+  },
+  {
+    "id": "SEC-003",
+    "kategori": "Güvenlik",
+    "dosyalar": ["firestore.rules"],
+    "severity": "Critical",
+    "öncelik": "P0",
+    "tekrar_üretim": ["'firestore.rules' dosyasındaki '/notifications/{notificationId}' için 'create' kuralını inceleyin."],
+    "beklenen": "Bir bildirim oluşturulurken, bildirimi gönderen kullanıcının kimliğinin (request.auth.uid) dokümandaki gönderici alanıyla (fromUserId) eşleştiğinin doğrulanması.",
+    "gerçek": "Güvenlik kuralı, bildirimi kimin gönderdiğini kontrol etmiyor. Bu, herhangi bir kullanıcının başka bir kullanıcı adına bildirim göndermesine olanak tanır.",
+    "root_cause": "Yetersiz ve eksik Firestore güvenlik kuralları.",
+    "çözüm": {
+      "kısa_vadeli": "'/notifications/{notificationId}' create kuralına 'request.resource.data.fromUserId == request.auth.uid' kontrolünü ekleyin.",
+      "kalıcı": "Tüm Firestore kurallarını gözden geçirin ve her yazma işlemi için yetkilendirme (authorization) kontrolleri ekleyin. Özellikle, bir kullanıcının başka bir kullanıcıyı etkileyen bir veri yazacağı tüm durumlar kontrol edilmelidir."
+    },
+    "örnek_kod": "allow create: if isAuthenticated() && ( ... )",
+    "test_senaryosu": ["Firestore emülatöründe, başka bir kullanıcı adına bildirim oluşturmaya çalışan bir test yazın ve bu işlemin 'permission-denied' hatası aldığını doğrulayın."],
+    "dosya_değişiklikleri": ["firestore.rules"]
+  },
+  {
+    "id": "PERF-001",
+    "kategori": "Performans",
+    "dosyalar": ["src/screens/HomeScreen.js", "src/components/PlaceCard.js"],
+    "severity": "High",
+    "öncelik": "P1",
+    "tekrar_üretim": ["'HomeScreen.js' içindeki 'loadPosts' fonksiyonunu ve 'PlaceCard.js' içindeki 'onSnapshot' kullanımını inceleyin."],
+    "beklenen": "Ana sayfa akışının, minimum sayıda veritabanı sorgusu ile verimli bir şekilde yüklenmesi.",
+    "gerçek": "Ana sayfa, 'N+1 sorgu' problemi yaratan bir mantıkla yükleniyor. Ek olarak, her gönderi kartı kendi gerçek zamanlı dinleyicisini açarak potansiyel olarak yüzlerce anlık bağlantı oluşturuyor.",
+    "root_cause": "Sosyal akışlar için uygun olmayan normalize edilmiş veritabanı mimarisi ve state yönetiminin doğrudan görüntü (view) bileşenleri içinde yapılması.",
+    "çözüm": {
+      "kısa_vadeli": "PlaceCard içindeki onSnapshot dinleyicilerini kaldırın. Verileri HomeScreen'de toplu olarak çekip PlaceCard'lara prop olarak geçirin.",
+      "kalıcı": "Sosyal akış için 'fan-out-on-write' mimarisine geçin. Bir Cloud Function aracılığıyla, yeni gönderileri bu gönderiyle ilgilenen (örneğin, takipçilerin) kişisel akış koleksiyonlarına kopyalayın. Ana sayfa sadece bu tek, denormalize edilmiş koleksiyonu dinlemelidir."
+    },
+    "örnek_kod": "// PlaceCard.js'de her kart için ayrı dinleyici oluşturulması:\nconst unsubscribeLikes = onSnapshot(likesQuery, ...);\nconst unsubscribeComments = onSnapshot(commentsQuery, ...);",
+    "test_senaryosu": ["Yeni mimari ile ana sayfa yüklenme süresini ve yapılan Firestore okuma sayısını ölçerek eski yöntemle karşılaştırın. Sonuçların önemli ölçüde iyileştiğini doğrulayın."],
+    "dosya_değişiklikleri": ["src/screens/HomeScreen.js", "src/components/PlaceCard.js", "functions/index.js (yeni denormalizasyon fonksiyonu için)"]
+  }
+]
