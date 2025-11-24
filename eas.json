@@ -52,7 +52,6 @@
       "ios": {
         "buildConfiguration": "Release",
         "prebuildCommand": "prebuild --clean",
-        "resourceClass": "large",
         "image": "macos-15-xcode-16.1"
       }
     },
@@ -76,7 +75,6 @@
       "ios": {
         "buildConfiguration": "Release",
         "prebuildCommand": "prebuild --clean",
-        "resourceClass": "large",
         "image": "macos-15-xcode-16.1"
       }
     }
