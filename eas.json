@@ -50,7 +50,8 @@
         "prebuildCommand": "npm install @expo/cli --no-save && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "prebuildCommand": "npm install @expo/cli --no-save && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
       }
     },
     "production-apk": {
@@ -71,7 +72,8 @@
         "prebuildCommand": "npm install @expo/cli --no-save && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "prebuildCommand": "npm install @expo/cli --no-save && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
       }
     }
   },
