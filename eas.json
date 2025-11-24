@@ -51,7 +51,9 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "prebuildCommand": "prebuild --clean"
+        "prebuildCommand": "prebuild --clean",
+        "resourceClass": "large",
+        "image": "macos-15-xcode-16.1"
       }
     },
     "production-apk": {
@@ -73,7 +75,9 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "prebuildCommand": "prebuild --clean"
+        "prebuildCommand": "prebuild --clean",
+        "resourceClass": "large",
+        "image": "macos-15-xcode-16.1"
       }
     }
   },
