@@ -54,7 +54,7 @@
     "clean:deps": "rm -rf node_modules && npm cache clean --force",
     "install:fast": "npm install --prefer-offline --no-audit --progress=false",
     "prebuild": "expo prebuild --clean",
-    "postinstall": "echo skipping postinstall"
+    "postinstall": "node scripts/setup-font-interfaces.js || true"
   },
   "dependencies": {
     "@expo/cli": "^0.18.0",
