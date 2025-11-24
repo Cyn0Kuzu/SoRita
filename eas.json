@@ -52,7 +52,7 @@
       "ios": {
         "buildConfiguration": "Release",
         "prebuildCommand": "prebuild --clean",
-        "image": "macos-15-xcode-16.1"
+        "image": "macos-sonoma-14.6-xcode-16.1"
       }
     },
     "production-apk": {
@@ -75,7 +75,7 @@
       "ios": {
         "buildConfiguration": "Release",
         "prebuildCommand": "prebuild --clean",
-        "image": "macos-15-xcode-16.1"
+        "image": "macos-sonoma-14.6-xcode-16.1"
       }
     }
   },
