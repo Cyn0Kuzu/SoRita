@@ -1,0 +1,86 @@
+{
+  "cli": {
+    "version": ">= 16.17.4",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug",
+        "env": {
+          "EXPO_USE_FAST_RESOLVER": "1"
+        }
+      },
+      "ios": {
+        "buildConfiguration": "Debug"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "env": {
+          "EXPO_USE_FAST_RESOLVER": "1"
+        }
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease",
+        "image": "latest",
+        "env": {
+          "EXPO_USE_FAST_RESOLVER": "1",
+          "EXPO_NO_DOTENV": "1",
+          "EXPO_NO_EXPORT_EMBED": "1",
+          "ANDROID_SDK_ROOT": "/home/expo/Android/Sdk",
+          "NODE_OPTIONS": "--max-old-space-size=6144"
+        },
+        "cache": {
+          "key": "bundle-v5"
+        },
+        "prebuildCommand": "npm install @expo/cli --no-save && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
+    "production-apk": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "env": {
+          "EXPO_USE_FAST_RESOLVER": "1",
+          "EXPO_NO_DOTENV": "1",
+          "EXPO_NO_EXPORT_EMBED": "1",
+          "ANDROID_SDK_ROOT": "/home/expo/Android/Sdk",
+          "NODE_OPTIONS": "--max-old-space-size=6144"
+        },
+        "cache": {
+          "key": "apk-v5"
+        },
+        "prebuildCommand": "npm install @expo/cli --no-save && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

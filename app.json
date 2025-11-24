@@ -1,0 +1,104 @@
+{
+  "expo": {
+    "name": "SoRita",
+    "slug": "sorita",
+    "version": "1.0.2",
+    "orientation": "default",
+    "icon": "./assets/So_Rita.png",
+    "userInterfaceStyle": "automatic",
+    "jsEngine": "hermes",
+    "developmentClient": {
+      "silentLaunch": false
+    },
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sorita.app",
+      "requireFullScreen": false,
+      "supportedInterfaceOrientations": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight",
+        "UIInterfaceOrientationPortraitUpsideDown"
+      ],
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SoRita needs location access to show nearby places and enable location sharing with friends.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "SoRita needs location access to show nearby places and enable location sharing with friends.",
+        "NSCameraUsageDescription": "SoRita needs camera access to take photos of places you visit.",
+        "NSPhotoLibraryUsageDescription": "SoRita needs photo library access to select images for places.",
+        "NSFaceIDUsageDescription": "SoRita uses Face ID for secure and convenient authentication.",
+        "NSMicrophoneUsageDescription": "SoRita needs microphone access for voice messages and audio features.",
+        "CFBundleAllowMixedLocalizations": true,
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/So_Rita.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.sorita.app.build2121111",
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "minSdkVersion": 23,
+      "buildToolsVersion": "35.0.0",
+      "gradleVersion": "8.4",
+      "androidGradlePluginVersion": "8.2.0",
+      "proguardFiles": [
+        "proguard-android-optimize.txt",
+        "proguard-rules.pro"
+      ],
+      "edgeToEdge": false,
+      "supportsPictureInPicture": false,
+      "resizeableActivity": false,
+      "enableOnBackInvokedCallback": false,
+      "enablePredictiveBackGesture": false,
+      "allowBackup": true,
+      "supportsRtl": true,
+      "hardwareAccelerated": true,
+      "largeHeap": true,
+      "extractNativeLibs": false,
+      "networkSecurityConfig": false,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBxgDpK3-dWsuXewlIWB68ubkuH4Q4eEB8"
+        }
+      },
+      "screenOrientation": "default",
+      "supportsTablet": true
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "60b2745f-2ad0-45cb-b898-90526d5c1040"
+      }
+    },
+    "owner": "cayan",
+    "description": "SoRita is a modern location sharing and social mapping application that allows users to discover, share, and explore places with friends and family.",
+    "keywords": ["location", "maps", "social", "sharing", "places", "travel"],
+    "githubUrl": "https://github.com/Cyn0Kuzu/SoRita____",
+    "primaryColor": "#0ea5e9",
+    "privacy": "public",
+    "category": "social",
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#0ea5e9",
+      "androidMode": "default",
+      "androidCollapsedTitle": "SoRita"
+    }
+  }
+}

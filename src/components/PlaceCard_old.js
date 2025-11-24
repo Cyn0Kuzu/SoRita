@@ -1,0 +1,692 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TextInput, Alert, Image, Clipboard } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { colors } from '../theme/theme';
+import { auth, db } from '../config/firebase';
+import MapView, { Marker } from 'react-native-maps';
+import ImageModal from './ImageModal';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp,
+  orderBy,
+  getDoc,
+  updateDoc,
+  increment
+} from 'firebase/firestore';
+
+const PlaceCard = ({ 
+  place, 
+  onFocus, 
+  showFocusButton = true,
+  onPress = null,
+  onEdit = null,
+  onDelete = null,
+  showMap = true,
+  isEvent = false // Etkinlik kartı mı?
+}) => {
+  const [likes, setLikes] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [isLiked, setIsLiked] = useState(false);
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [showAddress, setShowAddress] = useState(false); // Etkinlik kartlarında adres gizlemek için
+  const [showImageModal, setShowImageModal] = useState(false); // Image modal
+  const [currentImageUri, setCurrentImageUri] = useState(''); // Mevcut görüntülenen resim
+
+  const currentUser = auth.currentUser;
+  const placeId = place.id || `${place.name}_${place.address}`.replace(/[^a-zA-Z0-9]/g, '_');
+
+  useEffect(() => {
+    loadLikesAndComments();
+  }, []);
+
+  const loadLikesAndComments = async () => {
+    try {
+      // Load likes
+      const likesQuery = query(
+        collection(db, 'placeLikes'),
+        where('placeId', '==', placeId)
+      );
+      const likesSnapshot = await getDocs(likesQuery);
+      const likesData = [];
+      
+      for (const docSnap of likesSnapshot.docs) {
+        const likeData = docSnap.data();
+        // Get user info
+        const userDoc = await getDoc(doc(db, 'users', likeData.userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          likesData.push({
+            id: docSnap.id,
+            userId: likeData.userId,
+            userName: `${userData.firstName} ${userData.lastName}`,
+            userAvatar: userData.avatar || '',
+            createdAt: likeData.createdAt
+          });
+        }
+      }
+      
+      setLikes(likesData);
+      setLikesCount(likesData.length);
+      setIsLiked(likesData.some(like => like.userId === currentUser?.uid));
+
+      // Load comments
+      const commentsQuery = query(
+        collection(db, 'placeComments'),
+        where('placeId', '==', placeId),
+        orderBy('createdAt', 'desc')
+      );
+      const commentsSnapshot = await getDocs(commentsQuery);
+      const commentsData = [];
+      
+      for (const docSnap of commentsSnapshot.docs) {
+        const commentData = docSnap.data();
+        // Get user info
+        const userDoc = await getDoc(doc(db, 'users', commentData.userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          commentsData.push({
+            id: docSnap.id,
+            userId: commentData.userId,
+            userName: `${userData.firstName} ${userData.lastName}`,
+            userAvatar: userData.avatar || '',
+            comment: commentData.comment,
+            createdAt: commentData.createdAt
+          });
+        }
+      }
+      
+      setComments(commentsData);
+      setCommentsCount(commentsData.length);
+    } catch (error) {
+      console.error('Error loading likes and comments:', error);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!currentUser) return;
+
+    try {
+      if (isLiked) {
+        // Unlike
+        const likeToDelete = likes.find(like => like.userId === currentUser.uid);
+        if (likeToDelete) {
+          await deleteDoc(doc(db, 'placeLikes', likeToDelete.id));
+          setLikes(prev => prev.filter(like => like.userId !== currentUser.uid));
+          setLikesCount(prev => prev - 1);
+          setIsLiked(false);
+        }
+      } else {
+        // Like
+        const likeData = {
+          placeId: placeId,
+          placeName: place.name,
+          placeAddress: place.address,
+          userId: currentUser.uid,
+          createdAt: serverTimestamp()
+        };
+        
+        const docRef = await addDoc(collection(db, 'placeLikes'), likeData);
+        
+        // Get current user info
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        const userData = userDoc.data();
+        
+        const newLike = {
+          id: docRef.id,
+          userId: currentUser.uid,
+          userName: `${userData.firstName} ${userData.lastName}`,
+          userAvatar: userData.avatar || '',
+          createdAt: likeData.createdAt
+        };
+        
+        setLikes(prev => [...prev, newLike]);
+        setLikesCount(prev => prev + 1);
+        setIsLiked(true);
+      }
+    } catch (error) {
+      console.error('Error handling like:', error);
+      Alert.alert('Hata', 'Beğeni işlemi sırasında bir hata oluştu.');
+    }
+  };
+
+  const handleComment = async () => {
+    if (!currentUser || !newComment.trim()) return;
+
+    try {
+      setLoading(true);
+      
+      const commentData = {
+        placeId: placeId,
+        placeName: place.name,
+        placeAddress: place.address,
+        userId: currentUser.uid,
+        comment: newComment.trim(),
+        createdAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, 'placeComments'), commentData);
+      
+      // Get current user info
+      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+      const userData = userDoc.data();
+      
+      const newCommentObj = {
+        id: docRef.id,
+        userId: currentUser.uid,
+        userName: `${userData.firstName} ${userData.lastName}`,
+        userAvatar: userData.avatar || '',
+        comment: newComment.trim(),
+        createdAt: commentData.createdAt
+      };
+      
+      setComments(prev => [newCommentObj, ...prev]);
+      setCommentsCount(prev => prev + 1);
+      setNewComment('');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Hata', 'Yorum eklenirken bir hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '';
+    try {
+      let date;
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+      } else if (timestamp.seconds) {
+        date = new Date(timestamp.seconds * 1000);
+      } else {
+        date = new Date(timestamp);
+      }
+      
+      return date.toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const copyAddress = async () => {
+    try {
+      await Clipboard.setString(place.address);
+      Alert.alert('Başarılı', 'Adres panoya kopyalandı.');
+    } catch (error) {
+      Alert.alert('Hata', 'Adres kopyalanırken bir hata oluştu.');
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity 
+        style={styles.placeCard}
+        onPress={onPress}
+        disabled={!onPress}
+      >
+        <View style={styles.placeHeader}>
+          <View style={styles.placeInfo}>
+            <Text style={styles.placeName} numberOfLines={1}>
+              {place.name?.replace(/\n/g, ' ') || 'İsimsiz Mekan'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name="place" size={14} color={colors.textSecondary} style={{ marginRight: 4 }} />
+            <Text style={styles.placeAddress} numberOfLines={1}>
+                {place.address}
+            </Text>
+            </View>
+          </View>
+          
+          {/* Action Buttons */}
+          <View style={styles.placeActions}>
+            {/* Like Button */}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleLike();
+              }}
+              style={styles.actionButton}
+            >
+              <MaterialIcons 
+                name={isLiked ? "favorite" : "favorite-border"} 
+                size={20} 
+                color={isLiked ? "#EF4444" : "#6B7280"} 
+              />
+              <Text style={styles.actionButtonText}>{likesCount}</Text>
+            </TouchableOpacity>
+            
+            {/* Comment Button */}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setShowCommentsModal(true);
+              }}
+              style={styles.actionButton}
+            >
+              <MaterialIcons name="chat-bubble-outline" size={20} color="#6B7280" />
+              <Text style={styles.actionButtonText}>{commentsCount}</Text>
+            </TouchableOpacity>
+            
+            {/* Focus Button */}
+            {showFocusButton && onFocus && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onFocus(place);
+                }}
+                style={styles.focusButton}
+              >
+                <MaterialIcons name="center-focus-strong" size={18} color="#3B82F6" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Likes button - below like button */}
+        {likesCount > 0 && (
+          <TouchableOpacity
+            onPress={() => setShowLikesModal(true)}
+            style={styles.likesButton}
+          >
+            <Text style={styles.likesButtonText}>
+              Beğenenleri Gör ({likesCount})
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* User Content Preview */}
+        {place.userContent && (
+          <View style={styles.userContentContainer}>
+            {/* Rating */}
+            {place.userContent.rating > 0 && (
+              <View style={styles.ratingContainer}>
+                <MaterialIcons name="star" size={16} color="#F59E0B" />
+                <Text style={styles.ratingText}>{place.userContent.rating}/5</Text>
+              </View>
+            )}
+            
+            {/* Note */}
+            {place.userContent.note && (
+              <Text style={styles.noteText} numberOfLines={2}>
+                {place.userContent.note}
+              </Text>
+            )}
+            
+            {/* Photos */}
+            {place.userContent.photos && place.userContent.photos.length > 0 && (
+              <View style={styles.photosContainer}>
+                <Image 
+                  source={{ uri: place.userContent.photos[0] }} 
+                  style={styles.photoPreview}
+                />
+                {place.userContent.photos.length > 1 && (
+                  <Text style={styles.photoCount}>+{place.userContent.photos.length - 1}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Likes Modal */}
+      <Modal
+        visible={showLikesModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLikesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBackground}
+            activeOpacity={1}
+            onPress={() => setShowLikesModal(false)}
+          />
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Beğenenler ({likesCount})</Text>
+              <TouchableOpacity 
+                onPress={() => setShowLikesModal(false)}
+                style={styles.closeButton}
+              >
+                <MaterialIcons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              {likes.map((like) => (
+                <View key={like.id} style={styles.userItem}>
+                  <Text style={styles.userAvatar}>{like.userAvatar}</Text>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>{like.userName}</Text>
+                    <Text style={styles.userDate}>{formatDate(like.createdAt)}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Comments Modal */}
+      <Modal
+        visible={showCommentsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCommentsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBackground}
+            activeOpacity={1}
+            onPress={() => setShowCommentsModal(false)}
+          />
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Yorumlar ({commentsCount})</Text>
+              <TouchableOpacity 
+                onPress={() => setShowCommentsModal(false)}
+                style={styles.closeButton}
+              >
+                <MaterialIcons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              {comments.map((comment) => (
+                <View key={comment.id} style={styles.commentItem}>
+                  <Text style={styles.userAvatar}>{comment.userAvatar}</Text>
+                  <View style={styles.commentContent}>
+                    <View style={styles.commentHeader}>
+                      <Text style={styles.userName}>{comment.userName}</Text>
+                      <Text style={styles.userDate}>{formatDate(comment.createdAt)}</Text>
+                    </View>
+                    <Text style={styles.commentText}>{comment.comment}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            
+            {/* Add Comment */}
+            <View style={styles.addCommentContainer}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Yorum yazın..."
+                value={newComment}
+                onChangeText={setNewComment}
+                multiline
+              />
+              <TouchableOpacity
+                onPress={handleComment}
+                disabled={loading || !newComment.trim()}
+                style={[styles.sendButton, (!newComment.trim() || loading) && styles.sendButtonDisabled]}
+              >
+                <MaterialIcons 
+                  name="send" 
+                  size={20} 
+                  color={(!newComment.trim() || loading) ? "#9CA3AF" : "#3B82F6"} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Image Modal */}
+      <ImageModal
+        visible={showImageModal}
+        imageUri={currentImageUri}
+        onClose={() => setShowImageModal(false)}
+        title={place.name}
+      />
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  placeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  placeHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  placeInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  placeName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  placeAddress: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  placeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  focusButton: {
+    backgroundColor: '#F3F4F6',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+  },
+  likesButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  likesButtonText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  userContentContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  noteText: {
+    fontSize: 14,
+    color: '#1F2937',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  photosContainer: {
+    position: 'relative',
+  },
+  photoPreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  photoCount: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBackground: {
+    flex: 1,
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    minHeight: '40%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  userAvatar: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  userDate: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  commentContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  commentText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  addCommentContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12,
+  },
+  commentInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    maxHeight: 100,
+    fontSize: 14,
+  },
+  sendButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 20,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+  },
+});
+
+export default PlaceCard;

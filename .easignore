@@ -1,0 +1,40 @@
+# Gradle build files
+android/.gradle/
+android/build/
+android/app/build/
+
+# Node modules (will be reinstalled on EAS servers)
+node_modules/
+
+# Log files
+*.log
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+.tmp/
+.temp/
+tmp/
+
+# Cache directories
+.expo/
+.gradle-user/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large binary files that aren't needed for build
+*.zip
+*.tar.gz
+*.7z
+
+# Development keystores (keep only release keystores)
+android/app/debug.keystore

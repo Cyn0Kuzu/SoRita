@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoRita - Konum İzni Açıklaması</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        .feature-list li:before {
+            content: "📍";
+            position: absolute;
+            left: 0;
+        }
+        .permission-flow {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="app-icon">SR</div>
+        <h1>SoRita - Arka Plan Konum İzni Açıklaması</h1>
+        <p><em>Google Play Console için teknik dokümantasyon</em></p>
+    </div>
+
+    <div class="section">
+        <h2>📱 Uygulama Amacı</h2>
+        <p>SoRita, kullanıcıları konum tabanlı deneyimler aracılığıyla birbirine bağlayan sosyal bir harita platformudur. Kullanıcılar yakındaki yerleri keşfeder, favori konumlarını arkadaşlarıyla paylaşır, yer koleksiyonları oluşturur ve kişiselleştirilmiş öneriler alır.</p>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Arka Plan Konum Erişimi - Ana Özellik</h2>
+        <h3>Arkadaş Konum Paylaşımı</h3>
+        <p>Kullanıcılar buluşmaları koordine etmek ve birlikte yer keşfetmek için gerçek zamanlı konumlarını arkadaşlarıyla paylaşabilir. Bu özellik, kullanıcılar arkadaşlarıyla aktif olarak paylaşım yaparken konum durumunu sürekli güncellemek için arka planda konum erişimi gerektirir.</p>
+        
+        <ul class="feature-list">
+            <li>Arkadaşlarla gerçek zamanlı konum koordinasyonu</li>
+            <li>Buluşma noktalarını belirleme ve yönlendirme</li>
+            <li>Grup etkinlikleri için konum senkronizasyonu</li>
+            <li>Güvenlik amaçlı konum takibi (kullanıcı onayı ile)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🔒 Kullanıcı İzin Süreci</h2>
+        <div class="permission-flow">
+            <h4>Belirgin Açıklama (Prominent Disclosure):</h4>
+            <div class="code-block">
+"Arkadaş Konum Paylaşımını Etkinleştir?
+
+SoRita arka plan konum erişimi için:
+• Seçtiğiniz arkadaşlarınızla konumunuzu paylaşır
+• Buluşmaları koordine eder ve birlikte yer keşfetmenizi sağlar  
+• Arkadaşlarınızla buluşurken konumunuzu güncel tutar
+
+Konumunuzu kimin gördüğünü kontrol edersiniz ve bunu 
+istediğiniz zaman Ayarlar'dan kapatabilirsiniz."
+            </div>
+        </div>
+        
+        <p><strong>Kullanıcı Kontrolü:</strong></p>
+        <ul>
+            <li>Konum paylaşımı tamamen isteğe bağlıdır</li>
+            <li>Kullanıcılar istediği zaman özelliği kapatabilir</li>
+            <li>Hangi arkadaşlarla paylaşım yapılacağını seçebilir</li>
+            <li>Paylaşım süresi sınırlanabilir</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🛡️ Gizlilik ve Güvenlik</h2>
+        <ul>
+            <li><strong>Veri Şifreleme:</strong> Tüm konum verileri transit halinde şifrelenir</li>
+            <li><strong>Minimal Veri:</strong> Sadece gerekli konum bilgileri işlenir</li>
+            <li><strong>Kullanıcı Hakları:</strong> Veriler silinebilir ve indirilebilir</li>
+            <li><strong>Üçüncü Taraf Paylaşımı:</strong> Konum verileri üçüncü taraflarla paylaşılmaz</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>⚡ Teknik Detaylar</h2>
+        <p><strong>Kullanılan İzinler:</strong></p>
+        <ul>
+            <li><code>ACCESS_FINE_LOCATION</code> - Hassas konum bilgisi</li>
+            <li><code>ACCESS_COARSE_LOCATION</code> - Yaklaşık konum bilgisi</li>
+            <li><code>ACCESS_BACKGROUND_LOCATION</code> - Arka plan konum erişimi</li>
+            <li><code>FOREGROUND_SERVICE_LOCATION</code> - Ön plan servis bildirimi</li>
+        </ul>
+        
+        <p><strong>Android Versiyonu:</strong> API 24+ (Android 7.0+)</p>
+        <p><strong>Hedef SDK:</strong> 35 (Android 15)</p>
+    </div>
+
+    <div class="section">
+        <h2>📞 İletişim Bilgileri</h2>
+        <p><strong>Geliştirici:</strong> Cayan (SoRita Team)</p>
+        <p><strong>E-posta:</strong> support@sorita.app</p>
+        <p><strong>Gizlilik Politikası:</strong> <a href="privacy-policy.html">Gizlilik Politikası</a></p>
+    </div>
+
+    <footer style="text-align: center; margin-top: 40px; color: #666; font-size: 14px;">
+        <p>Bu dokümantasyon Google Play Console gereksinimlerini karşılamak için hazırlanmıştır.</p>
+        <p>Son güncellenme: Eylül 2025</p>
+    </footer>
+</body>
+</html>

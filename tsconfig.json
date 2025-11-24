@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "jsx": "react-native",
+    "allowSyntheticDefaultImports": true,
+    "checkJs": false,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "noErrorTruncation": true,
+    "noImplicitOverride": false
+  },
+  "include": [
+    "**/*",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios",
+    "*_backup.js",
+    "*_fixed.js",
+    "*_test.js",
+    "*_old.js",
+    "*-backup.js",
+    "*-test.js",
+    "App_*.js"
+  ],
+  "extends": "expo/tsconfig.base"
+}

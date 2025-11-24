@@ -1,0 +1,348 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isValidUser(userData) {
+      return userData.keys().hasAll(['firstName', 'lastName', 'username', 'email', 'createdAt']) &&
+             userData.firstName is string &&
+             userData.lastName is string &&
+             userData.username is string &&
+             userData.email is string &&
+             userData.firstName.size() > 0 &&
+             userData.lastName.size() > 0 &&
+             userData.username.size() >= 3 &&
+             userData.email.matches('.*@.*[.].*');
+    }
+    
+    function isValidPlace(placeData) {
+      return placeData.keys().hasAll(['name', 'address', 'coordinates', 'category', 'createdBy']) &&
+             placeData.name is string &&
+             placeData.address is string &&
+             placeData.category in ['restaurant', 'cafe', 'attraction', 'hotel', 'shopping', 'entertainment'] &&
+             placeData.coordinates.keys().hasAll(['lat', 'lng']) &&
+             placeData.coordinates.lat is number &&
+             placeData.coordinates.lng is number;
+    }
+    
+    // Users collection - enhanced security
+    match /users/{userId} {
+      // Allow reading for authenticated users and public profiles
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || // Own profile (always allowed)
+        resource.data.get('isPublic', true) == true // Public profile
+      );
+      
+      // Allow queries for email availability check (but not specific document reads)
+      allow list: if request.auth == null; // Allow anonymous queries for email check
+      
+      allow create: if request.auth != null && 
+                   request.auth.uid == userId && 
+                   isValidUser(request.resource.data);
+      
+      allow update: if isAuthenticated() && (
+        isOwner(userId) || // Own profile updates
+        // Allow other users to update followers/following arrays for follow/unfollow
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'followersCount', 'following', 'followingCount'])) ||
+        // Allow updating notification count and timestamp from any authenticated user
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadNotifications', 'lastNotificationUpdate']) ||
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadNotifications']) ||
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastNotificationUpdate']))
+      );
+      
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Username uniqueness check - allow anonymous access for registration
+    match /usernames/{username} {
+      allow read: if true; // Allow anonymous read for availability check
+      allow write: if isAuthenticated(); // Only authenticated users can write
+    }
+    
+    // Places collection - enhanced validation
+    match /places/{placeId} {
+      allow read: if isAuthenticated();
+      
+      allow create: if isAuthenticated() && 
+                   isValidPlace(request.resource.data) &&
+                   request.resource.data.createdBy == request.auth.uid &&
+                   request.resource.data.createdAt == request.time;
+      
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid || // Creator
+        request.auth.uid in resource.data.moderators // Moderators
+      ) && request.resource.data.updatedAt == request.time;
+      
+      allow delete: if isAuthenticated() && 
+                   resource.data.createdBy == request.auth.uid;
+    }
+    
+    // Reviews collection - enhanced security
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      
+      allow create: if isAuthenticated() &&
+                   request.resource.data.userId == request.auth.uid &&
+                   request.resource.data.rating >= 1 &&
+                   request.resource.data.rating <= 5 &&
+                   request.resource.data.createdAt == request.time;
+      
+      allow update: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid &&
+                   request.resource.data.updatedAt == request.time;
+      
+      allow delete: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid;
+    }
+    
+    // Lists collection - personal lists with collaborative features
+    match /lists/{listId} {
+      allow read: if isAuthenticated(); // Anyone can read lists (for profile stats)
+      
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      allow update: if isAuthenticated() && (
+        // List owner can update anything
+        resource.data.userId == request.auth.uid ||
+        // Collaborative list invitation acceptance - user must be in the new collaborators but not in old ones
+        (request.auth.uid in request.resource.data.get('collaborators', []) &&
+         !(request.auth.uid in resource.data.get('collaborators', [])) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasAny(['collaborators', 'collaboratorDetails', 'colorAssignments', 'lastActivity', 'updatedAt'])) ||
+        // Existing collaborators can update list content (add places, etc.)
+        (request.auth.uid in resource.data.get('collaborators', []) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasAny(['places', 'placesCount', 'lastActivity', 'collaboratorDetails', 'updatedAt']))
+      );
+      
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+      );
+    }
+    
+    // Favorites - quick access to user favorites
+    match /users/{userId}/favorites/{favoriteId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Following system
+    match /follows/{followId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                   request.resource.data.followerId == request.auth.uid &&
+                   request.resource.data.createdAt == request.time;
+      allow delete: if isAuthenticated() && 
+                   resource.data.followerId == request.auth.uid;
+    }
+    
+    // Posts collection
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                   request.resource.data.userId == request.auth.uid &&
+                   request.resource.data.createdAt == request.time;
+      allow update: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid;
+    }
+    
+    // Legacy following system (keep for compatibility)
+    match /users/{userId}/following/{followingId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+
+    match /users/{userId}/followers/{followerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == followerId;
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.get('userId', '') || // Current implementation uses 'userId'
+        request.auth.uid == resource.data.get('toUserId', '') || // Standard field
+        request.auth.uid == resource.data.get('fromUserId', '') // For notification sender
+      );
+      
+      allow create: if isAuthenticated() && (
+        // Allow creating notifications for other users (invitations)
+        request.resource.data.keys().hasAll(['type', 'createdAt']) &&
+        request.resource.data.type in ['follow', 'unfollow', 'like', 'comment', 'list_invitation', 'place_like'] &&
+        (
+          // Standard notification fields
+          (request.resource.data.type in ['follow', 'unfollow', 'like', 'comment'] &&
+           request.resource.data.keys().hasAll(['read', 'toUserId']) &&
+           request.resource.data.read == false) ||
+          // Place like notification fields
+          (request.resource.data.type == 'place_like' &&
+           request.resource.data.keys().hasAll(['fromUserId', 'toUserId', 'placeId', 'read', 'timestamp', 'title', 'message']) &&
+           request.resource.data.read == false &&
+           // Allow optional fields
+           (!request.resource.data.keys().hasAny(['fromUserName']) || request.resource.data.fromUserName is string) &&
+           (!request.resource.data.keys().hasAny(['fromUserAvatar']) || request.resource.data.fromUserAvatar is string) &&
+           (!request.resource.data.keys().hasAny(['placeName']) || request.resource.data.placeName is string)) ||
+          // List invitation specific fields - updated to match current implementation
+          (request.resource.data.type == 'list_invitation' &&
+           request.resource.data.keys().hasAll(['listId', 'listName', 'status', 'read', 'timestamp', 'title', 'toUserId']) &&
+           request.resource.data.status == 'pending' &&
+           request.resource.data.read == false &&
+           // Allow optional fields
+           (!request.resource.data.keys().hasAny(['fromUserName']) || request.resource.data.fromUserName is string) &&
+           (!request.resource.data.keys().hasAny(['fromUserAvatar']) || request.resource.data.fromUserAvatar is string) &&
+           (!request.resource.data.keys().hasAny(['message']) || request.resource.data.message is string))
+        )
+      );
+      
+      allow update: if isAuthenticated() && (
+        // User can mark their own notifications as read
+        (request.auth.uid == resource.data.userId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt'])) ||
+        // Legacy support for toUserId
+        (request.auth.uid == resource.data.toUserId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt'])) ||
+        // List invitation response updates
+        (request.auth.uid == resource.data.userId &&
+         resource.data.type == 'list_invitation' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'read', 'updatedAt']) &&
+         request.resource.data.status in ['accepted', 'rejected']) ||
+        // Legacy support for toUserId in list invitations
+        (request.auth.uid == resource.data.toUserId &&
+         resource.data.type == 'list_invitation' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'read', 'updatedAt']) &&
+         request.resource.data.status in ['accepted', 'rejected'])
+      );
+      
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.toUserId ||
+        request.auth.uid == resource.data.fromUserId ||
+        request.auth.uid == resource.data.userId // Support legacy field
+      );
+    }
+    
+    // Public places - read-only for users
+    match /publicPlaces/{placeId} {
+      allow read: if true;
+      allow write: if false; // Only through admin functions
+    }
+    
+    // App settings and configurations
+    match /appConfig/{configId} {
+      allow read: if true;
+      allow write: if false; // Only admin
+    }
+    
+    // User activity logs
+    match /users/{userId}/activities/{activityId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update, delete: if false; // Activities are immutable
+    }
+    
+    // Global activity collection for easier querying
+    match /activities/{activityId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                   request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Activities are immutable
+    }
+    
+    // User settings and preferences
+    match /users/{userId}/settings/{settingId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    match /users/{userId}/preferences/{preferenceId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // User stats and analytics
+    match /users/{userId}/stats/{statId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Social data (followers, following, etc.)
+    match /users/{userId}/social/{socialId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Recent user activity logs
+    match /users/{userId}/recentActivity/{activityId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update, delete: if false; // Activities are immutable
+    }
+    
+    // Direct user-specific collections (alternative structure)
+    match /userSettings/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    match /userPreferences/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    match /userStats/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    match /socialConnections/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    match /userActivities/{activityId} {
+      allow read: if isAuthenticated() && 
+                  request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && 
+                   request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Activities are immutable
+    }
+    
+    // Place likes collection
+    match /placeLikes/{likeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                   request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+                   request.auth.uid == resource.data.userId;
+      allow update: if false; // Likes are immutable
+    }
+    
+    // Place comments collection
+    match /placeComments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                   request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+                   request.auth.uid == resource.data.userId;
+      allow delete: if isAuthenticated() && (
+                   request.auth.uid == resource.data.userId || // Comment owner can delete
+                   request.auth.uid == resource.data.placeUserId // Place owner can delete comments on their place
+                   );
+    }
+    
+    // Complete backups collection
+    match /completeBackups/{backupId} {
+      allow read: if isAuthenticated() && 
+                  request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && 
+                   request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                            request.auth.uid == resource.data.userId;
+    }
+    
+    // Backup metadata collection
+    match /backupMetadata/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+  }
+}
