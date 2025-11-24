@@ -33,8 +33,7 @@ const fontInterfaceFiles = [
   {
     name: 'EXFontScalersManagerInterface.h',
     content: `#import <Foundation/Foundation.h>
-
-@protocol EXFontScalerInterface;
+#import <ExpoModulesCore/EXFontScalerInterface.h>
 
 @protocol EXFontScalersManagerInterface <NSObject>
 
