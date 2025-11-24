@@ -47,11 +47,11 @@
         "cache": {
           "key": "bundle-v5"
         },
-        "prebuildCommand": "npm install @expo/cli && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
+        "prebuildCommand": "prebuild --clean"
       },
       "ios": {
         "buildConfiguration": "Release",
-        "prebuildCommand": "npm install @expo/cli && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
+        "prebuildCommand": "prebuild --clean"
       }
     },
     "production-apk": {
@@ -69,11 +69,11 @@
         "cache": {
           "key": "apk-v5"
         },
-        "prebuildCommand": "npm install @expo/cli && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
+        "prebuildCommand": "prebuild --clean"
       },
       "ios": {
         "buildConfiguration": "Release",
-        "prebuildCommand": "npm install @expo/cli && node build-fix.js && node fix-metro.js && npx expo prebuild --clean"
+        "prebuildCommand": "prebuild --clean"
       }
     }
   },
