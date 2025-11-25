@@ -15,8 +15,10 @@ import {
 import { Text, Avatar, Button, Menu } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { doc, getDoc, getDocs, updateDoc, arrayUnion, arrayRemove, increment, collection, query, where, serverTimestamp, orderBy, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth, db, storage } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { colors } from '../theme/theme';
 import { ListCard } from '../components/CommonComponents';
 import PlaceCard from '../components/PlaceCard';
@@ -45,9 +47,12 @@ export default function ViewProfileScreen({ route, navigation }) {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportForm, setReportForm] = useState({
     subject: '',
-    category: 'spam',
+    categories: [],
     details: '',
+    attachments: [],
+    attachmentUrls: [],
   });
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [blockStatus, setBlockStatus] = useState({ iBlocked: false, blockedMe: false });
   const [blockActionLoading, setBlockActionLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -95,11 +100,15 @@ export default function ViewProfileScreen({ route, navigation }) {
     { key: 'collaborative', label: 'Ortak', description: 'Ortak listeler', icon: 'group' }
   ];
   const reportCategories = [
-    { key: 'spam', label: 'Spam / Sahte' },
-    { key: 'harassment', label: 'Taciz / Tehdit' },
-    { key: 'inappropriate', label: 'Uygunsuz İçerik' },
-    { key: 'privacy', label: 'Gizlilik / Güvenlik' },
-    { key: 'other', label: 'Diğer' },
+    { key: 'spam', label: 'Spam / Sahte', icon: 'block' },
+    { key: 'harassment', label: 'Taciz / Tehdit', icon: 'warning' },
+    { key: 'inappropriate', label: 'Uygunsuz İçerik', icon: 'visibility-off' },
+    { key: 'privacy', label: 'Gizlilik / Güvenlik', icon: 'lock' },
+    { key: 'fake', label: 'Sahte Hesap', icon: 'person-off' },
+    { key: 'violence', label: 'Şiddet İçeriği', icon: 'gavel' },
+    { key: 'hate', label: 'Nefret Söylemi', icon: 'cancel' },
+    { key: 'copyright', label: 'Telif Hakkı İhlali', icon: 'copyright' },
+    { key: 'other', label: 'Diğer', icon: 'more-horiz' },
   ];
   
   // Global state synchronization for PlaceCard components
@@ -249,6 +258,96 @@ export default function ViewProfileScreen({ route, navigation }) {
     }
   };
 
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri erişim izni gereklidir.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const newAttachments = result.assets.map(asset => ({
+          uri: asset.uri,
+          type: asset.type || 'image',
+          name: asset.fileName || `image_${Date.now()}.jpg`,
+          size: asset.fileSize || 0,
+        }));
+
+        setReportForm(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, ...newAttachments],
+        }));
+      }
+    } catch (error) {
+      console.error(' [ViewProfile] Image picker error:', error);
+      Alert.alert('Hata', 'Fotoğraf seçilirken bir hata oluştu.');
+    }
+  };
+
+  const removeAttachment = (index) => {
+    setReportForm(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index),
+      attachmentUrls: prev.attachmentUrls.filter((_, i) => i !== index),
+    }));
+  };
+
+  const uploadAttachments = async () => {
+    if (reportForm.attachments.length === 0) {
+      return [];
+    }
+
+    setUploadingAttachments(true);
+    const uploadPromises = reportForm.attachments.map(async (attachment) => {
+      try {
+        const response = await fetch(attachment.uri);
+        const blob = await response.blob();
+        const fileName = `reports/${currentUser.uid}/${Date.now()}_${attachment.name}`;
+        const storageRef = ref(storage, fileName);
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
+        return downloadURL;
+      } catch (error) {
+        console.error(' [ViewProfile] Attachment upload error:', error);
+        throw error;
+      }
+    });
+
+    try {
+      const urls = await Promise.all(uploadPromises);
+      setUploadingAttachments(false);
+      return urls;
+    } catch (error) {
+      setUploadingAttachments(false);
+      throw error;
+    }
+  };
+
+  const toggleCategory = (categoryKey) => {
+    setReportForm(prev => {
+      const categories = prev.categories || [];
+      if (categories.includes(categoryKey)) {
+        return {
+          ...prev,
+          categories: categories.filter(cat => cat !== categoryKey),
+        };
+      } else {
+        return {
+          ...prev,
+          categories: [...categories, categoryKey],
+        };
+      }
+    });
+  };
+
   const handleReportSubmit = async () => {
     if (!currentUser) {
       Alert.alert('Hata', 'İşlemi gerçekleştirmek için giriş yapın.');
@@ -260,25 +359,52 @@ export default function ViewProfileScreen({ route, navigation }) {
       return;
     }
 
+    if (reportForm.categories.length === 0) {
+      Alert.alert('Eksik Bilgi', 'En az bir kategori seçmelisiniz.');
+      return;
+    }
+
     try {
       setReportSubmitting(true);
+
+      // Upload attachments first
+      let attachmentUrls = [];
+      if (reportForm.attachments.length > 0) {
+        attachmentUrls = await uploadAttachments();
+      }
+
       await UserSafetyService.submitUserReport({
         targetUserId: userId,
         targetUserEmail: userData?.email,
         targetUserName: userData?.displayName || `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim(),
         reporterEmail: currentUser.email,
         subject: reportForm.subject.trim(),
-        category: reportForm.category,
+        categories: reportForm.categories,
         description: reportForm.details.trim(),
+        attachments: reportForm.attachments.map((att, idx) => ({
+          name: att.name,
+          type: att.type,
+          size: att.size,
+          url: attachmentUrls[idx] || null,
+        })),
+        attachmentUrls: attachmentUrls,
       });
+      
       setReportModalVisible(false);
-      setReportForm({ subject: '', category: 'spam', details: '' });
+      setReportForm({ 
+        subject: '', 
+        categories: [], 
+        details: '', 
+        attachments: [],
+        attachmentUrls: [],
+      });
       Alert.alert('Bildiriminiz Alındı', 'Destek ekibi en kısa sürede değerlendirecek.');
     } catch (error) {
       console.error(' [ViewProfile] Report submit error:', error);
       Alert.alert('Hata', error.message || 'Bildiriminiz gönderilemedi. Daha sonra tekrar deneyin.');
     } finally {
       setReportSubmitting(false);
+      setUploadingAttachments(false);
     }
   };
 
@@ -1554,79 +1680,200 @@ export default function ViewProfileScreen({ route, navigation }) {
       <Modal
         visible={reportModalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => {
-          setReportModalVisible(false);
-          setReportForm({ subject: '', category: 'spam', details: '' });
+          if (!reportSubmitting && !uploadingAttachments) {
+            setReportModalVisible(false);
+            setReportForm({ 
+              subject: '', 
+              categories: [], 
+              details: '', 
+              attachments: [],
+              attachmentUrls: [],
+            });
+          }
         }}
       >
         <View style={styles.reportModalBackdrop}>
           <View style={styles.reportModalCard}>
-            <Text style={styles.reportModalTitle}>Profili Bildir</Text>
-            <Text style={styles.reportDescription}>
-              Bildiriminiz memodee@gmail.com adresine iletilecek ve destek ekibi tarafından incelenecektir.
-            </Text>
-            <TextInput
-              style={styles.reportInput}
-              placeholder="Başlık"
-              placeholderTextColor={colors.textSecondary}
-              value={reportForm.subject}
-              onChangeText={(text) => setReportForm(prev => ({ ...prev, subject: text }))}
-            />
-            <Text style={styles.reportLabel}>Kategori</Text>
-            <View style={styles.reportCategoryWrapper}>
-              {reportCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.key}
-                  style={[
-                    styles.reportCategoryChip,
-                    reportForm.category === category.key && styles.reportCategoryChipActive
-                  ]}
-                  onPress={() => setReportForm(prev => ({ ...prev, category: category.key }))}
-                >
-                  <Text
-                    style={[
-                      styles.reportCategoryChipText,
-                      reportForm.category === category.key && styles.reportCategoryChipTextActive
-                    ]}
-                  >
-                    {category.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput
-              style={[styles.reportInput, styles.reportTextarea]}
-              placeholder="Detaylı açıklama"
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              textAlignVertical="top"
-              value={reportForm.details}
-              onChangeText={(text) => setReportForm(prev => ({ ...prev, details: text }))}
-            />
-            <View style={styles.reportActions}>
-              <View style={styles.reportActionButton}>
-                <Button
-                  mode="text"
-                  onPress={() => {
+            <View style={styles.reportModalHeader}>
+              <Text style={styles.reportModalTitle}>Profili Bildir</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!reportSubmitting && !uploadingAttachments) {
                     setReportModalVisible(false);
-                    setReportForm({ subject: '', category: 'spam', details: '' });
-                  }}
-                  disabled={reportSubmitting}
-                >
-                  İptal
-                </Button>
+                    setReportForm({ 
+                      subject: '', 
+                      categories: [], 
+                      details: '', 
+                      attachments: [],
+                      attachmentUrls: [],
+                    });
+                  }
+                }}
+                disabled={reportSubmitting || uploadingAttachments}
+              >
+                <MaterialIcons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.reportModalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.reportDescription}>
+                Bildiriminiz memodee@gmail.com adresine iletilecek ve destek ekibi tarafından incelenecektir.
+              </Text>
+              
+              <Text style={styles.reportLabel}>Başlık *</Text>
+              <TextInput
+                style={styles.reportInput}
+                placeholder="Bildirim başlığı"
+                placeholderTextColor={colors.textSecondary}
+                value={reportForm.subject}
+                onChangeText={(text) => setReportForm(prev => ({ ...prev, subject: text }))}
+                maxLength={120}
+                editable={!reportSubmitting && !uploadingAttachments}
+              />
+              <Text style={styles.reportCharCount}>{reportForm.subject.length}/120</Text>
+
+              <Text style={styles.reportLabel}>Kategori * (Birden fazla seçebilirsiniz)</Text>
+              <View style={styles.reportCategoryWrapper}>
+                {reportCategories.map((category) => {
+                  const isSelected = (reportForm.categories || []).includes(category.key);
+                  return (
+                    <TouchableOpacity
+                      key={category.key}
+                      style={[
+                        styles.reportCategoryChip,
+                        isSelected && styles.reportCategoryChipActive
+                      ]}
+                      onPress={() => toggleCategory(category.key)}
+                      disabled={reportSubmitting || uploadingAttachments}
+                    >
+                      <MaterialIcons 
+                        name={category.icon || 'label'} 
+                        size={16} 
+                        color={isSelected ? '#fff' : colors.primary} 
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text
+                        style={[
+                          styles.reportCategoryChipText,
+                          isSelected && styles.reportCategoryChipTextActive
+                        ]}
+                      >
+                        {category.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <View style={styles.reportActionButton}>
-                <Button
-                  mode="contained"
-                  onPress={handleReportSubmit}
-                  loading={reportSubmitting}
-                  disabled={reportSubmitting}
-                >
-                  Gönder
-                </Button>
-              </View>
+              {(reportForm.categories || []).length === 0 && (
+                <Text style={styles.reportErrorText}>En az bir kategori seçmelisiniz</Text>
+              )}
+
+              <Text style={styles.reportLabel}>Detaylı Açıklama *</Text>
+              <TextInput
+                style={[styles.reportInput, styles.reportTextarea]}
+                placeholder="Bildiriminiz hakkında detaylı bilgi verin..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                value={reportForm.details}
+                onChangeText={(text) => setReportForm(prev => ({ ...prev, details: text }))}
+                editable={!reportSubmitting && !uploadingAttachments}
+              />
+
+              <Text style={styles.reportLabel}>Belgeler / Fotoğraflar (Opsiyonel)</Text>
+              <Text style={styles.reportSubLabel}>
+                Kanıt olarak fotoğraf veya belge ekleyebilirsiniz (Maks: 5 dosya)
+              </Text>
+              
+              <TouchableOpacity
+                style={styles.reportAttachmentButton}
+                onPress={handlePickImage}
+                disabled={reportSubmitting || uploadingAttachments || reportForm.attachments.length >= 5}
+              >
+                <MaterialIcons name="add-photo-alternate" size={24} color={colors.primary} />
+                <Text style={styles.reportAttachmentButtonText}>
+                  {reportForm.attachments.length >= 5 
+                    ? 'Maksimum dosya sayısına ulaşıldı' 
+                    : 'Fotoğraf / Belge Ekle'}
+                </Text>
+              </TouchableOpacity>
+
+              {reportForm.attachments.length > 0 && (
+                <View style={styles.reportAttachmentsList}>
+                  {reportForm.attachments.map((attachment, index) => (
+                    <View key={index} style={styles.reportAttachmentItem}>
+                      <Image 
+                        source={{ uri: attachment.uri }} 
+                        style={styles.reportAttachmentThumbnail}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.reportAttachmentInfo}>
+                        <Text style={styles.reportAttachmentName} numberOfLines={1}>
+                          {attachment.name}
+                        </Text>
+                        <Text style={styles.reportAttachmentSize}>
+                          {(attachment.size / 1024).toFixed(1)} KB
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeAttachment(index)}
+                        disabled={reportSubmitting || uploadingAttachments}
+                        style={styles.reportAttachmentRemove}
+                      >
+                        <MaterialIcons name="close" size={20} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {(uploadingAttachments || reportSubmitting) && (
+                <View style={styles.reportLoadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.reportLoadingText}>
+                    {uploadingAttachments ? 'Dosyalar yükleniyor...' : 'Bildirim gönderiliyor...'}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.reportActions}>
+              <Button
+                mode="text"
+                onPress={() => {
+                  if (!reportSubmitting && !uploadingAttachments) {
+                    setReportModalVisible(false);
+                    setReportForm({ 
+                      subject: '', 
+                      categories: [], 
+                      details: '', 
+                      attachments: [],
+                      attachmentUrls: [],
+                    });
+                  }
+                }}
+                disabled={reportSubmitting || uploadingAttachments}
+              >
+                İptal
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleReportSubmit}
+                loading={reportSubmitting || uploadingAttachments}
+                disabled={
+                  reportSubmitting || 
+                  uploadingAttachments ||
+                  !reportForm.subject.trim() ||
+                  !reportForm.details.trim() ||
+                  (reportForm.categories || []).length === 0
+                }
+                style={styles.reportSubmitButton}
+              >
+                {uploadingAttachments ? 'Yükleniyor...' : 'Gönder'}
+              </Button>
             </View>
           </View>
         </View>
@@ -1801,16 +2048,31 @@ const styles = StyleSheet.create({
   },
   reportModalCard: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 500,
+    maxHeight: '90%',
     backgroundColor: colors.white,
     borderRadius: 20,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   reportModalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 8,
+  },
+  reportModalScroll: {
+    maxHeight: 500,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   reportDescription: {
     fontSize: 13,
@@ -1824,15 +2086,36 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     color: colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: 4,
+    backgroundColor: colors.surface,
   },
   reportTextarea: {
     minHeight: 120,
+    paddingTop: 12,
+  },
+  reportCharCount: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'right',
+    marginBottom: 12,
   },
   reportLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  reportSubLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  reportErrorText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: -8,
     marginBottom: 8,
   },
   reportCategoryWrapper: {
@@ -1841,34 +2124,108 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reportCategoryChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: colors.surface,
     marginRight: 8,
     marginBottom: 8,
   },
   reportCategoryChipActive: {
     borderColor: colors.primary,
-    backgroundColor: '#E0ECFF',
+    backgroundColor: colors.primary,
   },
   reportCategoryChipText: {
     fontSize: 13,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
   reportCategoryChipTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  reportAttachmentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+  },
+  reportAttachmentButtonText: {
+    fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
+    marginLeft: 8,
+  },
+  reportAttachmentsList: {
+    marginBottom: 12,
+  },
+  reportAttachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reportAttachmentThumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  reportAttachmentInfo: {
+    flex: 1,
+  },
+  reportAttachmentName: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  reportAttachmentSize: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  reportAttachmentRemove: {
+    padding: 4,
+  },
+  reportLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginBottom: 8,
+  },
+  reportLoadingText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginLeft: 8,
   },
   reportActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  reportActionButton: {
+  reportSubmitButton: {
     marginLeft: 12,
+    minWidth: 100,
   },
   section: {
     marginBottom: 30,

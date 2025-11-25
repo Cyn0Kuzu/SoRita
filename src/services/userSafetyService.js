@@ -12,6 +12,7 @@ import {
   where,
   query,
   deleteDoc,
+  increment,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
@@ -28,16 +29,20 @@ class UserSafetyService {
     const currentUserRef = doc(db, 'users', currentUser.uid);
     const targetUserRef = doc(db, 'users', targetUserId);
 
+    // Remove mutual follows and update user arrays
+    await this.removeMutualFollows(currentUser.uid, targetUserId);
+
     await Promise.all([
       updateDoc(currentUserRef, {
         blockedUsers: arrayUnion(targetUserId),
+        following: arrayRemove(targetUserId),
         updatedAt: serverTimestamp(),
       }),
       updateDoc(targetUserRef, {
         blockedByUsers: arrayUnion(currentUser.uid),
+        followers: arrayRemove(currentUser.uid),
         updatedAt: serverTimestamp(),
       }),
-      this.removeMutualFollows(currentUser.uid, targetUserId),
       addDoc(collection(db, 'blocks'), {
         blockerId: currentUser.uid,
         blockedId: targetUserId,
@@ -92,6 +97,64 @@ class UserSafetyService {
       snap.docs.map((docSnap) => deleteDoc(docSnap.ref))
     );
     await Promise.all(deletions);
+
+    // Also remove from users collection following/followers arrays
+    const currentUserRef = doc(db, 'users', currentUserId);
+    const targetUserRef = doc(db, 'users', targetUserId);
+    
+    const [currentUserDoc, targetUserDoc] = await Promise.all([
+      getDoc(currentUserRef),
+      getDoc(targetUserRef),
+    ]);
+
+    const currentUserData = currentUserDoc.data() || {};
+    const targetUserData = targetUserDoc.data() || {};
+
+    const updatePromises = [];
+
+    // Remove targetUserId from currentUser's following array if exists
+    if (Array.isArray(currentUserData.following) && currentUserData.following.includes(targetUserId)) {
+      updatePromises.push(
+        updateDoc(currentUserRef, {
+          following: arrayRemove(targetUserId),
+          followingCount: increment(-1),
+        })
+      );
+    }
+
+    // Remove currentUserId from targetUser's followers array if exists
+    if (Array.isArray(targetUserData.followers) && targetUserData.followers.includes(currentUserId)) {
+      updatePromises.push(
+        updateDoc(targetUserRef, {
+          followers: arrayRemove(currentUserId),
+          followersCount: increment(-1),
+        })
+      );
+    }
+
+    // Remove currentUserId from targetUser's following array if exists
+    if (Array.isArray(targetUserData.following) && targetUserData.following.includes(currentUserId)) {
+      updatePromises.push(
+        updateDoc(targetUserRef, {
+          following: arrayRemove(currentUserId),
+          followingCount: increment(-1),
+        })
+      );
+    }
+
+    // Remove targetUserId from currentUser's followers array if exists
+    if (Array.isArray(currentUserData.followers) && currentUserData.followers.includes(targetUserId)) {
+      updatePromises.push(
+        updateDoc(currentUserRef, {
+          followers: arrayRemove(targetUserId),
+          followersCount: increment(-1),
+        })
+      );
+    }
+
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
   }
 
   static async getBlockedUsers(currentUserId = auth.currentUser?.uid) {
@@ -154,6 +217,15 @@ class UserSafetyService {
       }
     }
 
+    // Validate categories array
+    const categories = Array.isArray(reportData.categories) 
+      ? reportData.categories 
+      : (reportData.category ? [reportData.category] : ['other']);
+
+    if (categories.length === 0) {
+      throw new Error('En az bir kategori seçmelisiniz.');
+    }
+
     const payload = {
       targetUserId: reportData.targetUserId,
       targetUserEmail: reportData.targetUserEmail || '',
@@ -161,11 +233,14 @@ class UserSafetyService {
       reporterId: currentUser.uid,
       reporterEmail: reportData.reporterEmail || currentUser.email || '',
       subject: reportData.subject.slice(0, 120),
-      category: reportData.category || 'other',
+      categories: categories, // Multiple categories support
+      category: categories[0], // Keep first category for backward compatibility
       description: reportData.description,
       attachments: reportData.attachments || [],
+      attachmentUrls: reportData.attachmentUrls || [],
       createdAt: serverTimestamp(),
       status: 'received',
+      priority: reportData.priority || 'normal',
     };
 
     await addDoc(collection(db, 'reports'), payload);
