@@ -1719,7 +1719,7 @@ export default function ViewProfileScreen({ route, navigation }) {
             
             <ScrollView style={styles.reportModalScroll} showsVerticalScrollIndicator={false}>
               <Text style={styles.reportDescription}>
-                Bildiriminiz memodee@gmail.com adresine iletilecek ve destek ekibi tarafından incelenecektir.
+                Bildiriminiz memodee333@gmail.com adresine iletilecek ve destek ekibi tarafından incelenecektir.
               </Text>
               
               <Text style={styles.reportLabel}>Başlık *</Text>

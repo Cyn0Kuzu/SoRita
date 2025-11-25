@@ -189,8 +189,11 @@ exports.sendReportEmail = functions.https.onCall(async (data) => {
     reporterEmail,
     subject,
     category,
+    categories,
     description,
     humanTime,
+    attachments,
+    attachmentUrls,
   } = data || {};
 
   if (!targetUserId || !reporterId || !subject || !description) {
@@ -201,11 +204,40 @@ exports.sendReportEmail = functions.https.onCall(async (data) => {
   }
 
   const reportingConfig = functions.config().reporting || {};
-  const toAddress = reportingConfig.to || 'memodee@gmail.com';
+  const toAddress = reportingConfig.to || 'memodee333@gmail.com';
 
   const transporter = getMailTransporter();
   const fromAddress =
     reportingConfig.smtp_user || transporter.options.auth?.user || 'noreply@sorita.app';
+
+  // Handle multiple categories
+  const reportCategories = Array.isArray(categories) && categories.length > 0
+    ? categories
+    : (category ? [category] : ['other']);
+
+  const categoryLabels = {
+    spam: 'Spam / Sahte',
+    harassment: 'Taciz / Tehdit',
+    inappropriate: 'Uygunsuz İçerik',
+    privacy: 'Gizlilik / Güvenlik',
+    fake: 'Sahte Hesap',
+    violence: 'Şiddet İçeriği',
+    hate: 'Nefret Söylemi',
+    copyright: 'Telif Hakkı İhlali',
+    other: 'Diğer',
+  };
+
+  const categoryText = reportCategories.map(cat => categoryLabels[cat] || cat).join(', ');
+
+  // Build attachments info
+  let attachmentsText = '';
+  if (attachmentUrls && attachmentUrls.length > 0) {
+    attachmentsText = `\n\nEkler (${attachmentUrls.length} dosya):\n`;
+    attachmentUrls.forEach((url, index) => {
+      const attachment = attachments && attachments[index];
+      attachmentsText += `${index + 1}. ${attachment?.name || 'Dosya'} - ${url}\n`;
+    });
+  }
 
   const mailOptions = {
     from: fromAddress,
@@ -213,17 +245,21 @@ exports.sendReportEmail = functions.https.onCall(async (data) => {
     subject: `[SoRita] Yeni Bildirim: ${subject}`,
     text: `Yeni kullanıcı bildirimi
 
-Kategori: ${category || 'Belirtilmedi'}
+Başlık: ${subject}
+Kategoriler: ${categoryText}
 Hedef Kullanıcı: ${targetUserName || targetUserId}
+Hedef Kullanıcı ID: ${targetUserId}
 Hedef Kullanıcı E-postası: ${targetUserEmail || 'Belirtilmedi'}
 Bildiren Kullanıcı: ${reporterEmail || reporterId}
+Bildiren Kullanıcı ID: ${reporterId}
 Bildirim Tarihi: ${humanTime || new Date().toISOString()}
 
 Açıklama:
-${description}
+${description}${attachmentsText}
 
 ---
-Bu e-posta SoRita güvenlik sistemi tarafından otomatik gönderildi.`,
+Bu e-posta SoRita güvenlik sistemi tarafından otomatik gönderildi.
+Firestore'da rapor ID ile detaylı bilgiye erişebilirsiniz.`,
   };
 
   await transporter.sendMail(mailOptions);
