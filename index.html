@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoRita - Sosyal Harita Uygulaması</title>
+    <title>SoRita - Politika Portalı</title>
     <style>
         * {
             margin: 0;
@@ -12,161 +11,620 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #0f172a;
-            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+        :root {
+            --primary: #0369a1;
+            --primary-dark: #075985;
+            --secondary: #059669;
+            --text: #0f172a;
+            --text-light: #64748b;
+            --bg: #ffffff;
+            --bg-light: #f8fafc;
+            --border: #e2e8f0;
+            --accent: #0ea5e9;
         }
 
-        .container {
-            max-width: 600px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            text-align: center;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--bg-light);
         }
 
         .header {
-            background: linear-gradient(135deg, #0369a1, #059669);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            padding: 60px 40px;
-        }
-
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            font-weight: bold;
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .header h1 {
-            font-size: 3rem;
-            margin-bottom: 10px;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
             font-weight: 700;
         }
 
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 30px;
-        }
-
-        .content {
-            padding: 40px;
-        }
-
-        .description {
+        .header .subtitle {
             font-size: 1.1rem;
-            color: #64748b;
-            margin-bottom: 40px;
-            line-height: 1.8;
+            opacity: 0.95;
+            margin-bottom: 1rem;
         }
 
-        .links {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 30px;
+        .header .meta {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            margin-top: 1rem;
         }
 
-        .link {
-            display: inline-block;
-            padding: 15px 30px;
-            background: #f8fafc;
-            color: #0369a1;
-            text-decoration: none;
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .nav {
+            background: var(--bg);
             border-radius: 12px;
-            border: 2px solid #e2e8f0;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
         }
 
-        .link:hover {
-            background: #0369a1;
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-light);
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: var(--primary);
             color: white;
-            border-color: #0369a1;
+            border-color: var(--primary);
             transform: translateY(-2px);
         }
 
-        .footer {
-            background: #f8fafc;
-            padding: 30px;
-            border-top: 1px solid #e2e8f0;
+        .section {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            scroll-margin-top: 100px;
         }
 
-        .footer-text {
-            color: #64748b;
-            margin-bottom: 5px;
+        .section h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .section h3 {
+            color: var(--primary-dark);
+            font-size: 1.3rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .section p {
+            margin-bottom: 1rem;
+            color: var(--text-light);
+        }
+
+        .section ul, .section ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-light);
+        }
+
+        .section li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight {
+            background: #f0f7ff;
+            border-left: 4px solid var(--accent);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--bg);
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            background: var(--bg-light);
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .table tr:hover {
+            background: var(--bg-light);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
             font-weight: 600;
         }
 
-        .footer-subtext {
-            color: #94a3b8;
-            font-size: 0.9rem;
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
         }
 
-        @media (min-width: 768px) {
-            .links {
-                flex-direction: row;
-                justify-content: center;
-            }
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .footer {
+            background: var(--bg);
+            padding: 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+            color: var(--text-light);
+        }
+
+        .footer strong {
+            color: var(--text);
         }
 
         @media (max-width: 768px) {
-            .header {
-                padding: 40px 30px;
-            }
-            
             .header h1 {
-                font-size: 2.5rem;
+                font-size: 2rem;
             }
-            
-            .content {
-                padding: 30px 20px;
+
+            .nav-grid {
+                grid-template-columns: 1fr;
             }
+
+            .section {
+                padding: 1.5rem;
+            }
+
+            .table {
+                font-size: 0.9rem;
+            }
+
+            .table th,
+            .table td {
+                padding: 0.5rem;
+            }
+        }
+
+        .icon {
+            font-size: 1.2rem;
         }
     </style>
 </head>
 <body>
+    <div class="header">
+        <h1>🗺️ SoRita</h1>
+        <p class="subtitle">Politikalar, Yasal Belgeler ve Mağaza Onay Gereksinimleri</p>
+        <p class="meta">
+            <strong>Son Güncelleme:</strong> 25 Kasım 2025<br>
+            SoRita uygulamasının (iOS 1.0.6 / Android 1.0.6, sürüm kodu 23) resmi politika portalı.
+        </p>
+    </div>
+
     <div class="container">
-        <div class="header">
-            <div class="logo">SR</div>
-            <h1>SoRita</h1>
-            <p>Sosyal Harita Uygulaması</p>
-        </div>
-
-        <div class="content">
-            <p class="description">
-                Arkadaşlarınızla mekanları keşfedin, deneyimlerinizi paylaşın ve sosyal harita ile yeni yerler bulun.
-            </p>
-
-            <div class="links">
-                <a href="privacy-policy.html" class="link">
-                    Gizlilik Politikası
+        <nav class="nav" id="nav">
+            <div class="nav-grid">
+                <a href="#overview" class="nav-link">
+                    <span class="icon">📋</span>
+                    <span>Genel Bakış</span>
                 </a>
-                <a href="terms-of-service.html" class="link">
-                    Kullanım Koşulları
+                <a href="#privacy" class="nav-link">
+                    <span class="icon">🔒</span>
+                    <span>Gizlilik Politikası</span>
+                </a>
+                <a href="#terms" class="nav-link">
+                    <span class="icon">📋</span>
+                    <span>Kullanım Şartları</span>
+                </a>
+                <a href="#child-safety" class="nav-link">
+                    <span class="icon">👶</span>
+                    <span>Çocuk Güvenliği</span>
+                </a>
+                <a href="#security" class="nav-link">
+                    <span class="icon">🛡️</span>
+                    <span>Güvenlik Politikası</span>
+                </a>
+                <a href="#community" class="nav-link">
+                    <span class="icon">🏫</span>
+                    <span>Topluluk Kuralları</span>
+                </a>
+                <a href="#data-usage" class="nav-link">
+                    <span class="icon">📊</span>
+                    <span>Veri Kullanımı</span>
+                </a>
+                <a href="#contact" class="nav-link">
+                    <span class="icon">📞</span>
+                    <span>İletişim</span>
+                </a>
+                <a href="#compliance" class="nav-link">
+                    <span class="icon">✅</span>
+                    <span>Uyumluluk Durumu</span>
                 </a>
             </div>
-        </div>
+        </nav>
 
-        <div class="footer">
-            <p class="footer-text">© SoRita 2025</p>
-            <p class="footer-subtext">Powered by MeMoDe</p>
-        </div>
+        <section id="overview" class="section">
+            <h2>📋 Politika ve Belgeler</h2>
+            <p>Bu sayfa App Store 1.2.0 (Safety - User Generated Content), 2.1.0 (Performance - App Completeness), 2.3.3 (Performance - Accurate Metadata) ve 5.1.2 (Legal - Privacy - Data Use and Sharing) gereksinimlerini karşılamak için hazırlanmış olup uygulamadaki gerçek özelliklere göre düzenli olarak güncellenir.</p>
+            
+            <div class="highlight">
+                <strong>🔧 Konum İzni Açıklaması</strong><br>
+                Uygulamamızın arka plan konum izni kullanımı hakkında detaylı açıklama ve teknik bilgiler: 
+                <a href="docs/location-permission-explanation.html" target="_blank">Konum İzni Detayları</a>
+            </div>
+        </section>
+
+        <section id="privacy" class="section">
+            <h2>🔒 Gizlilik Politikası</h2>
+            <h3>Kişisel Verilerin Korunması</h3>
+            <p>SoRita; Firebase Authentication, Firestore, Storage, Expo Push Notification ve Google Maps SDK'larını kullanır. Veriler yalnızca hizmet sunmak, güvenliği sağlamak ve zorunlu yasal yükümlülükler için işlenir.</p>
+
+            <h3>Toplanan Bilgi</h3>
+            <ul>
+                <li><strong>Hesap:</strong> ad, soyad, e-posta, profil fotoğrafı, kullanıcı adı</li>
+                <li><strong>İçerik:</strong> paylaşılan mekanlar, listeler, yorumlar, fotoğraflar</li>
+                <li><strong>Konum:</strong> mevcut konum (opsiyonel), paylaşılan konumlar, favori mekanlar</li>
+                <li><strong>Cihaz:</strong> işletim sistemi sürümü, çökme günlükleri, push token</li>
+            </ul>
+
+            <h3>Kullanım Amaçları</h3>
+            <ul>
+                <li>Kimlik doğrulama ve hesap yönetimi</li>
+                <li>Mekan keşfi ve öneriler</li>
+                <li>Arkadaşlarla konum paylaşımı</li>
+                <li>Bildirim ve rapor süreçlerinin işletilmesi</li>
+                <li>Güvenlik denetimleri ve kötüye kullanım tespiti</li>
+            </ul>
+
+            <h3>Paylaşım</h3>
+            <ul>
+                <li><strong>Google Firebase:</strong> veri saklama ve loglama</li>
+                <li><strong>Google Maps SDK:</strong> harita gösterimi ve konum servisleri</li>
+                <li><strong>Expo/Apple Push servisleri:</strong> bildirim gönderimi</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>Veri Saklama:</strong> Aktif hesaplar silme isteğine kadar saklanır. Engellenen kullanıcı kayıtları ve rapor logları 24 ay tutulur. Çökme raporları 180 gün içinde anonimleştirilir.
+            </div>
+
+            <div class="highlight">
+                <strong>Veri Silme:</strong> Profil → Ayarlar → "Hesabı Sil" seçeneği veya <strong>privacy@sorita.app</strong> adresine talep göndererek kapatabilirsiniz. Talep 30 gün içinde tamamlanır.
+            </div>
+
+            <p><a href="docs/privacy-policy.html" target="_blank">📄 Detaylı Gizlilik Politikası</a></p>
+        </section>
+
+        <section id="terms" class="section">
+            <h2>📋 Kullanım Şartları</h2>
+            <h3>Hizmet Kapsamı ve Sorumluluklar</h3>
+            <p>SoRita, kullanıcılar için mekan keşfi, konum paylaşımı, liste oluşturma, profil görüntüleme ve raporlama/engelleme araçları sağlar. Uygulama iOS 15.1+ ve Android 8+ cihazlarda, çentikli ekranlar için safe-area optimizasyonu aktif olacak şekilde çalışır.</p>
+
+            <h3>Kullanıcı Yükümlülükleri</h3>
+            <ul>
+                <li>Gerçek kimlik bilgisiyle kayıt olmak</li>
+                <li>Topluluk kurallarına uygun içerik üretmek</li>
+                <li>Profil menülerindeki "Bildir" özelliğini kötüye kullanmamak</li>
+                <li>Başkalarının gizliliğine saygı göstermek</li>
+            </ul>
+
+            <h3>İzinler ve Özellikler</h3>
+            <ul>
+                <li><strong>Konum izni:</strong> yakın mekan önerileri ve arkadaşlarla konum paylaşımı için opsiyonel</li>
+                <li><strong>Bildirim izni:</strong> arkadaş istekleri, yorumlar ve moderasyon yanıtları için zorunlu</li>
+                <li><strong>Kamera/Galeri izni:</strong> mekan fotoğrafları eklemek için opsiyonel</li>
+                <li><strong>Arka plan konum:</strong> arkadaşlarla gerçek zamanlı konum paylaşımı için opsiyonel</li>
+            </ul>
+
+            <h3>İhlal Durumları</h3>
+            <ul>
+                <li><strong>İlk ihlal:</strong> uygulama içi uyarı ve içerik kaldırma</li>
+                <li><strong>Tekrarı:</strong> hesabın geçici askıya alınması (7-30 gün)</li>
+                <li><strong>Ağır ihlal:</strong> kalıcı kapatma ve yasal raporlama</li>
+            </ul>
+
+            <p><a href="terms-of-service.html" target="_blank">📄 Detaylı Kullanım Şartları</a></p>
+        </section>
+
+        <section id="child-safety" class="section">
+            <h2>👶 Çocuk Güvenliği</h2>
+            <h3>Yaş Politikası ve Bildirim Akışı</h3>
+            <p>SoRita yalnızca <strong>13 yaş ve üzeri</strong> kullanıcıları hedefler. Her içerik kartı, profil ve liste, üç noktalı menü içinde "Bildir" ve "Engelle" seçeneklerini içerir. Kullanıcı kendi profilinde yalnızca "Çıkış Yap / Hesabı Sil / Engellediklerim" seçeneklerini görür.</p>
+
+            <h3>Bildirim Süreci</h3>
+            <ul>
+                <li>"Bildir" formunda başlık, konu, açıklama alanları zorunludur</li>
+                <li>Gönderimler otomatik olarak <code>reports</code> koleksiyonuna kaydedilir</li>
+                <li>Eş zamanlı e-posta <strong>support@sorita.app</strong> ve <strong>safety@sorita.app</strong> adreslerine iletilir</li>
+                <li>Raporlar 24 saat içinde incelenir</li>
+            </ul>
+
+            <h3>Bloklama</h3>
+            <ul>
+                <li>Engellenen kişi, engelleyenin tüm içeriklerini göremez</li>
+                <li>"Engellediklerim" ekranı üzerinden engel kaldırılabilir</li>
+                <li>Engellenen eşleşmeler Firestore'da çift yönlü tutulur</li>
+                <li>Engellenen kullanıcılar birbirlerini arayamaz veya mesajlaşamaz</li>
+            </ul>
+
+            <h3>Acil Temas</h3>
+            <ul>
+                <li><strong>emergency@sorita.app</strong> – 15 dk içinde yanıt</li>
+                <li><strong>safety@sorita.app</strong> – güvenlik ekibi</li>
+                <li><strong>privacy@sorita.app</strong> – çocuk koruma sorumlusu</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>Önemli:</strong> 13 yaş altı kullanıcıların hesap açması tespit edildiğinde, hesap derhal kapatılır ve ebeveynlere bilgilendirme yapılır.
+            </div>
+        </section>
+
+        <section id="security" class="section">
+            <h2>🛡️ Güvenlik Politikası</h2>
+            <h3>Teknik ve Operasyonel Önlemler</h3>
+            <ul>
+                <li><strong>SSL/TLS:</strong> Tüm istemci–sunucu trafiği şifrelenir</li>
+                <li><strong>Firebase Security Rules:</strong> Sadece oturum sahibi kullanıcının verisine erişimine izin verir</li>
+                <li><strong>Cloud Functions:</strong> Rapor e-postaları ve engel eşitlemesi için kimlik doğrulamalı çağrılar kullanır</li>
+                <li><strong>Senkronizasyon:</strong> Uygulama her açılışta engel/rapor listelerini senkronize ederek kötüye kullanımı önler</li>
+                <li><strong>UI Güvenliği:</strong> iOS safe-area ve Android notch desteği ile kritik butonların üst üste binmesi engellenmiştir</li>
+                <li><strong>Veri Şifreleme:</strong> Hassas veriler transit ve rest durumunda şifrelenir</li>
+            </ul>
+
+            <h3>Güvenlik Denetimleri</h3>
+            <ul>
+                <li>Düzenli güvenlik açığı taramaları</li>
+                <li>Otomatik kötüye kullanım tespiti</li>
+                <li>Şüpheli aktivite bildirimleri</li>
+                <li>Düzenli yedekleme ve felaket kurtarma planları</li>
+            </ul>
+        </section>
+
+        <section id="community" class="section">
+            <h2>🏫 Topluluk Kuralları</h2>
+            <h3>Paylaşılabilecek İçerikler</h3>
+            <ul>
+                <li>Mekan önerileri ve deneyim paylaşımları</li>
+                <li>Yer koleksiyonları ve listeler</li>
+                <li>Arkadaşlarla konum paylaşımı</li>
+                <li>Doğrulanabilir mekan bilgileri</li>
+            </ul>
+
+            <h3>Yasaklı İçerikler</h3>
+            <ul>
+                <li>Nefret söylemi, taciz, tehdit</li>
+                <li>Yanıltıcı veya spam içerikler</li>
+                <li>Çocuklara zarar verebilecek içerikler</li>
+                <li>Yasadışı aktiviteleri teşvik eden içerikler</li>
+                <li>Kişisel bilgilerin izinsiz paylaşımı</li>
+            </ul>
+
+            <h3>Yaptırımlar</h3>
+            <ul>
+                <li>İçeriğin kaldırılması ve uyarı</li>
+                <li>Geçici hesap kilidi (7-30 gün)</li>
+                <li>Yetkili mercilere bildirim ve kalıcı ban</li>
+            </ul>
+        </section>
+
+        <section id="data-usage" class="section">
+            <h2>📊 Veri Kullanımı</h2>
+            <h3>5.1.2 Uygunluğu – Veri İşleme ve Paylaşım</h3>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Veri Kategorisi</th>
+                        <th>İşleme Amacı</th>
+                        <th>Hizmet Sağlayıcı / Lokasyon</th>
+                        <th>Saklama Süresi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Hesap bilgileri</td>
+                        <td>Kimlik doğrulama, profil gösterimi</td>
+                        <td>Firebase Authentication (ABD / AB veri merkezleri)</td>
+                        <td>Hesap silinene kadar</td>
+                    </tr>
+                    <tr>
+                        <td>Profil ve içerik</td>
+                        <td>Feed, mekan keşfi, liste dağıtımı</td>
+                        <td>Firestore & Storage (Google Cloud)</td>
+                        <td>Silme talebi + 30 gün</td>
+                    </tr>
+                    <tr>
+                        <td>Konum verileri</td>
+                        <td>Mekan önerileri, arkadaş paylaşımı</td>
+                        <td>Firestore (şifreli)</td>
+                        <td>Paylaşım süresi veya kullanıcı silene kadar</td>
+                    </tr>
+                    <tr>
+                        <td>Bildirim ve rapor kayıtları</td>
+                        <td>Güvenlik denetimi ve moderasyon</td>
+                        <td>Firestore + e-posta arşivi</td>
+                        <td>24 ay</td>
+                    </tr>
+                    <tr>
+                        <td>Cihaz ve performans logları</td>
+                        <td>Hata analizi, performans</td>
+                        <td>Expo / Google Play & App Store diagnostic</td>
+                        <td>180 gün</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="highlight">
+                <strong>Önemli:</strong> Verilerinizi üçüncü taraf reklam ağlarıyla paylaşmıyoruz; SoRita'te hedefli reklam yoktur. Kullanıcılar, bildirim e-postalarından veya uygulama içi ayarlardan ileti tercihlerini değiştirebilir.
+            </div>
+        </section>
+
+        <section id="contact" class="section">
+            <h2>📞 İletişim ve Destek</h2>
+            <p>Her türlü gizlilik, güvenlik, mağaza uyumluluğu veya topluluk ihlali bildirimi için aşağıdaki kanallardan bize ulaşabilirsiniz.</p>
+
+            <h3>Genel Destek</h3>
+            <p><strong>E-posta:</strong> <a href="mailto:support@sorita.app">support@sorita.app</a><br>
+            Yanıt süresi: 24-48 saat</p>
+
+            <h3>Güvenlik & Çocuk Koruma</h3>
+            <p><strong>E-posta:</strong> <a href="mailto:safety@sorita.app">safety@sorita.app</a><br>
+            <strong>Acil:</strong> <a href="mailto:emergency@sorita.app">emergency@sorita.app</a><br>
+            Yanıt süresi: 15 dakika (acil)</p>
+
+            <h3>Yasal ve KVKK</h3>
+            <p><strong>E-posta:</strong> <a href="mailto:legal@sorita.app">legal@sorita.app</a><br>
+            <strong>Veri Silme:</strong> <a href="mailto:privacy@sorita.app">privacy@sorita.app</a></p>
+
+            <h3>Mağaza İletişimi</h3>
+            <p><strong>Apple Review Notları:</strong> App Store Connect → SoRita<br>
+            <strong>Google Play:</strong> Play Console → Policy</p>
+        </section>
+
+        <section id="compliance" class="section">
+            <h2>✅ Uyumluluk Durumu</h2>
+            <h3>App Store & Google Play Gereksinimleri</h3>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Politika Maddesi</th>
+                        <th>Durum</th>
+                        <th>Uygulamada Karşılığı</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Apple 1.2.0 Safety – UGC</td>
+                        <td><span class="badge badge-success">Uygun</span></td>
+                        <td>Profil menülerinde "Bildir / Engelle", rapor e-postaları, engel listesi, UserSafetyService</td>
+                    </tr>
+                    <tr>
+                        <td>Apple 2.1.0 Performance – App Completeness</td>
+                        <td><span class="badge badge-success">Uygun</span></td>
+                        <td>Tüm özellikler çalışır durumda, test hesapları mevcut, eksik özellik yok</td>
+                    </tr>
+                    <tr>
+                        <td>Apple 2.3.3 Performance – Metadata</td>
+                        <td><span class="badge badge-success">Uygun</span></td>
+                        <td>Store açıklamaları yalnızca mevcut özellikleri (mekan, liste, konum paylaşımı) listeler</td>
+                    </tr>
+                    <tr>
+                        <td>Apple 5.1.2 Legal – Privacy</td>
+                        <td><span class="badge badge-success">Uygun</span></td>
+                        <td>Uygulama içi ve bu sayfadaki gizlilik politikası, veri silme akışı, KVKK uyumlu</td>
+                    </tr>
+                    <tr>
+                        <td>Google Families / Safety</td>
+                        <td><span class="badge badge-success">Uygun</span></td>
+                        <td>13+ yaş sınırlaması, rapor-ihbar mekanizması ve acil iletişim</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Test Bilgileri</h3>
+            <div class="highlight">
+                <strong>Test Hesapları:</strong><br>
+                • <strong>E-posta:</strong> test@sorita.app<br>
+                • <strong>Şifre:</strong> Test123!<br>
+                • <strong>Not:</strong> Test hesabı tüm özelliklere erişebilir, gerçek kullanıcı verileri içermez.
+            </div>
+
+            <h3>Düzenli Değerlendirme</h3>
+            <p>Aylık güvenlik toplantıları, çeyreklik içerik taraması ve rapor yanıt süresi takibi yapılır.</p>
+
+            <div class="highlight">
+                <strong>SoRita – Politika Portalı</strong><br>
+                Bu doküman App Store ve Google Play politikalarındaki son değişiklikler takip edilerek güncellenir.<br><br>
+                <strong>URL:</strong> https://cyn0kuzu.github.io/SoRita/<br>
+                <strong>Sürüm:</strong> 1.0.6 (Kasım 2025)<br>
+                <strong>Bundle ID:</strong> com.sorita.app<br>
+                <strong>Package:</strong> com.sorita.app.build2121111<br><br>
+                <strong>Yasal Uyarı:</strong> SoRita, KVKK ve uluslararası çocuk koruma yasalarına uymayı taahhüt eder. Herhangi bir ihlal bildirimi derhal işleme alınır.
+            </div>
+        </section>
     </div>
+
+    <div class="footer">
+        <p><strong>SoRita</strong> – Güvenli ve Sosyal Harita Deneyimi</p>
+        <p>Tüm hakları saklıdır © 2025</p>
+        <p>Bu politikalar Google Play Store ve App Store gereksinimlerine uygun olarak hazırlanmıştır.</p>
+    </div>
+
+    <script>
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section in nav
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
