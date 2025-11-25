@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoRita İnceleme Destek Dokümanı</title>
+    <title>SoRita - Sosyal Harita Uygulaması</title>
     <style>
         * {
             margin: 0;
@@ -13,222 +14,158 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.65;
+            line-height: 1.6;
             color: #0f172a;
-            background: linear-gradient(135deg, #e0f2fe, #fefce8);
-            padding: 30px 15px 80px;
-        }
-
-        .page {
-            max-width: 960px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 24px;
-            padding: 48px;
-            box-shadow: 0 30px 80px rgba(15, 23, 42, 0.15);
-        }
-
-        h1 {
-            font-size: 2.8rem;
-            margin-bottom: 12px;
-        }
-
-        h2 {
-            font-size: 1.6rem;
-            color: #0369a1;
-            margin: 32px 0 10px;
-        }
-
-        p {
-            margin-bottom: 16px;
-            color: #475569;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #ecfeff;
-            color: #0f172a;
-            padding: 6px 14px;
-            border-radius: 999px;
-            font-size: 0.95rem;
-            margin-bottom: 24px;
-        }
-
-        .cta-row {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            min-height: 100vh;
             display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin: 28px 0;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
-        .cta {
-            text-decoration: none;
-            padding: 14px 22px;
-            border-radius: 14px;
-            font-weight: 600;
-            border: 2px solid #bae6fd;
+        .container {
+            max-width: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0369a1, #059669);
+            color: white;
+            padding: 60px 40px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .description {
+            font-size: 1.1rem;
+            color: #64748b;
+            margin-bottom: 40px;
+            line-height: 1.8;
+        }
+
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .link {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #f8fafc;
             color: #0369a1;
-            transition: all .2s;
+            text-decoration: none;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
 
-        .cta.primary {
+        .link:hover {
             background: #0369a1;
             color: white;
-            border-color: transparent;
-        }
-
-        .cta:hover {
+            border-color: #0369a1;
             transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(7, 89, 133, 0.15);
-        }
-
-        .card {
-            border: 1px solid #e2e8f0;
-            border-radius: 18px;
-            padding: 24px;
-            margin: 18px 0;
-            background: #f8fafc;
-        }
-
-        .policy-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 18px 0;
-        }
-
-        .policy-table th,
-        .policy-table td {
-            border: 1px solid #e2e8f0;
-            padding: 16px;
-            text-align: left;
-            vertical-align: top;
-        }
-
-        .policy-table th {
-            background: #e0f2fe;
-            width: 28%;
-        }
-
-        ul {
-            margin-left: 20px;
-            color: #475569;
-        }
-
-        li {
-            margin-bottom: 8px;
         }
 
         .footer {
-            text-align: center;
-            margin-top: 40px;
-            padding-top: 24px;
+            background: #f8fafc;
+            padding: 30px;
             border-top: 1px solid #e2e8f0;
+        }
+
+        .footer-text {
+            color: #64748b;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .footer-subtext {
             color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        @media (min-width: 768px) {
+            .links {
+                flex-direction: row;
+                justify-content: center;
+            }
         }
 
         @media (max-width: 768px) {
-            .page {
-                padding: 32px;
+            .header {
+                padding: 40px 30px;
             }
-
-            h1 {
-                font-size: 2.1rem;
+            
+            .header h1 {
+                font-size: 2.5rem;
             }
-
-            .policy-table th,
-            .policy-table td {
-                display: block;
-                width: 100%;
+            
+            .content {
+                padding: 30px 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="page">
-        <div class="badge">🚀 SoRita • İnceleme Destek Bilgi Sayfası</div>
-        <h1>SoRita – Sosyal Harita Uygulaması</h1>
-        <p>Bu sayfa, App Store / Google Play inceleme ekiplerinin talep ettiği tüm ek açıklamaları, test adımlarını ve yasal doküman bağlantılarını bir arada sunar.</p>
-
-        <div class="cta-row">
-            <a class="cta primary" href="https://cyn0kuzu.github.io/SoRita-main/docs/privacy-policy.html" target="_blank" rel="noopener">Gizlilik Politikası</a>
-            <a class="cta" href="https://cyn0kuzu.github.io/SoRita-main/docs/location-permission-explanation.html" target="_blank" rel="noopener">Konum İzni Açıklaması</a>
-            <a class="cta" href="terms-of-service.html" target="_blank" rel="noopener">Kullanım Koşulları</a>
+    <div class="container">
+        <div class="header">
+            <div class="logo">SR</div>
+            <h1>SoRita</h1>
+            <p>Sosyal Harita Uygulaması</p>
         </div>
 
-        <h2>🎯 Politika Maddeleri ve Karşılık Gelen Özellikler</h2>
-        <table class="policy-table">
-            <tr>
-                <th>1.2.0 Safety – User Generated Content</th>
-                <td>
-                    Kullanıcılar listeler, mekan kartları, yorumlar ve fotoğraflar oluşturur. İçerikler profil kartındaki “Şikayet Et” aksiyonuyla raporlanır, `UserSafetyService` raporları Firestore `reports` koleksiyonuna kaydeder ve aynı anda moderasyon ekibine e‑posta gönderir. Engellenen kullanıcıların tüm verileri feed ve haritadan otomatik olarak filtrelenir.
-                </td>
-            </tr>
-            <tr>
-                <th>2.1.0 Performance – App Completeness</th>
-                <td>
-                    Giriş ekranından yeni hesap açılabilir, ana sekmeler (Ana Sayfa, Harita, Profil) gerçek Firebase verileriyle çalışır. İnceleme ekibi için test hesabı: <strong>demo@sorita.app / Demo123*</strong>. Bu hesapla tüm sosyal akış, listeleme ve harita özellikleri aktif hale gelir.
-                </td>
-            </tr>
-            <tr>
-                <th>2.3.3 Performance – Accurate Metadata</th>
-                <td>
-                    Mağaza açıklamasında yalnızca mevcut özellikler (konum tabanlı keşif, listeler, yorum, takip sistemi) anlatılır. Uygulama Türkçe içerik sunar; mesajlaşma, çevrim dışı kullanım ya da IAP bulunmaz ve mağaza metninde yer almaz.
-                </td>
-            </tr>
-            <tr>
-                <th>5.1.2 Legal – Privacy / Data Use</th>
-                <td>
-                    Konum, fotoğraf ve sosyal verilerin hangi amaçla işlendiği gizlilik politikasında detaylandırılmıştır. Profil → Ayarlar → “Hesabı Sil” ile tüm veriler kalıcı olarak temizlenir; ayrıca <strong>privacy@sorita.app</strong> üzerinden erişim/silme talepleri alınır. Veriler yalnızca Firebase ve Google Maps altyapılarıyla paylaşılır.
-                </td>
-            </tr>
-        </table>
+        <div class="content">
+            <p class="description">
+                Arkadaşlarınızla mekanları keşfedin, deneyimlerinizi paylaşın ve sosyal harita ile yeni yerler bulun.
+            </p>
 
-        <h2>🗺️ Uygulama Özeti</h2>
-        <div class="card">
-            <ul>
-                <li><strong>Ana Sayfa:</strong> Takip edilen kullanıcıların paylaşımları, fotoğrafları ve yorumları kart yapısında gösterilir.</li>
-                <li><strong>Harita:</strong> Google Maps üzerinde pinler, filtreler ve yer detay kartı bulunur.</li>
-                <li><strong>Listeler & Mekanlar:</strong> Kullanıcı kendi koleksiyonlarını oluşturup puan verebilir, fotoğraf ekleyebilir.</li>
-                <li><strong>Profil:</strong> Takip/çıkış, biyografi düzenleme, engelleme, raporlama ve “Hesabı Sil” işlemleri.</li>
-                <li><strong>Gizlilik kontrolleri:</strong> Konum paylaşımı isteğe bağlıdır, ayarlardan kapatılabilir.</li>
-            </ul>
+            <div class="links">
+                <a href="privacy-policy.html" class="link">
+                    Gizlilik Politikası
+                </a>
+                <a href="terms-of-service.html" class="link">
+                    Kullanım Koşulları
+                </a>
+            </div>
         </div>
-
-        <h2>🧪 İnceleme/Test Adımları</h2>
-        <ol>
-            <li>Uygulamayı açın, “Kayıt Ol” seçeneğiyle yeni kullanıcı oluşturun (e-posta doğrulaması opsiyoneldir).</li>
-            <li>Konum izni için “Uygulamayı Kullanırken” yeterlidir; bildirim izni isteğe bağlıdır.</li>
-            <li>Ana sekmeler: Ana Sayfa → paylaşımları görüntüleyin, Harita → pinlere dokunun, Profil → Ayarlar menüsünü açın.</li>
-            <li>Yeni yer paylaşmak için Ana Sayfa’daki “+” aksiyonunu kullanın, fotoğraf eklemek isteğe bağlıdır.</li>
-            <li>Akışı hızlı incelemek için test hesabına giriş yapabilirsiniz: <strong>demo@sorita.app / Demo123*</strong>.</li>
-        </ol>
-
-        <h2>🛡️ Kullanıcı Üretimli İçerik Politikası</h2>
-        <div class="card">
-            <ul>
-                <li>İzin verilen içerikler: Yer kartları, listeler, fotoğraflar, yorumlar, biyografiler.</li>
-                <li>Takipçi/arkadaş bağlantıları gerektiğinde engellenebilir; bloklanan kullanıcıların içeriği otomatik gizlenir.</li>
-                <li>Raporlanan içerikler manuel moderasyona düşer; tekrar eden ihlallerde hesap askıya alınır.</li>
-                <li>Spam, nefret söylemi, kişisel veri paylaşımı ve yanıltıcı içerikler doğrudan kaldırılır.</li>
-            </ul>
-        </div>
-
-        <h2>🔐 Gizlilik ve Veri Kullanımı</h2>
-        <p>Toplanan veriler: e-posta, kullanıcı adı, isteğe bağlı profil fotoğrafı, konum (anlık ve arka plan – kullanıcı onayına bağlı), kullanıcı listeleri, beğeniler, yorumlar, cihaz modeli ve işletim sistemi (çökme analizi). Veriler Firebase (Auth, Firestore, Storage) ve Expo bildirim altyapısında saklanır; üçüncü taraflara satılmaz.</p>
-        <p>Saklama & silme: Hesap silindiğinde ilişkili tüm Firestore kayıtları ve medya dosyaları otomatik temizlenir. KVKK/GDPR kapsamında erişim, düzeltme, itiraz ve veri taşınabilirliği talepleri <strong>privacy@sorita.app</strong> adresinden alınır.</p>
-
-        <h2>📎 Resmi Doküman Linkleri</h2>
-        <ul>
-            <li><a href="https://cyn0kuzu.github.io/SoRita-main/docs/privacy-policy.html" target="_blank" rel="noopener">Gizlilik Politikası</a></li>
-            <li><a href="https://cyn0kuzu.github.io/SoRita-main/docs/location-permission-explanation.html" target="_blank" rel="noopener">Konum İzni Açıklaması</a></li>
-            <li><a href="terms-of-service.html" target="_blank" rel="noopener">Kullanım Koşulları</a></li>
-            <li>Destek & İletişim: support@sorita.app · privacy@sorita.app</li>
-        </ul>
 
         <div class="footer">
-            © 2025 SoRita • Powered by MeMoDe • Sayfa son güncelleme: Kasım 2025
+            <p class="footer-text">© SoRita 2025</p>
+            <p class="footer-subtext">Powered by MeMoDe</p>
         </div>
     </div>
 </body>
