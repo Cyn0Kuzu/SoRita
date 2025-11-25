@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,6 +21,8 @@ import { ValidationService } from '../services/validationService';
 import AppHeader from '../components/AppHeader';
 import { AppStatusBar } from '../components/AppStatusBar';
 import { DEFAULT_AVATARS } from '../constants/avatars';
+
+const POLICY_URL = 'https://cyn0kuzu.github.io/SoRita/';
 
 const RegisterScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -118,6 +121,14 @@ const RegisterScreen = ({ navigation }) => {
   const selectAvatar = (avatar) => {
     setFormData(prev => ({ ...prev, avatar }));
   };
+
+  const openPolicies = useCallback(async () => {
+    try {
+      await Linking.openURL(POLICY_URL);
+    } catch (error) {
+      Alert.alert('Hata', 'Bağlantı açılamadı. Lütfen daha sonra tekrar deneyin.');
+    }
+  }, []);
 
   const handleRegister = async () => {
     console.log(' [RegisterScreen] Register button pressed');
@@ -426,6 +437,14 @@ const RegisterScreen = ({ navigation }) => {
               </View>
             </View>
 
+            <Text style={styles.privacyText}>
+              Hesap oluşturarak{' '}
+              <Text style={styles.privacyLink} onPress={openPolicies}>
+                Gizlilik Politikası ve Kullanım Koşulları
+              </Text>
+              'nı kabul ediyorum.
+            </Text>
+
             <TouchableOpacity
               style={[styles.registerButton, loading && styles.registerButtonDisabled]}
               onPress={handleRegister}
@@ -613,6 +632,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 10,
+  },
+  privacyText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 16,
+  },
+  privacyLink: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   registerButtonDisabled: {
     opacity: 0.7,

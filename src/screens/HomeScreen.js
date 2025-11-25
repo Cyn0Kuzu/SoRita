@@ -499,6 +499,19 @@ export default function HomeScreen({ navigation }) {
       
       console.log(' [HomeScreen] ========== SON SONUÇ ==========');
       console.log(' [HomeScreen] Toplam yüklenecek paylaşım sayısı:', loadedPosts.length);
+
+      const safetyData = realtimeSync.userData || {};
+      const blockedUsers = Array.isArray(safetyData.blockedUsers) ? safetyData.blockedUsers : [];
+      const blockedByUsers = Array.isArray(safetyData.blockedByUsers) ? safetyData.blockedByUsers : [];
+      if (blockedUsers.length || blockedByUsers.length) {
+        const blockedSet = new Set([...blockedUsers, ...blockedByUsers]);
+        const beforeFilterCount = loadedPosts.length;
+        loadedPosts = loadedPosts.filter(post => post && !blockedSet.has(post.userId));
+        const removed = beforeFilterCount - loadedPosts.length;
+        if (removed > 0) {
+          console.log(' [HomeScreen] Engellenen ilişkiler nedeniyle çıkarılan paylaşım sayısı:', removed);
+        }
+      }
       
       // Post'ları set et
       setPosts(loadedPosts);
@@ -516,7 +529,7 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
       console.log(' [HomeScreen] =================== LOAD POSTS BİTTİ ===================');
     }
-  }, [sortType]); // useCallback dependency array
+  }, [sortType, realtimeSync.userData]); // useCallback dependency array
 
   // FlatList optimized callbacks
   const keyExtractor = useCallback((item) => item.id, []);

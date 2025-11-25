@@ -5,6 +5,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { LogBox } from 'react-native';
+import { useFonts } from 'expo-font';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 import AppStatusBar from './src/components/AppStatusBar';
 import LoadingScreen from './src/components/LoadingScreen';
@@ -33,6 +35,11 @@ LogBox.ignoreLogs([
 const App = () => {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
+  const [fontsLoaded, fontError] = useFonts({
+    ...MaterialIcons.font,
+    ...MaterialCommunityIcons.font,
+    ...Ionicons.font,
+  });
 
   useEffect(() => {
     configureGlobalStatusBar();
@@ -81,7 +88,13 @@ const App = () => {
     return unsubscribe;
   }, [hydrateUserData, initializing]);
 
-  if (initializing) {
+  useEffect(() => {
+    if (fontError) {
+      console.warn('[App] Failed to load icon fonts:', fontError);
+    }
+  }, [fontError]);
+
+  if (initializing || (!fontsLoaded && !fontError)) {
     return (
       <SafeAreaProvider>
         <PaperProvider theme={theme}>

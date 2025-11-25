@@ -1,9 +1,50 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const { Expo } = require('expo-server-sdk');
+const nodemailer = require('nodemailer');
 
 admin.initializeApp();
 const expo = new Expo();
+let mailTransporter = null;
+
+const getMailTransporter = () => {
+  if (mailTransporter) {
+    return mailTransporter;
+  }
+
+  const reportingConfig = functions.config().reporting || {};
+  const smtpUser = reportingConfig.smtp_user;
+  const smtpPass = reportingConfig.smtp_pass;
+  const smtpHost = reportingConfig.smtp_host;
+  const smtpPort = Number(reportingConfig.smtp_port || 465);
+  const useCustomHost = smtpHost && smtpPort;
+
+  if (!smtpUser || !smtpPass) {
+    throw new Error('Reporting SMTP credentials are not configured.');
+  }
+
+  mailTransporter = nodemailer.createTransport(
+    useCustomHost
+      ? {
+          host: smtpHost,
+          port: smtpPort,
+          secure: reportingConfig.smtp_secure === 'true' || smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        }
+      : {
+          service: 'gmail',
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        }
+  );
+
+  return mailTransporter;
+};
 
 // Helper function to check if token is Expo push token
 const isExpoPushToken = (token) => {
@@ -137,5 +178,56 @@ exports.triggerPushNotification = functions.https.onRequest(async (req, res) => 
     console.error('Error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+exports.sendReportEmail = functions.https.onCall(async (data) => {
+  const {
+    targetUserId,
+    targetUserEmail,
+    targetUserName,
+    reporterId,
+    reporterEmail,
+    subject,
+    category,
+    description,
+    humanTime,
+  } = data || {};
+
+  if (!targetUserId || !reporterId || !subject || !description) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Eksik rapor bilgisi gönderildi.'
+    );
+  }
+
+  const reportingConfig = functions.config().reporting || {};
+  const toAddress = reportingConfig.to || 'memodee@gmail.com';
+
+  const transporter = getMailTransporter();
+  const fromAddress =
+    reportingConfig.smtp_user || transporter.options.auth?.user || 'noreply@sorita.app';
+
+  const mailOptions = {
+    from: fromAddress,
+    to: toAddress,
+    subject: `[SoRita] Yeni Bildirim: ${subject}`,
+    text: `Yeni kullanıcı bildirimi
+
+Kategori: ${category || 'Belirtilmedi'}
+Hedef Kullanıcı: ${targetUserName || targetUserId}
+Hedef Kullanıcı E-postası: ${targetUserEmail || 'Belirtilmedi'}
+Bildiren Kullanıcı: ${reporterEmail || reporterId}
+Bildirim Tarihi: ${humanTime || new Date().toISOString()}
+
+Açıklama:
+${description}
+
+---
+Bu e-posta SoRita güvenlik sistemi tarafından otomatik gönderildi.`,
+  };
+
+  await transporter.sendMail(mailOptions);
+
+  return { success: true };
 });
 

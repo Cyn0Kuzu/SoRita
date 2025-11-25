@@ -3,6 +3,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your web app's Firebase configuration
@@ -41,6 +42,7 @@ try {
 }
 
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 // Null check fonksiyonları ekle
 export const isFirebaseReady = () => {
@@ -55,7 +57,7 @@ export const getFirebaseError = () => {
   return null;
 };
 
-export { app, db, auth, storage };
+export { app, db, auth, storage, functions };
 
 // Firebase emulators devre dışı - gerçek Firebase kullanıyoruz
 /*

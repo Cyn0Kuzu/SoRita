@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -39,6 +39,7 @@ import CollaborativeListService from '../services/collaborativeListService';
 import GlobalStateService from '../services/globalStateService';
 import { useRealtimeSync, usePlaceCardSync, useListSync } from '../hooks/useRealtimeSync';
 import ImageModal from '../components/ImageModal';
+import UserSafetyService from '../services/userSafetyService';
 
 export default function ProfileScreen({ navigation }) {
   // Real-time sync hooks
@@ -114,6 +115,11 @@ export default function ProfileScreen({ navigation }) {
   // Image modal states
   const [showImageModal, setShowImageModal] = useState(false);
   const [currentImageUri, setCurrentImageUri] = useState('');
+
+  // Blocked users modal
+  const [blockedUsersModalVisible, setBlockedUsersModalVisible] = useState(false);
+  const [blockedUsersList, setBlockedUsersList] = useState([]);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
   
   const listFilterOptions = [
     { key: 'all', label: 'Tümü', description: 'Tüm listeler' },
@@ -121,6 +127,72 @@ export default function ProfileScreen({ navigation }) {
     { key: 'private', label: 'Özel', description: 'Özel listeler' },
     { key: 'collaborative', label: 'Ortak', description: 'Ortak listeler' }
   ];
+
+  const loadBlockedUsers = useCallback(async () => {
+    try {
+      setBlockedUsersLoading(true);
+      const users = await UserSafetyService.getBlockedUsers();
+      setBlockedUsersList(users);
+    } catch (error) {
+      console.error(' [ProfileScreen] Blocked users load error:', error);
+      Alert.alert('Hata', 'Engellediğiniz kullanıcılar yüklenemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (blockedUsersModalVisible) {
+      loadBlockedUsers();
+    }
+  }, [blockedUsersModalVisible, loadBlockedUsers]);
+
+  const handleUnblockUser = useCallback(async (targetUserId) => {
+    try {
+      setBlockedUsersLoading(true);
+      await UserSafetyService.unblockUser(targetUserId);
+      setBlockedUsersList(prev => prev.filter(user => user.id !== targetUserId));
+
+      const updatedBlocked = (userData?.blockedUsers || []).filter(id => id !== targetUserId);
+      setUserData(prev => ({ ...(prev || {}), blockedUsers: updatedBlocked }));
+      await GlobalStateService.updateUserData({ blockedUsers: updatedBlocked });
+
+      Alert.alert('Engel Kaldırıldı', 'Kullanıcının engeli kaldırıldı.');
+    } catch (error) {
+      console.error(' [ProfileScreen] Unblock error:', error);
+      Alert.alert('Hata', 'Engel kaldırılırken bir sorun oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, [userData]);
+
+  const renderBlockedUser = useCallback(({ item }) => (
+    <View style={styles.blockedUserRow}>
+      <View style={styles.blockedUserInfo}>
+        {item?.avatar ? (
+          <Image source={{ uri: item.avatar }} style={styles.blockedAvatar} />
+        ) : (
+          <View style={[styles.blockedAvatar, styles.blockedAvatarPlaceholder]}>
+            <Text style={styles.blockedAvatarEmoji}>{item?.avatar || '🙂'}</Text>
+          </View>
+        )}
+        <View style={styles.blockedUserMeta}>
+          <Text style={styles.blockedUserName}>
+            {item?.displayName || `${item?.firstName || ''} ${item?.lastName || ''}`.trim() || 'Kullanıcı'}
+          </Text>
+          {item?.email ? (
+            <Text style={styles.blockedUserEmail}>{item.email}</Text>
+          ) : null}
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.blockedActionButton}
+        onPress={() => handleUnblockUser(item.id)}
+      >
+        <Text style={styles.blockedActionButtonText}>Engeli Kaldır</Text>
+      </TouchableOpacity>
+    </View>
+  ), [handleUnblockUser]);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -1431,6 +1503,14 @@ export default function ProfileScreen({ navigation }) {
               title="Hesabı Sil"
               leadingIcon="delete"
             />
+            <Menu.Item 
+              onPress={() => {
+                setMenuVisible(false);
+                setBlockedUsersModalVisible(true);
+              }}
+              title="Engellediklerim"
+              leadingIcon="account-cancel"
+            />
           </Menu>
           </View>
         </View>
@@ -1968,6 +2048,45 @@ export default function ProfileScreen({ navigation }) {
           onClose={() => setShowImageModal(false)}
           title="Profil Fotoğrafı"
         />
+
+        {/* Blocked Users Modal */}
+        <Modal
+          visible={blockedUsersModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setBlockedUsersModalVisible(false)}
+        >
+          <View style={styles.blockedModalBackdrop}>
+            <View style={styles.blockedModalCard}>
+              <View style={styles.blockedModalHeader}>
+                <Text style={styles.blockedModalTitle}>Engellediklerim</Text>
+                <TouchableOpacity onPress={() => setBlockedUsersModalVisible(false)}>
+                  <MaterialIcons name="close" size={22} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+
+              {blockedUsersLoading ? (
+                <View style={styles.blockedLoadingState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.blockedEmptyText}>Bilgiler yükleniyor...</Text>
+                </View>
+              ) : blockedUsersList.length === 0 ? (
+                <View style={styles.blockedLoadingState}>
+                  <MaterialIcons name="sentiment-satisfied-alt" size={40} color={colors.textSecondary} />
+                  <Text style={styles.blockedEmptyText}>Henüz kimseyi engellemediniz.</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={blockedUsersList}
+                  renderItem={renderBlockedUser}
+                  keyExtractor={(item) => item.id}
+                  ItemSeparatorComponent={() => <View style={styles.blockedDivider} />}
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
       </EdgeToEdgeScreen>
   );
 }
@@ -2151,6 +2270,103 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 400,
+  },
+  blockedModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  blockedModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '80%',
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  blockedModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  blockedModalTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  blockedLoadingState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  blockedEmptyText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  blockedUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  blockedUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  blockedAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: 12,
+  },
+  blockedAvatarPlaceholder: {
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  blockedAvatarEmoji: {
+    fontSize: 18,
+  },
+  blockedUserMeta: {
+    flexShrink: 1,
+  },
+  blockedUserName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  blockedUserEmail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  blockedActionButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  blockedActionButtonText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  blockedDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
   },
   modalTitle: {
     fontSize: 18,

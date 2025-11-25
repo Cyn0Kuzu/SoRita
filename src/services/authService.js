@@ -250,6 +250,8 @@ export class AuthService {
           // Social arrays
           followers: [],
           following: [],
+          blockedUsers: [],
+          blockedByUsers: [],
           
           // Status
           isPublic: true,

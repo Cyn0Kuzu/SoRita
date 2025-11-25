@@ -240,12 +240,12 @@ const CollaboratorsModal = ({ visible, onClose, listId, listTitle, isOwner = fal
                 </Text>
               </View>
               
-              <View style={styles.dateBadge}>
-                <MaterialIcons name="schedule" size={14} color={colors.textSecondary} />
-                <Text style={styles.joinDate}>
+                <View style={styles.dateBadge}>
+                  <MaterialIcons name="schedule" size={14} color={colors.textSecondary} />
+                  <Text style={styles.joinDate}>
                   {formatJoinDate(member.joinedAt) || '—'}
-                </Text>
-              </View>
+                  </Text>
+                </View>
             </View>
           </View>
         </View>

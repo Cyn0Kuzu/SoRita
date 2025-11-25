@@ -12,7 +12,7 @@ import {
   FlatList,
   Image
 } from 'react-native';
-import { Text, Avatar, Button } from 'react-native-paper';
+import { Text, Avatar, Button, Menu } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, getDoc, getDocs, updateDoc, arrayUnion, arrayRemove, increment, collection, query, where, serverTimestamp, orderBy, addDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
@@ -30,6 +30,8 @@ import {
 } from '../services/pushNotificationService';
 import { usePlaceCardSync } from '../hooks/useRealtimeSync';
 import ImageModal from '../components/ImageModal';
+import UserSafetyService from '../services/userSafetyService';
+import GlobalStateService from '../services/globalStateService';
 
 export default function ViewProfileScreen({ route, navigation }) {
   const [userData, setUserData] = useState(null);
@@ -38,6 +40,16 @@ export default function ViewProfileScreen({ route, navigation }) {
   const [followLoading, setFollowLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [safetyMenuVisible, setSafetyMenuVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportForm, setReportForm] = useState({
+    subject: '',
+    category: 'spam',
+    details: '',
+  });
+  const [blockStatus, setBlockStatus] = useState({ iBlocked: false, blockedMe: false });
+  const [blockActionLoading, setBlockActionLoading] = useState(false);
   const [stats, setStats] = useState({
     followers: 0,
     following: 0
@@ -82,12 +94,20 @@ export default function ViewProfileScreen({ route, navigation }) {
     { key: 'public', label: 'Herkese Açık', description: 'Herkese açık listeler', icon: 'public' },
     { key: 'collaborative', label: 'Ortak', description: 'Ortak listeler', icon: 'group' }
   ];
+  const reportCategories = [
+    { key: 'spam', label: 'Spam / Sahte' },
+    { key: 'harassment', label: 'Taciz / Tehdit' },
+    { key: 'inappropriate', label: 'Uygunsuz İçerik' },
+    { key: 'privacy', label: 'Gizlilik / Güvenlik' },
+    { key: 'other', label: 'Diğer' },
+  ];
   
   // Global state synchronization for PlaceCard components
   const placeCardSync = usePlaceCardSync();
 
   const { userId } = route.params;
   const currentUser = auth.currentUser;
+  const isInteractionBlocked = blockStatus.iBlocked || blockStatus.blockedMe;
 
   // Don't let users view their own profile - redirect to ProfileScreen
   useEffect(() => {
@@ -101,6 +121,21 @@ export default function ViewProfileScreen({ route, navigation }) {
       loadData();
     }
   }, [userId]);
+
+  useEffect(() => {
+    if (!currentUser || !userId) {
+      return;
+    }
+
+    const iBlocked = Array.isArray(currentUserData?.blockedUsers)
+      ? currentUserData.blockedUsers.includes(userId)
+      : false;
+    const blockedMe = Array.isArray(userData?.blockedUsers)
+      ? userData.blockedUsers.includes(currentUser.uid)
+      : false;
+
+    setBlockStatus({ iBlocked, blockedMe });
+  }, [currentUserData?.blockedUsers, userData?.blockedUsers, currentUser?.uid, userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -179,6 +214,72 @@ export default function ViewProfileScreen({ route, navigation }) {
 
   const retryLoading = () => {
     loadData();
+  };
+
+  const handleToggleBlock = async () => {
+    if (!currentUser) {
+      Alert.alert('Hata', 'İşlemi gerçekleştirmek için giriş yapın.');
+      return;
+    }
+
+    try {
+      setSafetyMenuVisible(false);
+      setBlockActionLoading(true);
+
+      if (blockStatus.iBlocked) {
+        await UserSafetyService.unblockUser(userId);
+        const updatedBlocked = (currentUserData?.blockedUsers || []).filter(id => id !== userId);
+        setCurrentUserData(prev => ({ ...(prev || {}), blockedUsers: updatedBlocked }));
+        await GlobalStateService.updateUserData({ blockedUsers: updatedBlocked });
+        setBlockStatus(prev => ({ ...prev, iBlocked: false }));
+        Alert.alert('Engel Kaldırıldı', 'Kullanıcının engeli kaldırıldı.');
+      } else {
+        await UserSafetyService.blockUser(userId, { reason: 'profile_action', context: 'view_profile' });
+        const updatedBlocked = [...new Set([...(currentUserData?.blockedUsers || []), userId])];
+        setCurrentUserData(prev => ({ ...(prev || {}), blockedUsers: updatedBlocked }));
+        await GlobalStateService.updateUserData({ blockedUsers: updatedBlocked });
+        setBlockStatus(prev => ({ ...prev, iBlocked: true }));
+        Alert.alert('Kullanıcı Engellendi', 'Bu kullanıcıyla ilgili içerikler gizlenecek.');
+      }
+    } catch (error) {
+      console.error(' [ViewProfile] Block toggle error:', error);
+      Alert.alert('Hata', error.message || 'İşlem gerçekleştirilemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setBlockActionLoading(false);
+    }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!currentUser) {
+      Alert.alert('Hata', 'İşlemi gerçekleştirmek için giriş yapın.');
+      return;
+    }
+
+    if (!reportForm.subject.trim() || !reportForm.details.trim()) {
+      Alert.alert('Eksik Bilgi', 'Başlık ve açıklama alanlarını doldurun.');
+      return;
+    }
+
+    try {
+      setReportSubmitting(true);
+      await UserSafetyService.submitUserReport({
+        targetUserId: userId,
+        targetUserEmail: userData?.email,
+        targetUserName: userData?.displayName || `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim(),
+        reporterEmail: currentUser.email,
+        subject: reportForm.subject.trim(),
+        category: reportForm.category,
+        description: reportForm.details.trim(),
+      });
+      setReportModalVisible(false);
+      setReportForm({ subject: '', category: 'spam', details: '' });
+      Alert.alert('Bildiriminiz Alındı', 'Destek ekibi en kısa sürede değerlendirecek.');
+    } catch (error) {
+      console.error(' [ViewProfile] Report submit error:', error);
+      Alert.alert('Hata', error.message || 'Bildiriminiz gönderilemedi. Daha sonra tekrar deneyin.');
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   const loadUserStats = async (profileData) => {
@@ -968,6 +1069,37 @@ export default function ViewProfileScreen({ route, navigation }) {
     );
   }
 
+  const blockMenuLabel = blockStatus.iBlocked ? 'Engeli Kaldır' : 'Engelle';
+  const safetyMenu = currentUser && currentUser.uid !== userId ? (
+    <Menu
+      visible={safetyMenuVisible}
+      onDismiss={() => setSafetyMenuVisible(false)}
+      anchor={
+        <TouchableOpacity
+          onPress={() => setSafetyMenuVisible(true)}
+          style={styles.safetyMenuButton}
+        >
+          <MaterialIcons name="more-vert" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+      }
+    >
+      <Menu.Item
+        onPress={() => {
+          setSafetyMenuVisible(false);
+          setReportModalVisible(true);
+        }}
+        title="Bildir"
+        leadingIcon="alert-circle-outline"
+      />
+      <Menu.Item
+        onPress={handleToggleBlock}
+        title={blockMenuLabel}
+        leadingIcon="block-helper"
+        disabled={blockActionLoading}
+      />
+    </Menu>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <AppStatusBar />
@@ -982,6 +1114,7 @@ export default function ViewProfileScreen({ route, navigation }) {
             navigation.navigate('Home');
           }
         }}
+        rightComponent={safetyMenu}
       />
 
       <ScrollView 
@@ -1056,32 +1189,51 @@ export default function ViewProfileScreen({ route, navigation }) {
           {/* Follow Button */}
           {currentUser && currentUser.uid !== userId && (
             <View style={styles.followButtonContainer}>
-              <Button
-                mode={isFollowing ? "outlined" : "contained"}
-                onPress={handleFollow}
-                loading={followLoading}
-                disabled={followLoading}
-                style={[
-                  styles.followButton,
-                  isFollowing ? styles.unfollowButton : styles.followButtonFilled
-                ]}
-                labelStyle={[
-                  styles.followButtonText,
-                  isFollowing ? styles.unfollowButtonText : styles.followButtonTextFilled
-                ]}
-              >
-                {followLoading 
-                  ? 'İşleniyor...' 
-                  : isFollowing 
-                    ? 'Takipten Çık' 
-                    : 'Takip Et'
-                }
-              </Button>
+              {isInteractionBlocked ? (
+                <Text style={styles.blockedInfoText}>
+                  {blockStatus.blockedMe
+                    ? 'Bu kullanıcı sizi engelledi.'
+                    : 'Bu kullanıcıyı engellediniz.'}
+                </Text>
+              ) : (
+                <Button
+                  mode={isFollowing ? "outlined" : "contained"}
+                  onPress={handleFollow}
+                  loading={followLoading}
+                  disabled={followLoading || blockActionLoading}
+                  style={[
+                    styles.followButton,
+                    isFollowing ? styles.unfollowButton : styles.followButtonFilled
+                  ]}
+                  labelStyle={[
+                    styles.followButtonText,
+                    isFollowing ? styles.unfollowButtonText : styles.followButtonTextFilled
+                  ]}
+                >
+                  {followLoading 
+                    ? 'İşleniyor...' 
+                    : isFollowing 
+                      ? 'Takipten Çık' 
+                      : 'Takip Et'
+                  }
+                </Button>
+              )}
             </View>
           )}
         </View>
 
         {/* Content Sections */}
+        {isInteractionBlocked ? (
+          <View style={styles.blockedContentBox}>
+            <MaterialIcons name="privacy-tip" size={48} color={colors.primary} style={{ marginBottom: 12 }} />
+            <Text style={styles.blockedContentTitle}>İçerikler Gizlendi</Text>
+            <Text style={styles.blockedContentSubtitle}>
+              {blockStatus.blockedMe
+                ? 'Bu kullanıcı sizi engellediği için içeriklerine erişemezsiniz.'
+                : 'Bu kullanıcıyı engellediğiniz için içerikleri gizlendi.'}
+            </Text>
+          </View>
+        ) : (
         <View style={styles.contentSections}>
           {/* Lists/Places Tab Section */}
           <View style={styles.section}>
@@ -1318,6 +1470,7 @@ export default function ViewProfileScreen({ route, navigation }) {
             )}
           </View>
         </View>
+        )}
       </ScrollView>
 
       {/* List Modal */}
@@ -1396,6 +1549,88 @@ export default function ViewProfileScreen({ route, navigation }) {
         onClose={() => setShowImageModal(false)}
         title="Profil Fotoğrafı"
       />
+
+      {/* Report Modal */}
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setReportModalVisible(false);
+          setReportForm({ subject: '', category: 'spam', details: '' });
+        }}
+      >
+        <View style={styles.reportModalBackdrop}>
+          <View style={styles.reportModalCard}>
+            <Text style={styles.reportModalTitle}>Profili Bildir</Text>
+            <Text style={styles.reportDescription}>
+              Bildiriminiz memodee@gmail.com adresine iletilecek ve destek ekibi tarafından incelenecektir.
+            </Text>
+            <TextInput
+              style={styles.reportInput}
+              placeholder="Başlık"
+              placeholderTextColor={colors.textSecondary}
+              value={reportForm.subject}
+              onChangeText={(text) => setReportForm(prev => ({ ...prev, subject: text }))}
+            />
+            <Text style={styles.reportLabel}>Kategori</Text>
+            <View style={styles.reportCategoryWrapper}>
+              {reportCategories.map((category) => (
+                <TouchableOpacity
+                  key={category.key}
+                  style={[
+                    styles.reportCategoryChip,
+                    reportForm.category === category.key && styles.reportCategoryChipActive
+                  ]}
+                  onPress={() => setReportForm(prev => ({ ...prev, category: category.key }))}
+                >
+                  <Text
+                    style={[
+                      styles.reportCategoryChipText,
+                      reportForm.category === category.key && styles.reportCategoryChipTextActive
+                    ]}
+                  >
+                    {category.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={[styles.reportInput, styles.reportTextarea]}
+              placeholder="Detaylı açıklama"
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              textAlignVertical="top"
+              value={reportForm.details}
+              onChangeText={(text) => setReportForm(prev => ({ ...prev, details: text }))}
+            />
+            <View style={styles.reportActions}>
+              <View style={styles.reportActionButton}>
+                <Button
+                  mode="text"
+                  onPress={() => {
+                    setReportModalVisible(false);
+                    setReportForm({ subject: '', category: 'spam', details: '' });
+                  }}
+                  disabled={reportSubmitting}
+                >
+                  İptal
+                </Button>
+              </View>
+              <View style={styles.reportActionButton}>
+                <Button
+                  mode="contained"
+                  onPress={handleReportSubmit}
+                  loading={reportSubmitting}
+                  disabled={reportSubmitting}
+                >
+                  Gönder
+                </Button>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1523,8 +1758,117 @@ const styles = StyleSheet.create({
   unfollowButtonText: {
     color: colors.primary,
   },
+  blockedInfoText: {
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginTop: 10,
+  },
+  safetyMenuButton: {
+    padding: 8,
+  },
   contentSections: {
     padding: 20,
+  },
+  blockedContentBox: {
+    margin: 20,
+    padding: 24,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  blockedContentTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  blockedContentSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  reportModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  reportModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
+  },
+  reportModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  reportDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  reportInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  reportTextarea: {
+    minHeight: 120,
+  },
+  reportLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  reportCategoryWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  reportCategoryChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  reportCategoryChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#E0ECFF',
+  },
+  reportCategoryChipText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  reportCategoryChipTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  reportActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  reportActionButton: {
+    marginLeft: 12,
   },
   section: {
     marginBottom: 30,

@@ -2,7 +2,7 @@
   "expo": {
     "name": "SoRita",
     "slug": "sorita",
-    "version": "1.0.2",
+    "version": "1.0.6",
     "orientation": "default",
     "icon": "./assets/So_Rita.png",
     "userInterfaceStyle": "automatic",
@@ -38,7 +38,10 @@
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1"
+      "config": {
+        "googleMapsApiKey": "AIzaSyBxgDpK3-dWsuXewlIWB68ubkuH4Q4eEB8"
+      },
+      "buildNumber": "5"
     },
     "android": {
       "adaptiveIcon": {

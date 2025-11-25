@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -61,6 +62,8 @@ if (__DEV__) {
   console.log(' [LoginScreen] Try: testSecureStore() to test storage');
 }
 
+const POLICY_URL = 'https://cyn0kuzu.github.io/SoRita/';
+
 const LoginScreen = ({ navigation, route }) => {
   const [formData, setFormData] = useState({
     email: route?.params?.email || '',
@@ -73,6 +76,14 @@ const LoginScreen = ({ navigation, route }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const openPolicies = useCallback(async () => {
+    try {
+      await Linking.openURL(POLICY_URL);
+    } catch (error) {
+      Alert.alert('Hata', 'Bağlantı açılamadı. Lütfen daha sonra tekrar deneyin.');
+    }
+  }, []);
 
   // Show message from registration if exists
   useEffect(() => {
@@ -505,6 +516,14 @@ const LoginScreen = ({ navigation, route }) => {
               <Text style={styles.forgotPasswordText}>Şifrenizi mi unuttunuz?</Text>
             </TouchableOpacity>
 
+            <Text style={styles.privacyText}>
+              Giriş yaparak{' '}
+              <Text style={styles.privacyLink} onPress={openPolicies}>
+                Gizlilik Politikası ve Kullanım Koşulları
+              </Text>
+              'nı kabul ediyorum.
+            </Text>
+
             {/* Login Button */}
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.loginButtonDisabled]}
@@ -612,6 +631,18 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontWeight: '500',
+  },
+  privacyText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 16,
+  },
+  privacyLink: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   loginButton: {
     backgroundColor: colors.primary,
