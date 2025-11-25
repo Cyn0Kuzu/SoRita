@@ -65,7 +65,7 @@
         .nav {
             background: var(--bg);
             border-radius: 12px;
-            padding: 1.5rem;
+            padding: 1rem;
             margin-bottom: 2rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             position: sticky;
@@ -77,15 +77,30 @@
 
         .nav-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.75rem;
+        }
+
+        /* İkinci satırdaki 4 butonu ortala (5+4 düzeni için 2-5 sütunları kullan) */
+        .nav-link:nth-child(6) {
+            grid-column: 2;
+        }
+        .nav-link:nth-child(7) {
+            grid-column: 3;
+        }
+        .nav-link:nth-child(8) {
+            grid-column: 4;
+        }
+        .nav-link:nth-child(9) {
+            grid-column: 5;
         }
 
         .nav-link {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.6rem 0.5rem;
             background: var(--bg-light);
             color: var(--text);
             text-decoration: none;
@@ -93,6 +108,8 @@
             border: 2px solid var(--border);
             transition: all 0.2s;
             font-weight: 500;
+            font-size: 0.9rem;
+            text-align: center;
         }
 
         .nav-link:hover {
@@ -216,7 +233,7 @@
             }
 
             .nav {
-                padding: 1rem;
+                padding: 0.75rem;
                 border-radius: 0;
                 margin-bottom: 1rem;
             }
@@ -227,8 +244,14 @@
             }
 
             .nav-link {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.9rem;
+                padding: 0.5rem 0.4rem;
+                font-size: 0.85rem;
+                flex-direction: column;
+                gap: 0.2rem;
+            }
+
+            .nav-link .icon {
+                font-size: 1rem;
             }
 
             .section {
